@@ -1,0 +1,29 @@
+.selector-content {
+  display: grid;
+  gap: 0.75rem;
+  min-width: min(28rem, 72vw);
+}
+
+.option-row {
+  display: grid;
+  grid-template-columns: 4rem 1fr;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cdd7e6;
+  background: #fafcff;
+  color: #14213d;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.option-row:hover {
+  background: #eef5ff;
+  border-color: #3194ff;
+}
+
+.option-code {
+  font-weight: 700;
+}
