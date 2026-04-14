@@ -1,21 +1,60 @@
 <main class="shell">
-  <header class="shell__header">
-    <div>
-      <p class="shell__eyebrow">Requisiciones</p>
-      <h1>Modulo de Formularios</h1>
-    </div>
+  <button
+    *ngIf="sidebarOpen"
+    type="button"
+    class="sidebar-overlay"
+    (click)="closeSidebar()"
+    aria-label="Cerrar menu lateral">
+  </button>
 
-    <nav class="shell__nav" aria-label="Navegacion principal">
-      <a routerLink="/" routerLinkActive="shell__link--active" [routerLinkActiveOptions]="{ exact: true }" class="shell__link">
-        Inicio
-      </a>
-      <a routerLink="/proveedor" routerLinkActive="shell__link--active" class="shell__link">
-        Datos de Proveedor
+  <aside id="sidebar" class="sidebar" [class.sidebar--open]="sidebarOpen">
+    <button
+      type="button"
+      class="mobile-menu-button"
+      (click)="toggleSidebar()"
+      [attr.aria-expanded]="sidebarOpen"
+      aria-controls="sidebar"
+      aria-label="Abrir o cerrar menu lateral">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="sidebar_brand_top">
+      <div class="sidebar_logo"></div>
+      <p>usuario</p>
+    </div>
+    <nav class="sidebar_menu">
+      <a
+        *ngFor = "let item of menuItems"
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        class="sidebar_link"
+        (click)="closeSidebar()">
+        {{ item.label }}
       </a>
     </nav>
-  </header>
+  </aside>
 
-  <section class="shell__content">
-    <router-outlet></router-outlet>
+  <section class="content">
+    <header class="shell__header">
+      <div>
+        <p class="shell__eyebrow">Requisiciones</p>
+        <h1>Modulo de Formularios</h1>
+      </div>
+
+      <nav class="shell__nav" aria-label="Navegacion principal">
+        <a routerLink="/" routerLinkActive="shell__link--active" [routerLinkActiveOptions]="{ exact: true }" class="shell__link">
+          Inicio
+        </a>
+        <a routerLink="/proveedor" routerLinkActive="shell__link--active" class="shell__link">
+          Datos de Proveedor
+        </a>
+      </nav>
+    </header>
+
+    <section class="shell__content">
+      <router-outlet></router-outlet>
+    </section>
   </section>
 </main>

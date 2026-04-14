@@ -27,4 +27,17 @@ describe('AppComponent', () => {
 
     expect(links).toEqual(['Inicio', 'Datos de Proveedor']);
   });
+
+  it('should toggle the mobile sidebar state', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+
+    expect(app.sidebarOpen).toBeFalse();
+
+    app.toggleSidebar();
+    expect(app.sidebarOpen).toBeTrue();
+
+    app.closeSidebar();
+    expect(app.sidebarOpen).toBeFalse();
+  });
 });

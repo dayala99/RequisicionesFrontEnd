@@ -12,6 +12,7 @@ import { ProviderSelectorDialogComponent } from './features/provider-form/dialog
 import { ProviderFormComponent } from './features/provider-form/provider-form.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
+import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 
 @NgModule({
   declarations: [
@@ -20,7 +21,8 @@ import { ProviderPageComponent } from './pages/provider-page/provider-page.compo
     ProviderPageComponent,
     ProviderFormComponent,
     ProviderSelectorDialogComponent,
-    PaymentSelectorDialogComponent
+    PaymentSelectorDialogComponent,
+    RequisicionesPageComponent
   ],
   imports: [
     BrowserModule,
