@@ -1,0 +1,57 @@
+.usuario-edit {
+  display: block;
+}
+
+.usuario-edit__content {
+  display: grid;
+  gap: 1rem;
+  min-width: min(30rem, 78vw);
+}
+
+.usuario-edit__description {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.usuario-edit__field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.usuario-edit__field span {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.usuario-edit__field input,
+.usuario-edit__field select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(31, 77, 143, 0.28);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.usuario-edit__field input:disabled {
+  background: #f8fafc;
+  color: var(--text-secondary);
+}
+
+.usuario-edit__field input:focus,
+.usuario-edit__field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(31, 77, 143, 0.12);
+}
+
+.usuario-edit__error {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(185, 28, 28, 0.16);
+  border-radius: 10px;
+  background: rgba(254, 242, 242, 0.92);
+  color: #991b1b;
+}

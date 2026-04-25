@@ -1,0 +1,46 @@
+<h2 mat-dialog-title>Editar usuario</h2>
+
+<form class="usuario-edit" [formGroup]="form" (ngSubmit)="guardar()">
+  <div mat-dialog-content class="usuario-edit__content">
+    <p class="usuario-edit__description">
+      Actualiza los datos del usuario seleccionado. Los cambios se enviaran al backend.
+    </p>
+
+    <label class="usuario-edit__field">
+      <span>ID</span>
+      <input type="text" [value]="data.usuario.usrId" disabled>
+    </label>
+
+    <label class="usuario-edit__field">
+      <span>Codigo</span>
+      <input type="text" formControlName="usrCod">
+    </label>
+
+    <label class="usuario-edit__field">
+      <span>Nombre</span>
+      <input type="text" formControlName="usrNom">
+    </label>
+
+    <label class="usuario-edit__field">
+      <span>Estado</span>
+      <select formControlName="flgEst">
+        <option value="A">Activo</option>
+        <option value="I">Inactivo</option>
+      </select>
+    </label>
+
+    <p *ngIf="errorMessage" class="usuario-edit__error">
+      {{ errorMessage }}
+    </p>
+  </div>
+
+  <div mat-dialog-actions align="end">
+    <button mat-stroked-button type="button" (click)="cerrar()" [disabled]="isSaving">
+      Cancelar
+    </button>
+
+    <button mat-raised-button color="primary" type="submit" [disabled]="isSaving">
+      {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
+    </button>
+  </div>
+</form>

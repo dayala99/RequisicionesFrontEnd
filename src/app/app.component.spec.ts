@@ -11,33 +11,18 @@ describe('AppComponent', () => {
     }).compileComponents();
   });
 
-  it('should create the shell', () => {
+  it('should create the root component', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
 
     expect(app).toBeTruthy();
   });
 
-  it('should render navigation links', () => {
+  it('should render a router outlet container', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const links = Array.from(compiled.querySelectorAll('.shell__link')).map((element) => element.textContent?.trim());
-
-    expect(links).toEqual(['Inicio', 'Datos de Proveedor']);
-  });
-
-  it('should toggle the mobile sidebar state', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-
-    expect(app.sidebarOpen).toBeFalse();
-
-    app.toggleSidebar();
-    expect(app.sidebarOpen).toBeTrue();
-
-    app.closeSidebar();
-    expect(app.sidebarOpen).toBeFalse();
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

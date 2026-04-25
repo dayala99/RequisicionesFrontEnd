@@ -1,16 +1,43 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { AuthGuard } from './features/auth/guards/auth.guard';
+import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
+import { LoginRedirectGuard } from './features/auth/guards/login-redirect.guard';
+import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
+import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
+import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 
 const routes: Routes = [
   {
-    path: '',
-    component: HomePageComponent
+    path: 'login',
+    component: LoginPageComponent,
+    canActivate: [LoginRedirectGuard]
   },
   {
-    path: 'proveedor',
-    component: ProviderPageComponent
+    path: '',
+    component: AppLayoutComponent,
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
+    children: [
+      {
+        path: '',
+        component: HomePageComponent
+      },
+      {
+        path: 'proveedor',
+        component: ProviderPageComponent
+      },
+      {
+        path: 'requisicion',
+        component: RequisicionesPageComponent
+      },
+      {
+        path: 'usuario',
+        component: UsuariosPageComponent
+      }
+    ]
   },
   {
     path: '**',

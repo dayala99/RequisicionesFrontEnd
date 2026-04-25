@@ -1,0 +1,64 @@
+<section class="requisiciones-card">
+  <header class="requisiciones-card__header">
+    <div>
+      <p class="requisiciones-card__eyebrow">Listado</p>
+      <h2>Requisiciones</h2>
+      <p class="requisiciones-card__description">Consulta los registros disponibles y actualiza cuando sea necesario.</p>
+    </div>
+
+    <button type="button" class="requisiciones-card__reload" (click)="getEjemploData()" [disabled]="isLoading">
+      {{ isLoading ? 'Actualizando...' : 'Actualizar datos' }}
+    </button>
+  </header>
+
+  <section class="requisiciones-metrics">
+    <article class="metric-card">
+      <span class="metric-card__label">Registros</span>
+      <strong class="metric-card__value">{{ totalRecords }}</strong>
+    </article>
+
+    <article class="metric-card">
+      <span class="metric-card__label">Promedio Temp C</span>
+      <strong class="metric-card__value">{{ averageTemperature }}</strong>
+    </article>
+
+    <article class="metric-card">
+      <span class="metric-card__label">Resumen reciente</span>
+      <strong class="metric-card__value">{{ latestSummary }}</strong>
+    </article>
+  </section>
+
+  <div *ngIf="isLoading" class="state-card">
+    Cargando informacion desde la API...
+  </div>
+
+  <div *ngIf="!isLoading && errorMessage" class="state-card state-card--error">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="!isLoading && !errorMessage && !weatherData.length" class="state-card">
+    No hay datos para mostrar.
+  </div>
+
+  <div *ngIf="weatherData.length" class="table-shell">
+    <table class="requisiciones-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Temp C</th>
+          <th>Temp F</th>
+          <th>Resumen</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let item of weatherData">
+          <td>{{ item.date }}</td>
+          <td>{{ item.temperatureC }}</td>
+          <td>{{ item.temperatureF }}</td>
+          <td>{{ item.summary }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -1,6 +1,6 @@
 <section class="supplier-card">
   <header class="supplier-header">
-    <div>
+    <div class="supplier-header__copy">
       <p class="eyebrow">Formulario</p>
       <h2>Datos de Proveedor</h2>
     </div>
@@ -10,7 +10,7 @@
       class="eventual-button"
       [class.eventual-button--active]="isEventualMode"
       (click)="toggleEventual()">
-      Eventual
+      {{ isEventualMode ? 'Desactivar eventual' : 'Activar eventual' }}
     </button>
   </header>
 

@@ -1,3 +1,10 @@
+.selector-description {
+  margin: 0;
+  padding: 0 1.5rem;
+  color: #667488;
+  line-height: 1.6;
+}
+
 .selector-content {
   display: grid;
   gap: 0.75rem;
@@ -12,8 +19,9 @@
   align-items: center;
   width: 100%;
   padding: 0.85rem 1rem;
-  border: 1px solid #c4d0e3;
-  background: #f8fbff;
+  border: 1px solid rgba(20, 32, 51, 0.08);
+  border-radius: 10px;
+  background: #ffffff;
   color: #14213d;
   cursor: pointer;
   text-align: left;
@@ -21,14 +29,22 @@
 }
 
 .option-row:hover {
-  background: #eaf4ff;
-  border-color: #3194ff;
+  background: #f8fafc;
+  border-color: rgba(31, 77, 143, 0.22);
 }
 
 .option-code {
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  border-radius: 10px;
+  background: #eef4fb;
+  color: #1f4d8f;
+  font-weight: 800;
 }
 
 .option-value {
   color: #2d3e5f;
+  line-height: 1.5;
 }

@@ -1,13 +1,108 @@
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 
+:root {
+  --font-sans: 'Aptos', 'Segoe UI', sans-serif;
+  --font-display: 'Bahnschrift', 'Aptos', sans-serif;
+  --text-primary: #142033;
+  --text-secondary: #566275;
+  --accent: #1f4d8f;
+  --accent-strong: #173b6d;
+  --line-soft: rgba(20, 32, 51, 0.12);
+  --line-strong: rgba(31, 77, 143, 0.22);
+  --shadow-xl: 0 18px 48px rgba(13, 24, 43, 0.1);
+  --shadow-lg: 0 12px 28px rgba(13, 24, 43, 0.08);
+}
+
 html,
 body {
   min-height: 100%;
   margin: 0;
 }
 
+html {
+  background:
+    linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+}
+
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  position: relative;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  background: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(rgba(20, 32, 51, 0.015) 1px, transparent 1px);
+  background-size: 100% 96px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(31, 77, 143, 0.18);
+  color: #08111f;
+}
+
+.mat-dialog-container {
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+.mat-dialog-title {
+  margin: 0 !important;
+  padding: 1.25rem 1.25rem 0 !important;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.mat-dialog-content {
+  margin: 0 !important;
+  padding: 0.9rem 1.25rem 1.15rem !important;
+  color: var(--text-secondary);
+}
+
+.mat-dialog-actions {
+  margin: 0 !important;
+  padding: 0 1.25rem 1.25rem !important;
+}
+
+.mat-stroked-button {
+  border-color: rgba(20, 32, 51, 0.16) !important;
+  border-radius: 999px !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-stroked-button:hover {
+  background: rgba(20, 32, 51, 0.04);
 }
 
 * {

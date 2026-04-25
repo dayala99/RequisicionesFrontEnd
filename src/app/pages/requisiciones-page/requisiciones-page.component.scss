@@ -1,0 +1,155 @@
+.requisiciones-card {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.4rem;
+  border: 1px solid rgba(20, 32, 51, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: var(--shadow-lg);
+}
+
+.requisiciones-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.requisiciones-card__eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.requisiciones-card__header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.8rem;
+}
+
+.requisiciones-card__description {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.requisiciones-card__reload {
+  min-height: 2.8rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.requisiciones-card__reload:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.requisiciones-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.metric-card {
+  padding: 1rem;
+  border: 1px solid rgba(20, 32, 51, 0.08);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.metric-card__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metric-card__value {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.state-card {
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(20, 32, 51, 0.08);
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #4f5c70;
+}
+
+.state-card--error {
+  border-color: rgba(185, 28, 28, 0.16);
+  background: rgba(254, 242, 242, 0.92);
+  color: #991b1b;
+}
+
+.table-shell {
+  overflow-x: auto;
+  border: 1px solid rgba(20, 32, 51, 0.08);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.requisiciones-table {
+  width: 100%;
+  min-width: 42rem;
+  border-collapse: collapse;
+}
+
+.requisiciones-table th,
+.requisiciones-table td {
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid rgba(20, 32, 51, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.requisiciones-table th {
+  position: sticky;
+  top: 0;
+  background: #eef4fb;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.requisiciones-table td {
+  color: #4e5a6d;
+}
+
+.requisiciones-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+@media screen and (max-width: 800px) {
+  .requisiciones-card {
+    padding: 1rem;
+  }
+
+  .requisiciones-card__header {
+    flex-direction: column;
+  }
+
+  .requisiciones-card__reload {
+    width: 100%;
+  }
+
+  .requisiciones-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .requisiciones-table {
+    min-width: 34rem;
+  }
+}
