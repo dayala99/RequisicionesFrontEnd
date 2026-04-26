@@ -41,7 +41,7 @@ describe('AppLayoutComponent', () => {
 
     expect(links).toContain('Inicio');
     expect(links).toContain('Proveedor');
-    expect(links).toContain('Requisicion');
+    expect(links).toContain('Pedidos');
     expect(links).toContain('Usuario');
   });
 

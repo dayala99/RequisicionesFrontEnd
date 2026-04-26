@@ -1,4 +1,4 @@
-.requisiciones-card {
+.pedidos-card {
   display: grid;
   gap: 1.25rem;
   padding: 1.4rem;
@@ -8,14 +8,14 @@
   box-shadow: var(--shadow-lg);
 }
 
-.requisiciones-card__header {
+.pedidos-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.requisiciones-card__eyebrow {
+.pedidos-card__eyebrow {
   margin: 0 0 0.35rem;
   color: var(--accent);
   font-size: 0.76rem;
@@ -24,132 +24,352 @@
   text-transform: uppercase;
 }
 
-.requisiciones-card__header h2 {
+.pedidos-card__header h2 {
   margin: 0;
   color: var(--text-primary);
   font-size: 1.8rem;
 }
 
-.requisiciones-card__description {
+.pedidos-card__description {
   margin: 0.75rem 0 0;
   color: var(--text-secondary);
   line-height: 1.6;
 }
 
-.requisiciones-card__reload {
-  min-height: 2.8rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--accent);
+.panel {
+  padding: 1rem;
+  border: 1px solid rgba(20, 32, 51, 0.08);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.panel--inline,
+.group-row,
+.table-toolbar {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel--inline {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panel--listing {
+  display: grid;
+  gap: 1rem;
+}
+
+.provider-inline {
+  padding-top: 0.25rem;
+}
+
+.section-copy h3 {
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.filters-panel {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1.1fr) minmax(12rem, 1.6fr) repeat(3, minmax(8rem, 0.8fr)) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.filters-panel__actions,
+.table-toolbar__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.table-toolbar {
+  grid-template-columns: minmax(14rem, 1.5fr) auto minmax(9rem, 0.7fr);
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field span {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: 3rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(39, 91, 163, 0.2);
   border-radius: 10px;
-  background: var(--accent);
-  color: #ffffff;
+  background: #ffffff;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 12rem;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: rgba(39, 91, 163, 0.55);
+  box-shadow: 0 0 0 3px rgba(39, 91, 163, 0.12);
+}
+
+.button {
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 
-.requisiciones-card__reload:disabled {
-  cursor: wait;
-  opacity: 0.7;
+.button--primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
 }
 
-.requisiciones-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.metric-card {
-  padding: 1rem;
-  border: 1px solid rgba(20, 32, 51, 0.08);
-  border-radius: 12px;
-  background: #f8fafc;
-}
-
-.metric-card__label {
-  display: block;
-  margin-bottom: 0.35rem;
-  color: var(--accent);
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.metric-card__value {
+.button--secondary {
+  border: 1px solid rgba(20, 32, 51, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
   color: var(--text-primary);
-  font-size: 1.1rem;
-}
-
-.state-card {
-  padding: 1rem 1.1rem;
-  border: 1px solid rgba(20, 32, 51, 0.08);
-  border-radius: 10px;
-  background: #f8fafc;
-  color: #4f5c70;
-}
-
-.state-card--error {
-  border-color: rgba(185, 28, 28, 0.16);
-  background: rgba(254, 242, 242, 0.92);
-  color: #991b1b;
 }
 
 .table-shell {
   overflow-x: auto;
   border: 1px solid rgba(20, 32, 51, 0.08);
   border-radius: 12px;
-  background: #ffffff;
 }
 
 .requisiciones-table {
   width: 100%;
-  min-width: 42rem;
+  min-width: 78rem;
+  border-collapse: collapse;
+}
+
+.costos-table {
+  width: 100%;
+  min-width: 40rem;
   border-collapse: collapse;
 }
 
 .requisiciones-table th,
-.requisiciones-table td {
+.requisiciones-table td,
+.costos-table th,
+.costos-table td {
   padding: 0.95rem 1rem;
   border-bottom: 1px solid rgba(20, 32, 51, 0.08);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
-.requisiciones-table th {
-  position: sticky;
-  top: 0;
-  background: #eef4fb;
-  color: var(--text-primary);
-  font-weight: 700;
+.requisiciones-table th,
+.costos-table th {
+  background: #6477a6;
+  color: #ffffff;
+  font-weight: 800;
 }
 
-.requisiciones-table td {
-  color: #4e5a6d;
+.requisiciones-table td,
+.costos-table td {
+  white-space: nowrap;
 }
 
-.requisiciones-table tbody tr:nth-child(even) {
+.requisiciones-table tbody tr:nth-child(even),
+.costos-table tbody tr:nth-child(even) {
   background: #f8fafc;
 }
 
-@media screen and (max-width: 800px) {
-  .requisiciones-card {
-    padding: 1rem;
-  }
+.file-badge,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
 
-  .requisiciones-card__header {
-    flex-direction: column;
-  }
+.file-badge {
+  background: #e6eef9;
+  color: #214f8e;
+}
 
-  .requisiciones-card__reload {
-    width: 100%;
-  }
+.status-badge {
+  background: #eef2ff;
+  color: #334155;
+}
 
-  .requisiciones-metrics {
+.status-badge[data-state='pendiente'] {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-badge[data-state='aprobado'] {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status-badge[data-state='observado'] {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-badge[data-state='cerrado'] {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button--danger {
+  color: #b91c1c;
+}
+
+.empty-row {
+  text-align: center;
+  color: #64748b;
+}
+
+.actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.action-button {
+  min-width: 7rem;
+  min-height: 2.9rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(20, 32, 51, 0.14);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.row-detail-button {
+  min-height: 2.4rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid rgba(20, 32, 51, 0.14);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.details-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.group-row--gasto {
+  grid-template-columns: minmax(6rem, 0.45fr) minmax(12rem, 1fr) minmax(16rem, 1.7fr) minmax(6rem, 0.4fr);
+}
+
+.group-row--split {
+  grid-template-columns: minmax(15rem, 1.6fr) minmax(12rem, 1fr) minmax(7rem, 0.45fr);
+}
+
+.group-row--meta {
+  grid-template-columns: repeat(3, minmax(9rem, 1fr)) minmax(10rem, 0.9fr) minmax(6rem, 0.45fr);
+}
+
+.panel--attachments {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1.5fr) minmax(14rem, 1fr);
+  gap: 1rem;
+}
+
+.attachment-panel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.attachment-panel__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.attachment-panel__hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.field--small input {
+  min-width: 0;
+}
+
+.field--wide {
+  min-width: 0;
+}
+
+@media screen and (max-width: 1100px) {
+  .filters-panel,
+  .panel--inline,
+  .table-toolbar,
+  .group-row--gasto,
+  .group-row--split,
+  .group-row--meta,
+  .panel--attachments {
     grid-template-columns: 1fr;
   }
 
+  .filters-panel__actions,
+  .table-toolbar__actions,
+  .attachment-panel__actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media screen and (max-width: 720px) {
+  .pedidos-card {
+    padding: 1rem;
+  }
+
+  .pedidos-card__header {
+    flex-direction: column;
+  }
+
+  .filters-panel__actions,
+  .table-toolbar__actions,
+  .attachment-panel__actions {
+    flex-direction: column;
+  }
+
+  .button,
+  .action-button {
+    width: 100%;
+  }
+
   .requisiciones-table {
-    min-width: 34rem;
+    min-width: 64rem;
   }
 }

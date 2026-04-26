@@ -15,8 +15,7 @@ export class AppLayoutComponent {
     { label: 'Inicio', route: '/' },
     { label: 'Usuario', route: '/usuario' },
     { label: 'Proveedor', route: '/proveedor' },
-    { label: 'Requisicion', route: '/requisicion' },
-    
+    { label: 'Pedidos', route: '/pedidos' }
   ];
 
   constructor(

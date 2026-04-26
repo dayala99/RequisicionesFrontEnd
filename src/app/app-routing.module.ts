@@ -30,8 +30,13 @@ const routes: Routes = [
         component: ProviderPageComponent
       },
       {
-        path: 'requisicion',
+        path: 'pedidos',
         component: RequisicionesPageComponent
+      },
+      {
+        path: 'requisicion',
+        redirectTo: 'pedidos',
+        pathMatch: 'full'
       },
       {
         path: 'usuario',

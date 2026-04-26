@@ -59,7 +59,9 @@ export class ProviderPageComponent implements OnInit {
 
     this.apiService.getListarProveedorActivo(this.getFiltros()).subscribe({
       next: (response: unknown) => {
-        this.proveedores = this.extractRecords(response).map((item) => this.mapProveedor(item));
+        this.proveedores = this.extractRecords(response)
+          .map((item) => this.mapProveedor(item))
+          .sort((left, right) => this.compareProviderById(left, right));
         this.isLoading = false;
       },
       error: (error: unknown) => {
@@ -130,6 +132,22 @@ export class ProviderPageComponent implements OnInit {
 
   trackByProveedor(_index: number, proveedor: ProviderRow): string {
     return proveedor.prvId !== null ? String(proveedor.prvId) : proveedor.prvRuc;
+  }
+
+  private compareProviderById(left: ProviderRow, right: ProviderRow): number {
+    if (left.prvId === null && right.prvId === null) {
+      return left.prvRuc.localeCompare(right.prvRuc);
+    }
+
+    if (left.prvId === null) {
+      return 1;
+    }
+
+    if (right.prvId === null) {
+      return -1;
+    }
+
+    return left.prvId - right.prvId;
   }
 
   private getFiltros(): ProveedoresFiltro {

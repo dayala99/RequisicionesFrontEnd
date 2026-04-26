@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
@@ -13,6 +13,8 @@ import { ProviderSelectorDialogComponent } from './dialogs/provider-selector-dia
   styleUrls: ['./provider-form.component.scss']
 })
 export class ProviderFormComponent {
+  @Input() embedded = false;
+
   readonly providers = PROVIDER_RECORDS;
   readonly paymentOptions = PAYMENT_OPTIONS;
 

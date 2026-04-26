@@ -4,7 +4,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 
 import { ApiService } from 'src/app/Services/api.services';
-import { ProviderFormComponent } from 'src/app/features/provider-form/provider-form.component';
 import { ProviderPageComponent } from './provider-page.component';
 
 describe('ProviderPageComponent', () => {
@@ -17,6 +16,16 @@ describe('ProviderPageComponent', () => {
     apiServiceMock = {
       getListarProveedorActivo: jasmine.createSpy('getListarProveedorActivo').and.returnValue(
         of([
+          {
+            Prv_Id: 20,
+            Prv_Nom: 'Proveedor Sur',
+            Prv_Ruc: '20999999999',
+            Prv_Tel: '01-111-2222',
+            Prv_Dir: 'Calle 2',
+            Prv_Nom_Con: 'Luis Perez',
+            Fec_Reg: '2024-05-02T13:45:20',
+            Flg_Est: 'A'
+          },
           {
             Prv_Id: 10,
             Prv_Nom: 'Proveedor Norte',
@@ -38,7 +47,7 @@ describe('ProviderPageComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [ReactiveFormsModule],
-      declarations: [ProviderPageComponent, ProviderFormComponent],
+      declarations: [ProviderPageComponent],
       providers: [
         {
           provide: ApiService,
@@ -61,10 +70,14 @@ describe('ProviderPageComponent', () => {
   });
 
   it('should map provider data from the API response', () => {
-    expect(component.proveedores.length).toBe(1);
+    expect(component.proveedores.length).toBe(2);
     expect(component.proveedores[0].prvNom).toBe('Proveedor Norte');
     expect(component.proveedores[0].prvRuc).toBe('20123456789');
     expect(component.proveedores[0].fecha).toBe('05-01-2024');
+  });
+
+  it('should sort providers by id in ascending order', () => {
+    expect(component.proveedores.map((proveedor) => proveedor.prvId)).toEqual([10, 20]);
   });
 
   it('should initialize active providers filter by default', () => {
