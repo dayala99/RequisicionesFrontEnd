@@ -1,5 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
+
+import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
 
 interface RequisitionRow {
   requisicion: number;
@@ -47,6 +50,7 @@ export class RequisicionesPageComponent implements OnInit {
   centrosCosto: CentroCostoRow[] = [];
   editandoCentroCostoId: number | null = null;
   archivoAdjunto = 'Sin archivo adjunto';
+  mostrarEditorPedido = false;
 
   private nextCentroCostoId = 4;
   private readonly mockRequisiciones: RequisitionRow[] = [
@@ -148,7 +152,10 @@ export class RequisicionesPageComponent implements OnInit {
     }
   ];
 
-  constructor(private readonly formBuilder: FormBuilder) {
+  constructor(
+    private readonly formBuilder: FormBuilder,
+    private readonly dialog: MatDialog
+  ) {
     this.filtersForm = this.formBuilder.group({
       nroRequisicion: [''],
       proveedor: [''],
@@ -187,12 +194,8 @@ export class RequisicionesPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.aplicarFiltros();
-    this.centrosCosto = [
-      { id: 1, codigo: 'CC-80 Obras', costo: 'Mantenimiento planta', porcentaje: 45 },
-      { id: 2, codigo: 'CC-21 Logistica', costo: 'Despacho y almacen', porcentaje: 35 },
-      { id: 3, codigo: 'CC-14 Sistemas', costo: 'Soporte operativo', porcentaje: 20 }
-    ];
-    this.archivoAdjunto = this.detalleForm.controls['archivo'].value;
+    this.resetPedidoEditor();
+    this.mostrarEditorPedido = false;
   }
 
   get totalPorcentaje(): number {
@@ -237,6 +240,41 @@ export class RequisicionesPageComponent implements OnInit {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(total) + ` ${moneda}`;
+  }
+
+  ejecutarAccion(action: string): void {
+    if (action === 'Nuevo') {
+      this.iniciarNuevoPedido();
+      return;
+    }
+
+    if (action === 'Cerrar') {
+      this.cerrarEditorPedido();
+    }
+  }
+
+  iniciarNuevoPedido(): void {
+    this.resetPedidoEditor();
+    this.mostrarEditorPedido = true;
+  }
+
+  confirmarCancelacionPedido(): void {
+    const dialogRef = this.dialog.open(PedidoCancelDialogComponent, {
+      width: 'min(30rem, 92vw)',
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean | undefined) => {
+      if (confirmed) {
+        this.cerrarEditorPedido();
+      }
+    });
+  }
+
+  cerrarEditorPedido(): void {
+    this.resetPedidoEditor();
+    this.mostrarEditorPedido = false;
+    this.editandoCentroCostoId = null;
   }
 
   agregarCentroCosto(): void {
@@ -326,5 +364,38 @@ export class RequisicionesPageComponent implements OnInit {
 
   trackByCentroCosto(_index: number, item: CentroCostoRow): number {
     return item.id;
+  }
+
+  private resetPedidoEditor(): void {
+    this.cabeceraForm.reset({
+      requisicionCompra: 'PED-1042',
+      usuarioAprobacion: 'mramirez'
+    });
+    this.centroCostoForm.reset({
+      centroCosto: 'CC-80 Obras',
+      fecha: '04-26-2026'
+    });
+    this.detalleForm.reset({
+      ctaGastoCodigo: '80',
+      ctaGastoDescripcion: 'Obras',
+      lugarEntrega: 'Los Rosales 555 Santa Anita',
+      almacen: '13',
+      referencia: 'Compra de materiales para mantenimiento preventivo',
+      tipoCompra: 'Sin enlazar',
+      ocImportacion: '0',
+      tipo: 'Sin enlazar',
+      oc: 'Sin enlazar',
+      moneda: 'Sin enlazar',
+      fechaEntrega: '04-30-2026',
+      total: '0',
+      sustento: 'Detalle preliminar de distribucion por centros de costo.',
+      archivo: 'Sin archivo adjunto'
+    });
+    this.centrosCosto = [
+      { id: 1, codigo: 'CC-80 Obras', costo: 'Mantenimiento planta', porcentaje: 45 },
+      { id: 2, codigo: 'CC-21 Logistica', costo: 'Despacho y almacen', porcentaje: 35 },
+      { id: 3, codigo: 'CC-14 Sistemas', costo: 'Soporte operativo', porcentaje: 20 }
+    ];
+    this.archivoAdjunto = 'Sin archivo adjunto';
   }
 }

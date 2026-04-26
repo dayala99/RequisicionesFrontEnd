@@ -43,23 +43,49 @@
   background: #ffffff;
 }
 
-.panel--inline,
+.panel--listing {
+  display: grid;
+  gap: 1rem;
+}
+
+.pedido-editor {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(20, 32, 51, 0.08);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.editor-grid,
 .group-row,
 .table-toolbar {
   display: grid;
   gap: 1rem;
 }
 
-.panel--inline {
+.editor-grid--header {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.panel--listing {
+.editor-section {
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(20, 32, 51, 0.08);
+}
+
+.editor-section--attachments {
   display: grid;
+  grid-template-columns: minmax(18rem, 1.5fr) minmax(14rem, 1fr);
   gap: 1rem;
 }
 
 .provider-inline {
+  padding-top: 0.25rem;
+}
+
+.editor-actions {
+  display: flex;
+  justify-content: flex-end;
   padding-top: 0.25rem;
 }
 
@@ -77,7 +103,8 @@
 }
 
 .filters-panel__actions,
-.table-toolbar__actions {
+.table-toolbar__actions,
+.attachment-panel__actions {
   display: flex;
   gap: 0.75rem;
 }
@@ -300,21 +327,10 @@
   grid-template-columns: repeat(3, minmax(9rem, 1fr)) minmax(10rem, 0.9fr) minmax(6rem, 0.45fr);
 }
 
-.panel--attachments {
-  display: grid;
-  grid-template-columns: minmax(18rem, 1.5fr) minmax(14rem, 1fr);
-  gap: 1rem;
-}
-
 .attachment-panel {
   display: grid;
   gap: 1rem;
   align-content: start;
-}
-
-.attachment-panel__actions {
-  display: flex;
-  gap: 0.75rem;
 }
 
 .attachment-panel__hint {
@@ -333,12 +349,12 @@
 
 @media screen and (max-width: 1100px) {
   .filters-panel,
-  .panel--inline,
+  .editor-grid--header,
   .table-toolbar,
   .group-row--gasto,
   .group-row--split,
   .group-row--meta,
-  .panel--attachments {
+  .editor-section--attachments {
     grid-template-columns: 1fr;
   }
 
@@ -367,6 +383,10 @@
   .button,
   .action-button {
     width: 100%;
+  }
+
+  .editor-actions {
+    justify-content: stretch;
   }
 
   .requisiciones-table {

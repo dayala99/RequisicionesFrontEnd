@@ -18,6 +18,7 @@ import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
+import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
@@ -34,6 +35,7 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     ProviderFormComponent,
     ProviderSelectorDialogComponent,
     PaymentSelectorDialogComponent,
+    PedidoCancelDialogComponent,
     RequisicionesPageComponent,
     LoginPageComponent,
     UsuariosPageComponent,

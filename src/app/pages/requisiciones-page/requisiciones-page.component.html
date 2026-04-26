@@ -9,282 +9,298 @@
     </div>
   </header>
 
-  <footer class="actions-bar">
-    <button *ngFor="let action of actionButtons" type="button" class="action-button">
-      {{ action }}
-    </button>
-  </footer>
+  <section *ngIf="!mostrarEditorPedido" class="listado-shell">
+    <footer class="actions-bar">
+      <button
+        *ngFor="let action of actionButtons"
+        type="button"
+        class="action-button"
+        (click)="ejecutarAccion(action)">
+        {{ action }}
+      </button>
+    </footer>
 
-  <form class="panel panel--inline" [formGroup]="cabeceraForm">
-    <label class="field">
-      <span>Requisicion de Compra</span>
-      <input type="text" formControlName="requisicionCompra">
-    </label>
-
-    <label class="field">
-      <span>Usuario de Aprobacion</span>
-      <input type="text" formControlName="usuarioAprobacion">
-    </label>
-  </form>
-
-  <section class="panel panel--listing">
-    <form class="filters-panel" [formGroup]="filtersForm" (ngSubmit)="aplicarFiltros()">
-      <label class="field">
-        <span>Nro. Requisicion</span>
-        <input type="number" formControlName="nroRequisicion" min="0" placeholder="0">
-      </label>
-
-      <label class="field">
-        <span>Proveedor</span>
-        <input type="text" formControlName="proveedor" placeholder="Buscar proveedor">
-      </label>
-
-      <label class="field">
-        <span>Estado</span>
-        <select formControlName="estado">
-          <option *ngFor="let estado of estadoOptions" [value]="estado">{{ estado }}</option>
-        </select>
-      </label>
-
-      <label class="field field--compact">
-        <span>GN</span>
-        <select formControlName="gn">
-          <option *ngFor="let option of gnOptions" [value]="option">{{ option }}</option>
-        </select>
-      </label>
-
-      <label class="field field--compact">
-        <span>Tipo</span>
-        <select formControlName="tipo">
-          <option *ngFor="let option of tipoOptions" [value]="option">{{ option }}</option>
-        </select>
-      </label>
-
-      <div class="filters-panel__actions">
-        <button type="submit" class="button button--primary">Buscar</button>
-        <button type="button" class="button button--secondary" (click)="limpiarFiltros()">Limpiar</button>
-      </div>
-    </form>
-
-    <div class="table-shell">
-      <table class="requisiciones-table">
-        <thead>
-          <tr>
-            <th>Codigo</th>
-            <th>Archivo</th>
-            <th>Gerencia</th>
-            <th>Fecha</th>
-            <th>Proveedor</th>
-            <th>Moneda</th>
-            <th>Total</th>
-            <th>Estado</th>
-            <th>Codigo Usr</th>
-            <th>Usr Aprobacion</th>
-            <th>Fecha Usr GA</th>
-            <th>Detalle</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr *ngFor="let item of requisiciones; trackBy: trackByRequisicion">
-            <td>{{ item.codigo }}</td>
-            <td><span class="file-badge">{{ item.archivo }}</span></td>
-            <td>{{ item.gerencia }}</td>
-            <td>{{ item.fecha }}</td>
-            <td>{{ item.proveedor }}</td>
-            <td>{{ item.moneda }}</td>
-            <td>{{ formatTotal(item.total, item.moneda) }}</td>
-            <td>
-              <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
-            </td>
-            <td>{{ item.codigoUsr }}</td>
-            <td>{{ item.usrAprobacion }}</td>
-            <td>{{ item.fechaUsrGa }}</td>
-            <td>
-              <button type="button" class="row-detail-button">Detalle</button>
-            </td>
-          </tr>
-
-          <tr *ngIf="!requisiciones.length">
-            <td colspan="12" class="empty-row">No hay pedidos que coincidan con los filtros actuales.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-  </section>
-
-  <section class="panel panel--table">
-
-    <form class="table-toolbar" [formGroup]="centroCostoForm">
-      <label class="field">
-        <span>Centro de Costo</span>
-        <input type="text" formControlName="centroCosto">
-      </label>
-
-      <div class="table-toolbar__actions">
-        <button type="button" class="button button--primary" (click)="agregarCentroCosto()">
-          {{ editandoCentroCostoId !== null ? 'Guardar' : 'Agregar' }}
-        </button>
-        <button
-          *ngIf="editandoCentroCostoId !== null"
-          type="button"
-          class="button button--secondary"
-          (click)="cancelarEdicionCentroCosto()">
-          Cancelar
-        </button>
-      </div>
-
-      <label class="field field--date">
-        <span>Fecha</span>
-        <input type="text" formControlName="fecha">
-      </label>
-    </form>
-
-    <div class="table-shell">
-      <table class="costos-table">
-        <thead>
-          <tr>
-            <th>Codigo</th>
-            <th>Costo</th>
-            <th>Porc. %</th>
-            <th>Editar</th>
-            <th>Eliminar</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr *ngFor="let item of centrosCosto; trackBy: trackByCentroCosto">
-            <td>{{ item.codigo }}</td>
-            <td>{{ item.costo }}</td>
-            <td>{{ item.porcentaje }}%</td>
-            <td>
-              <button type="button" class="link-button" (click)="editarCentroCosto(item)">Editar</button>
-            </td>
-            <td>
-              <button type="button" class="link-button link-button--danger" (click)="eliminarCentroCosto(item.id)">
-                Eliminar
-              </button>
-            </td>
-          </tr>
-
-          <tr *ngIf="!centrosCosto.length">
-            <td colspan="5" class="empty-row">No hay centros de costo registrados.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <form class="details-grid" [formGroup]="detalleForm">
-    <section class="panel panel--group">
-      <div class="section-copy">
-        <h3>Detalle del Pedido</h3>
-      </div>
-
-      <div class="group-row group-row--gasto">
-        <label class="field field--small">
-          <span>Cta. Gasto</span>
-          <input type="text" formControlName="ctaGastoCodigo">
+    <section class="panel panel--listing">
+      <form class="filters-panel" [formGroup]="filtersForm" (ngSubmit)="aplicarFiltros()">
+        <label class="field">
+          <span>Nro. Requisicion</span>
+          <input type="number" formControlName="nroRequisicion" min="0" placeholder="0">
         </label>
 
         <label class="field">
-          <span>Descripcion</span>
-          <input type="text" formControlName="ctaGastoDescripcion">
-        </label>
-
-        <label class="field field--wide">
-          <span>Lugar de Entrega</span>
-          <input type="text" formControlName="lugarEntrega">
-        </label>
-
-        <label class="field field--small">
-          <span>Almacen</span>
-          <input type="text" formControlName="almacen">
-        </label>
-      </div>
-    </section>
-
-    <section class="panel panel--group">
-      <div class="group-row group-row--split">
-        <label class="field field--wide">
-          <span>Referencia</span>
-          <input type="text" formControlName="referencia">
+          <span>Proveedor</span>
+          <input type="text" formControlName="proveedor" placeholder="Buscar proveedor">
         </label>
 
         <label class="field">
-          <span>Tipo de Compra</span>
-          <select formControlName="tipoCompra">
-            <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
+          <span>Estado</span>
+          <select formControlName="estado">
+            <option *ngFor="let estado of estadoOptions" [value]="estado">{{ estado }}</option>
           </select>
         </label>
 
-        <label class="field field--small">
-          <span>OC - Importacion</span>
-          <input type="text" formControlName="ocImportacion">
+        <label class="field field--compact">
+          <span>GN</span>
+          <select formControlName="gn">
+            <option *ngFor="let option of gnOptions" [value]="option">{{ option }}</option>
+          </select>
         </label>
-      </div>
-    </section>
 
-    <section class="panel panel--group">
-      <div class="group-row group-row--meta">
-        <label class="field">
+        <label class="field field--compact">
           <span>Tipo</span>
           <select formControlName="tipo">
-            <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
+            <option *ngFor="let option of tipoOptions" [value]="option">{{ option }}</option>
           </select>
         </label>
 
-        <label class="field">
-          <span>O/C</span>
-          <select formControlName="oc">
-            <option *ngFor="let option of ocOptions" [value]="option">{{ option }}</option>
-          </select>
-        </label>
+        <div class="filters-panel__actions">
+          <button type="submit" class="button button--primary">Buscar</button>
+          <button type="button" class="button button--secondary" (click)="limpiarFiltros()">Limpiar</button>
+        </div>
+      </form>
 
-        <label class="field">
-          <span>Moneda</span>
-          <select formControlName="moneda">
-            <option *ngFor="let option of monedaOptions" [value]="option">{{ option }}</option>
-          </select>
-        </label>
+      <div class="table-shell">
+        <table class="requisiciones-table">
+          <thead>
+            <tr>
+              <th>Codigo</th>
+              <th>Archivo</th>
+              <th>Gerencia</th>
+              <th>Fecha</th>
+              <th>Proveedor</th>
+              <th>Moneda</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th>Codigo Usr</th>
+              <th>Usr Aprobacion</th>
+              <th>Fecha Usr GA</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
 
-        <label class="field">
-          <span>Fecha Entrega</span>
-          <input type="text" formControlName="fechaEntrega">
-        </label>
+          <tbody>
+            <tr *ngFor="let item of requisiciones; trackBy: trackByRequisicion">
+              <td>{{ item.codigo }}</td>
+              <td><span class="file-badge">{{ item.archivo }}</span></td>
+              <td>{{ item.gerencia }}</td>
+              <td>{{ item.fecha }}</td>
+              <td>{{ item.proveedor }}</td>
+              <td>{{ item.moneda }}</td>
+              <td>{{ formatTotal(item.total, item.moneda) }}</td>
+              <td>
+                <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
+              </td>
+              <td>{{ item.codigoUsr }}</td>
+              <td>{{ item.usrAprobacion }}</td>
+              <td>{{ item.fechaUsrGa }}</td>
+              <td>
+                <button type="button" class="row-detail-button">Detalle</button>
+              </td>
+            </tr>
 
-        <label class="field field--small">
-          <span>Total</span>
-          <input type="text" formControlName="total">
-        </label>
+            <tr *ngIf="!requisiciones.length">
+              <td colspan="12" class="empty-row">No hay pedidos que coincidan con los filtros actuales.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
+  </section>
 
-    <section class="panel panel--attachments">
-      <label class="field field--textarea">
-        <span>Sustento</span>
-        <textarea formControlName="sustento" rows="7"></textarea>
+  <section *ngIf="mostrarEditorPedido" class="pedido-editor">
+    <form class="editor-grid editor-grid--header" [formGroup]="cabeceraForm">
+      <label class="field">
+        <span>Requisicion de Compra</span>
+        <input type="text" formControlName="requisicionCompra">
       </label>
 
-      <div class="attachment-panel">
-        <div class="attachment-panel__actions">
-          <button type="button" class="button button--secondary" (click)="adjuntarArchivo()">Adjuntar</button>
-          <button type="button" class="button button--secondary" (click)="quitarArchivo()">Quitar</button>
-          <button type="button" class="button button--secondary" (click)="verArchivo()">Ver</button>
-        </div>
+      <label class="field">
+        <span>Usuario de Aprobacion</span>
+        <input type="text" formControlName="usuarioAprobacion">
+      </label>
+    </form>
 
+    <section class="editor-section">
+      <div class="section-copy">
+        <h3>Centro de Costos</h3>
+      </div>
+
+      <form class="table-toolbar" [formGroup]="centroCostoForm">
         <label class="field">
-          <span>Archivo</span>
-          <input type="text" formControlName="archivo" readonly>
+          <span>Centro de Costo</span>
+          <input type="text" formControlName="centroCosto">
         </label>
 
-        <p class="attachment-panel__hint">{{ archivoAdjunto }}</p>
+        <div class="table-toolbar__actions">
+          <button type="button" class="button button--primary" (click)="agregarCentroCosto()">
+            {{ editandoCentroCostoId !== null ? 'Guardar' : 'Agregar' }}
+          </button>
+          <button
+            *ngIf="editandoCentroCostoId !== null"
+            type="button"
+            class="button button--secondary"
+            (click)="cancelarEdicionCentroCosto()">
+            Cancelar
+          </button>
+        </div>
+
+        <label class="field field--date">
+          <span>Fecha</span>
+          <input type="text" formControlName="fecha">
+        </label>
+      </form>
+
+      <div class="table-shell">
+        <table class="costos-table">
+          <thead>
+            <tr>
+              <th>Codigo</th>
+              <th>Costo</th>
+              <th>Porc. %</th>
+              <th>Editar</th>
+              <th>Eliminar</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let item of centrosCosto; trackBy: trackByCentroCosto">
+              <td>{{ item.codigo }}</td>
+              <td>{{ item.costo }}</td>
+              <td>{{ item.porcentaje }}%</td>
+              <td>
+                <button type="button" class="link-button" (click)="editarCentroCosto(item)">Editar</button>
+              </td>
+              <td>
+                <button type="button" class="link-button link-button--danger" (click)="eliminarCentroCosto(item.id)">
+                  Eliminar
+                </button>
+              </td>
+            </tr>
+
+            <tr *ngIf="!centrosCosto.length">
+              <td colspan="5" class="empty-row">No hay centros de costo registrados.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
-  </form>
 
-  <section class="provider-inline">
-    <app-provider-form [embedded]="true"></app-provider-form>
+    <form class="details-grid" [formGroup]="detalleForm">
+      <section class="editor-section">
+        <div class="section-copy">
+          <h3>Detalle del Pedido</h3>
+        </div>
+
+        <div class="group-row group-row--gasto">
+          <label class="field field--small">
+            <span>Cta. Gasto</span>
+            <input type="text" formControlName="ctaGastoCodigo">
+          </label>
+
+          <label class="field">
+            <span>Descripcion</span>
+            <input type="text" formControlName="ctaGastoDescripcion">
+          </label>
+
+          <label class="field field--wide">
+            <span>Lugar de Entrega</span>
+            <input type="text" formControlName="lugarEntrega">
+          </label>
+
+          <label class="field field--small">
+            <span>Almacen</span>
+            <input type="text" formControlName="almacen">
+          </label>
+        </div>
+      </section>
+
+      <section class="editor-section">
+        <div class="group-row group-row--split">
+          <label class="field field--wide">
+            <span>Referencia</span>
+            <input type="text" formControlName="referencia">
+          </label>
+
+          <label class="field">
+            <span>Tipo de Compra</span>
+            <select formControlName="tipoCompra">
+              <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
+            </select>
+          </label>
+
+          <label class="field field--small">
+            <span>OC - Importacion</span>
+            <input type="text" formControlName="ocImportacion">
+          </label>
+        </div>
+      </section>
+
+      <section class="editor-section">
+        <div class="group-row group-row--meta">
+          <label class="field">
+            <span>Tipo</span>
+            <select formControlName="tipo">
+              <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>O/C</span>
+            <select formControlName="oc">
+              <option *ngFor="let option of ocOptions" [value]="option">{{ option }}</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Moneda</span>
+            <select formControlName="moneda">
+              <option *ngFor="let option of monedaOptions" [value]="option">{{ option }}</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Fecha Entrega</span>
+            <input type="text" formControlName="fechaEntrega">
+          </label>
+
+          <label class="field field--small">
+            <span>Total</span>
+            <input type="text" formControlName="total">
+          </label>
+        </div>
+      </section>
+
+      <section class="editor-section editor-section--attachments">
+        <label class="field field--textarea">
+          <span>Sustento</span>
+          <textarea formControlName="sustento" rows="7"></textarea>
+        </label>
+
+        <div class="attachment-panel">
+          <div class="attachment-panel__actions">
+            <button type="button" class="button button--secondary" (click)="adjuntarArchivo()">Adjuntar</button>
+            <button type="button" class="button button--secondary" (click)="quitarArchivo()">Quitar</button>
+            <button type="button" class="button button--secondary" (click)="verArchivo()">Ver</button>
+          </div>
+
+          <label class="field">
+            <span>Archivo</span>
+            <input type="text" formControlName="archivo" readonly>
+          </label>
+
+          <p class="attachment-panel__hint">{{ archivoAdjunto }}</p>
+        </div>
+      </section>
+    </form>
+
+    <section class="provider-inline">
+      <app-provider-form [embedded]="true"></app-provider-form>
+    </section>
+
+    <footer class="editor-actions">
+      <button type="button" class="button button--secondary" (click)="confirmarCancelacionPedido()">
+        Cancelar
+      </button>
+    </footer>
   </section>
 </section>
