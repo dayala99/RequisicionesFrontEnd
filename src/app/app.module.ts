@@ -1,9 +1,10 @@
 import { NgModule } from '@angular/core';
+import { Overlay } from '@angular/cdk/overlay';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_SCROLL_STRATEGY, MatDialogModule } from '@angular/material/dialog';
 //Import API
 import { HttpClientModule } from '@angular/common/http';
 
@@ -19,9 +20,15 @@ import { ProviderPageComponent } from './pages/provider-page/provider-page.compo
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
 import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
+import { ApprovalUserSelectorDialogComponent } from './pages/requisiciones-page/approval-user-selector-dialog.component';
+import { CentroCostoSelectorDialogComponent } from './pages/requisiciones-page/centro-costo-selector-dialog.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
+
+export function dialogScrollStrategyFactory(overlay: Overlay) {
+  return () => overlay.scrollStrategies.reposition();
+}
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 
 @NgModule({
@@ -36,6 +43,8 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     ProviderSelectorDialogComponent,
     PaymentSelectorDialogComponent,
     PedidoCancelDialogComponent,
+    ApprovalUserSelectorDialogComponent,
+    CentroCostoSelectorDialogComponent,
     RequisicionesPageComponent,
     LoginPageComponent,
     UsuariosPageComponent,
@@ -51,7 +60,13 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     AppRoutingModule,
     HttpClientModule
   ],
-  providers: [],
+  providers: [
+    {
+      provide: MAT_DIALOG_SCROLL_STRATEGY,
+      deps: [Overlay],
+      useFactory: dialogScrollStrategyFactory
+    }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

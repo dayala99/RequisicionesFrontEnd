@@ -14,7 +14,7 @@
 
 .option-row {
   display: grid;
-  grid-template-columns: 6rem 1fr;
+  grid-template-columns: 4.2rem 1fr;
   gap: 1rem;
   align-items: center;
   width: 100%;
@@ -45,6 +45,15 @@
 }
 
 .option-value {
+  display: grid;
+  gap: 0.2rem;
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.option-value small {
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 500;
 }

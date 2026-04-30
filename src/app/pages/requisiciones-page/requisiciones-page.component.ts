@@ -2,7 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
+import { ApiService, CatalogoNumeroOption, CatalogoTextoOption, PedidosFiltro } from 'src/app/Services/api.services';
+import { ApprovalUserOption, ApprovalUserSelectorDialogComponent } from './approval-user-selector-dialog.component';
+import { CentroCostoOption, CentroCostoSelectorDialogComponent } from './centro-costo-selector-dialog.component';
 import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
+
+type DataRecord = Record<string, unknown>;
 
 interface RequisitionRow {
   requisicion: number;
@@ -23,11 +28,10 @@ interface RequisitionRow {
 
 interface CentroCostoRow {
   id: number;
-  codigo: string;
+  codigo: number;
   costo: string;
-  porcentaje: number;
+  cantidad: number;
 }
-
 @Component({
   selector: 'app-requisiciones-page',
   templateUrl: './requisiciones-page.component.html',
@@ -43,135 +47,53 @@ export class RequisicionesPageComponent implements OnInit {
   readonly tipoOptions = ['Todos', 'Con O/C', 'Sin O/C'];
   readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Duplicar', 'Imprimir', 'Aprobar', 'Cerrar'];
   readonly tipoCompraOptions = ['Sin enlazar', 'Local', 'Importacion'];
-  readonly ocOptions = ['Sin enlazar', 'Con O/C', 'Sin O/C'];
-  readonly monedaOptions = ['Sin enlazar', 'PEN', 'USD'];
+  readonly tipoOc: CatalogoTextoOption[] = [
+    { codigo: 'CO', descripcion: 'Con O/C' },
+    { codigo: 'SO', descripcion: 'Sin O/C' }
+  ];
+  readonly tipoMoneda: CatalogoNumeroOption[] = [
+    { codigo: 1, descripcion: 'PEN' },
+    { codigo: 2, descripcion: 'USD' }
+  ];
 
   requisiciones: RequisitionRow[] = [];
   centrosCosto: CentroCostoRow[] = [];
   editandoCentroCostoId: number | null = null;
+  editandoCentroCostoCantidad = 0;
   archivoAdjunto = 'Sin archivo adjunto';
   mostrarEditorPedido = false;
+  isLoadingPedidos = false;
+  isLoadingApprovalUsers = false;
+  isLoadingCentrosCosto = false;
+  errorMessage = '';
+  isLoadingCorrelativo = false;
+  approvalUsers: ApprovalUserOption[] = [];
+  centroCostoOptions: CentroCostoOption[] = [];
 
-  private nextCentroCostoId = 4;
-  private readonly mockRequisiciones: RequisitionRow[] = [
-    {
-      requisicion: 1042,
-      codigo: 'REQ-1042',
-      archivo: 'PDF',
-      gerencia: 'Finanzas',
-      fecha: '04-26-2026',
-      proveedor: 'Mirko Supplies',
-      moneda: 'PEN',
-      total: 1850.5,
-      estado: 'Pendiente',
-      codigoUsr: 'USR018',
-      usrAprobacion: 'mramirez',
-      fechaUsrGa: '04-26-2026',
-      gn: 'GN',
-      tipo: 'Con O/C'
-    },
-    {
-      requisicion: 1038,
-      codigo: 'REQ-1038',
-      archivo: 'XLSX',
-      gerencia: 'Operaciones',
-      fecha: '04-25-2026',
-      proveedor: 'Dominic Cargo',
-      moneda: 'USD',
-      total: 4299.9,
-      estado: 'Aprobado',
-      codigoUsr: 'USR024',
-      usrAprobacion: 'cquispe',
-      fechaUsrGa: '04-25-2026',
-      gn: 'GA',
-      tipo: 'Con O/C'
-    },
-    {
-      requisicion: 1032,
-      codigo: 'REQ-1032',
-      archivo: 'DOC',
-      gerencia: 'Sistemas',
-      fecha: '04-24-2026',
-      proveedor: 'Tech Lima',
-      moneda: 'PEN',
-      total: 980,
-      estado: 'Observado',
-      codigoUsr: 'USR011',
-      usrAprobacion: 'jlopez',
-      fechaUsrGa: '04-24-2026',
-      gn: 'GC',
-      tipo: 'Sin O/C'
-    },
-    {
-      requisicion: 1027,
-      codigo: 'REQ-1027',
-      archivo: 'PDF',
-      gerencia: 'Logistica',
-      fecha: '04-23-2026',
-      proveedor: 'Saturno Parts',
-      moneda: 'USD',
-      total: 12340.75,
-      estado: 'Pendiente',
-      codigoUsr: 'USR031',
-      usrAprobacion: 'agarcia',
-      fechaUsrGa: '04-23-2026',
-      gn: 'GN',
-      tipo: 'Sin O/C'
-    },
-    {
-      requisicion: 1019,
-      codigo: 'REQ-1019',
-      archivo: 'ZIP',
-      gerencia: 'Compras',
-      fecha: '04-21-2026',
-      proveedor: 'Planeta Industrial',
-      moneda: 'PEN',
-      total: 760.2,
-      estado: 'Cerrado',
-      codigoUsr: 'USR006',
-      usrAprobacion: 'mrojas',
-      fechaUsrGa: '04-22-2026',
-      gn: 'GA',
-      tipo: 'Con O/C'
-    },
-    {
-      requisicion: 1015,
-      codigo: 'REQ-1015',
-      archivo: 'PDF',
-      gerencia: 'Mantenimiento',
-      fecha: '04-20-2026',
-      proveedor: 'Andes Equipos',
-      moneda: 'USD',
-      total: 2140,
-      estado: 'Pendiente',
-      codigoUsr: 'USR027',
-      usrAprobacion: 'mramirez',
-      fechaUsrGa: '04-20-2026',
-      gn: 'GN',
-      tipo: 'Con O/C'
-    }
-  ];
+  private nextCentroCostoId = 1;
 
   constructor(
     private readonly formBuilder: FormBuilder,
-    private readonly dialog: MatDialog
+    private readonly dialog: MatDialog,
+    private readonly apiService: ApiService
   ) {
     this.filtersForm = this.formBuilder.group({
       nroRequisicion: [''],
       proveedor: [''],
-      estado: ['Pendiente'],
+      estado: ['Todos'],
       gn: ['Todos'],
       tipo: ['Todos']
     });
 
     this.cabeceraForm = this.formBuilder.group({
-      requisicionCompra: ['PED-1042'],
-      usuarioAprobacion: ['mramirez']
+      requisicionCompra: [null],
+      usuarioAprobacionId: [0],
+      usuarioAprobacion: ['']
     });
 
     this.centroCostoForm = this.formBuilder.group({
-      centroCosto: ['CC-80 Obras'],
-      fecha: ['04-26-2026']
+      centroCostoId: [0],
+      centroCosto: ['']
     });
 
     this.detalleForm = this.formBuilder.group({
@@ -182,57 +104,47 @@ export class RequisicionesPageComponent implements OnInit {
       referencia: ['Compra de materiales para mantenimiento preventivo'],
       tipoCompra: ['Sin enlazar'],
       ocImportacion: ['0'],
-      tipo: ['Sin enlazar'],
-      oc: ['Sin enlazar'],
-      moneda: ['Sin enlazar'],
+      oc: [''],
+      moneda: [null],
       fechaEntrega: ['04-30-2026'],
-      total: ['0'],
       sustento: ['Detalle preliminar de distribucion por centros de costo.'],
       archivo: ['Sin archivo adjunto']
     });
   }
 
   ngOnInit(): void {
-    this.aplicarFiltros();
+    this.cargarUsuariosAprobacion();
+    this.cargarCentrosCosto();
+    this.cargarPedidos();
     this.resetPedidoEditor();
     this.mostrarEditorPedido = false;
   }
 
   get totalPorcentaje(): number {
-    return this.centrosCosto.reduce((accumulator, item) => accumulator + item.porcentaje, 0);
+    return this.centrosCosto.reduce((accumulator, item) => accumulator + item.cantidad, 0);
+  }
+
+  get approvalUserButtonLabel(): string {
+    return this.cabeceraForm.controls['usuarioAprobacion'].value?.trim() || 'Seleccionar';
+  }
+
+  get centroCostoButtonLabel(): string {
+    return this.centroCostoForm.controls['centroCosto'].value?.trim() || '+ Clic para seleccionar centro de costo';
   }
 
   aplicarFiltros(): void {
-    const filters = this.filtersForm.getRawValue() as {
-      nroRequisicion: string;
-      proveedor: string;
-      estado: string;
-      gn: string;
-      tipo: string;
-    };
-    const requisicionBuscada = Number(filters.nroRequisicion);
-    const proveedorBuscado = filters.proveedor.trim().toLowerCase();
-
-    this.requisiciones = this.mockRequisiciones.filter((item) => {
-      const matchesRequisicion = !filters.nroRequisicion || item.requisicion === requisicionBuscada;
-      const matchesProveedor = !proveedorBuscado || item.proveedor.toLowerCase().includes(proveedorBuscado);
-      const matchesEstado = filters.estado === 'Todos' || item.estado === filters.estado;
-      const matchesGn = filters.gn === 'Todos' || item.gn === filters.gn;
-      const matchesTipo = filters.tipo === 'Todos' || item.tipo === filters.tipo;
-
-      return matchesRequisicion && matchesProveedor && matchesEstado && matchesGn && matchesTipo;
-    });
+    this.cargarPedidos();
   }
 
   limpiarFiltros(): void {
     this.filtersForm.reset({
       nroRequisicion: '',
       proveedor: '',
-      estado: 'Pendiente',
+      estado: 'Todos',
       gn: 'Todos',
       tipo: 'Todos'
     });
-    this.aplicarFiltros();
+    this.cargarPedidos();
   }
 
   formatTotal(total: number, moneda: string): string {
@@ -256,6 +168,50 @@ export class RequisicionesPageComponent implements OnInit {
   iniciarNuevoPedido(): void {
     this.resetPedidoEditor();
     this.mostrarEditorPedido = true;
+    this.cargarCorrelativoNuevo();
+  }
+
+  openApprovalUserDialog(): void {
+    if (!this.approvalUsers.length) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ApprovalUserSelectorDialogComponent, {
+      autoFocus: false,
+      width: '36rem',
+      data: {
+        users: this.approvalUsers
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((selectedUser?: ApprovalUserOption) => {
+      if (selectedUser) {
+        this.cabeceraForm.patchValue({
+          usuarioAprobacionId: selectedUser.id,
+          usuarioAprobacion: selectedUser.code
+        });
+      }
+    });
+  }
+
+  openCentroCostoDialog(): void {
+    if (!this.centroCostoOptions.length) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(CentroCostoSelectorDialogComponent, {
+      autoFocus: false,
+      width: '38rem',
+      data: {
+        centrosCosto: this.centroCostoOptions
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((selectedCentroCosto?: CentroCostoOption) => {
+      if (selectedCentroCosto) {
+        this.applySelectedCentroCosto(selectedCentroCosto);
+      }
+    });
   }
 
   confirmarCancelacionPedido(): void {
@@ -277,49 +233,55 @@ export class RequisicionesPageComponent implements OnInit {
     this.editandoCentroCostoId = null;
   }
 
-  agregarCentroCosto(): void {
-    const codigo = this.centroCostoForm.controls['centroCosto'].value?.trim();
+  agregarCentroCosto(centroCosto: CentroCostoOption): void {
+    const yaExiste = this.centrosCosto.some((item) => item.codigo === centroCosto.id);
 
-    if (!codigo) {
+    if (yaExiste) {
+      this.centroCostoForm.patchValue({
+        centroCostoId: 0,
+        centroCosto: ''
+      });
       return;
     }
-
-    if (this.editandoCentroCostoId !== null) {
-      this.centrosCosto = this.centrosCosto.map((item) =>
-        item.id === this.editandoCentroCostoId
-          ? {
-              ...item,
-              codigo,
-              costo: this.detalleForm.controls['ctaGastoDescripcion'].value?.trim() || item.costo
-            }
-          : item
-      );
-      this.editandoCentroCostoId = null;
-      return;
-    }
-
-    const porcentajeDisponible = Math.max(0, 100 - this.totalPorcentaje);
-    const porcentaje = porcentajeDisponible >= 10 ? 10 : porcentajeDisponible;
 
     this.centrosCosto = [
       {
         id: this.nextCentroCostoId++,
-        codigo,
-        costo: this.detalleForm.controls['ctaGastoDescripcion'].value?.trim() || 'Nuevo centro de costo',
-        porcentaje
+        codigo: centroCosto.id,
+        costo: centroCosto.descripcion,
+        cantidad: 0
       },
       ...this.centrosCosto
     ];
+    this.centroCostoForm.patchValue({
+      centroCostoId: 0,
+      centroCosto: ''
+    });
   }
 
   editarCentroCosto(item: CentroCostoRow): void {
     this.editandoCentroCostoId = item.id;
-    this.centroCostoForm.patchValue({
-      centroCosto: item.codigo
-    });
-    this.detalleForm.patchValue({
-      ctaGastoDescripcion: item.costo
-    });
+    this.editandoCentroCostoCantidad = item.cantidad;
+  }
+
+  onCantidadCentroCostoInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cantidad = Number(input.value);
+
+    this.editandoCentroCostoCantidad = this.normalizeCantidadCentroCosto(cantidad);
+  }
+
+  guardarCantidadCentroCosto(id: number): void {
+    this.centrosCosto = this.centrosCosto.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            cantidad: this.normalizeCantidadCentroCosto(this.editandoCentroCostoCantidad)
+          }
+        : item
+    );
+
+    this.cancelarEdicionCentroCosto();
   }
 
   eliminarCentroCosto(id: number): void {
@@ -332,12 +294,7 @@ export class RequisicionesPageComponent implements OnInit {
 
   cancelarEdicionCentroCosto(): void {
     this.editandoCentroCostoId = null;
-    this.centroCostoForm.patchValue({
-      centroCosto: 'CC-80 Obras'
-    });
-    this.detalleForm.patchValue({
-      ctaGastoDescripcion: 'Obras'
-    });
+    this.editandoCentroCostoCantidad = 0;
   }
 
   adjuntarArchivo(): void {
@@ -366,15 +323,391 @@ export class RequisicionesPageComponent implements OnInit {
     return item.id;
   }
 
+  private cargarPedidos(): void {
+    this.isLoadingPedidos = true;
+    this.errorMessage = '';
+    this.requisiciones = [];
+
+    this.apiService.getListarPedido(this.getFiltros()).subscribe({
+      next: (response: unknown) => {
+        this.requisiciones = this.extractRecords(response)
+          .map((item) => this.mapPedido(item))
+          .filter((item) => item.requisicion > 0)
+          .sort((left, right) => right.requisicion - left.requisicion);
+        this.isLoadingPedidos = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando pedidos:', error);
+        this.requisiciones = [];
+        this.errorMessage = 'No se pudo cargar la informacion de pedidos. Intenta nuevamente.';
+        this.isLoadingPedidos = false;
+      }
+    });
+  }
+
+  private cargarUsuariosAprobacion(): void {
+    this.isLoadingApprovalUsers = true;
+
+    this.apiService.getListarUsuarioActivo({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.approvalUsers = this.extractRecords(response)
+          .map((item) => this.mapApprovalUser(item))
+          .filter((user) => user.id > 0 && !!user.code);
+        this.isLoadingApprovalUsers = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando usuarios de aprobacion:', error);
+        this.approvalUsers = [];
+        this.isLoadingApprovalUsers = false;
+      }
+    });
+  }
+
+  private cargarCentrosCosto(): void {
+    this.isLoadingCentrosCosto = true;
+
+    this.apiService.getListarCentroCostoActivo({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.centroCostoOptions = this.extractRecords(response)
+          .map((item) => this.mapCentroCostoOption(item))
+          .filter((item) => item.id > 0 && !!item.descripcion);
+        this.isLoadingCentrosCosto = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando centros de costo:', error);
+        this.centroCostoOptions = [];
+        this.isLoadingCentrosCosto = false;
+      }
+    });
+  }
+
+  private applySelectedCentroCosto(centroCosto: CentroCostoOption): void {
+    this.centroCostoForm.patchValue({
+      centroCostoId: centroCosto.id,
+      centroCosto: centroCosto.descripcion
+    });
+    this.agregarCentroCosto(centroCosto);
+  }
+
+  private normalizeCantidadCentroCosto(cantidad: number): number {
+    if (!Number.isFinite(cantidad) || cantidad < 0) {
+      return 0;
+    }
+
+    return Math.round(cantidad * 1000) / 1000;
+  }
+
+  private getFiltros(): PedidosFiltro {
+    const filters = this.filtersForm.getRawValue() as {
+      nroRequisicion: string;
+      proveedor: string;
+      estado: string;
+      gn: string;
+      tipo: string;
+    };
+    const requisicionBuscada = Number(filters.nroRequisicion);
+    const filtros: PedidosFiltro = {};
+
+    if (filters.nroRequisicion && Number.isInteger(requisicionBuscada) && requisicionBuscada > 0) {
+      filtros.Ped_Id = requisicionBuscada;
+    }
+
+    if (filters.proveedor?.trim()) {
+      filtros.Prv_Nom = filters.proveedor.trim();
+    }
+
+    const estado = this.mapEstadoFilter(filters.estado);
+
+    if (estado) {
+      filtros.Flg_Est = estado;
+    }
+
+    const tipo = this.mapTipoFilter(filters.tipo);
+
+    if (tipo) {
+      filtros.Ped_Tip_Com = tipo;
+    }
+
+    return filtros;
+  }
+
+  private cargarCorrelativoNuevo(): void {
+    this.isLoadingCorrelativo = true;
+    this.cabeceraForm.patchValue({
+      requisicionCompra: null
+    });
+
+    this.apiService.getListarPedidoCorrelativoNuevo().subscribe({
+      next: (response: unknown) => {
+        const correlativo = this.extractRecords(response)
+          .map((item) => this.getNumberValue(item, ['Ped_Id', 'ped_Id', 'pedId', 'requisicion', 'Requisicion']))
+          .find((value): value is number => value !== null);
+
+        this.cabeceraForm.patchValue({
+          requisicionCompra: correlativo ?? null
+        });
+        this.isLoadingCorrelativo = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando correlativo de pedido:', error);
+        this.cabeceraForm.patchValue({
+          requisicionCompra: null
+        });
+        this.isLoadingCorrelativo = false;
+      }
+    });
+  }
+
+  private mapEstadoFilter(estado: string): string {
+    switch (estado) {
+      case 'Pendiente':
+        return 'P';
+      case 'Aprobado':
+        return 'A';
+      case 'Observado':
+        return 'O';
+      case 'Cerrado':
+        return 'C';
+      default:
+        return '';
+    }
+  }
+
+  private mapTipoFilter(tipo: string): string {
+    switch (tipo) {
+      case 'Con O/C':
+        return 'CO';
+      case 'Sin O/C':
+        return 'SO';
+      default:
+        return '';
+    }
+  }
+
+  private extractRecords(response: unknown): DataRecord[] {
+    if (Array.isArray(response)) {
+      return response.filter((value): value is DataRecord => this.isDataRecord(value));
+    }
+
+    if (!this.isDataRecord(response)) {
+      return [];
+    }
+
+    const possibleArrayKeys = ['pedidos', 'Pedidos', 'usuarios', 'Usuarios', 'users', 'Users', 'centrosCosto', 'CentrosCosto', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
+
+    for (const key of possibleArrayKeys) {
+      const value = response[key];
+
+      if (Array.isArray(value)) {
+        return value.filter((item): item is DataRecord => this.isDataRecord(item));
+      }
+    }
+
+    return [response];
+  }
+
+  private mapPedido(item: DataRecord): RequisitionRow {
+    const requisicion = this.getNumberValue(item, ['Ped_Id', 'ped_Id', 'pedId', 'requisicion', 'Requisicion']) ?? 0;
+    const archivoNombre = this.getTextValue(item, ['Ped_Arc_Adj_Nom', 'ped_Arc_Adj_Nom', 'pedArcAdjNom', 'archivo', 'Archivo']);
+    const fechaRegistro = this.formatDateValue(this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg', 'Fecha', 'fecha']));
+    const fechaAprobacion = this.formatDateValue(this.getTextValue(item, ['Fec_Mod', 'fec_Mod', 'fecMod', 'Fec_Reg', 'fecReg', 'FechaUsrGa', 'fechaUsrGa']));
+    const proveedor = this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom', 'proveedor', 'Proveedor']) || '-';
+    const moneda = this.resolveCurrency(item);
+    const total = this.getDecimalValue(item, ['Ped_Tot', 'ped_Tot', 'pedTot', 'total', 'Total']) ?? 0;
+    const estado = this.resolveStatus(item);
+    const tipo = this.resolveTipo(item);
+
+    return {
+      requisicion,
+      codigo: this.getTextValue(item, ['Ped_Cod', 'ped_Cod', 'pedCod', 'codigo', 'Codigo']) || (requisicion > 0 ? `REQ-${requisicion}` : '-'),
+      archivo: this.resolveAttachmentLabel(archivoNombre),
+      gerencia: this.getTextValue(item, ['Gerencia', 'gerencia', 'Are_Des', 'are_Des', 'area']) || '-',
+      fecha: fechaRegistro || '-',
+      proveedor,
+      moneda,
+      total,
+      estado,
+      codigoUsr: this.getTextValue(item, ['Usr_Reg', 'usr_Reg', 'usrReg', 'Usr_Cod', 'usrCod']) || '-',
+      usrAprobacion: this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'Usr_Apr', 'usrApr']) || '-',
+      fechaUsrGa: fechaAprobacion || '-',
+      gn: this.getTextValue(item, ['Gn', 'gn', 'Ped_Gn', 'ped_Gn']) || '-',
+      tipo
+    };
+  }
+
+  private resolveAttachmentLabel(archivoNombre: string): string {
+    if (!archivoNombre) {
+      return '-';
+    }
+
+    const extension = archivoNombre.split('.').pop()?.trim().toUpperCase();
+
+    return extension || 'ADJ';
+  }
+
+  private resolveCurrency(item: DataRecord): string {
+    const currencyText = this.getTextValue(item, ['Ped_Tip_Mon_Des', 'ped_Tip_Mon_Des', 'pedTipMonDes', 'Moneda', 'moneda']);
+
+    if (currencyText) {
+      return currencyText.toUpperCase();
+    }
+
+    const currencyCode = this.getNumberValue(item, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']);
+
+    switch (currencyCode) {
+      case 1:
+        return 'PEN';
+      case 2:
+        return 'USD';
+      default:
+        return '-';
+    }
+  }
+
+  private resolveStatus(item: DataRecord): string {
+    const statusText = this.getTextValue(item, ['Ped_Est_Des', 'ped_Est_Des', 'pedEstDes', 'Estado', 'estado']);
+
+    if (statusText) {
+      return this.toTitleCase(statusText);
+    }
+
+    const statusFlag = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']).toUpperCase();
+
+    switch (statusFlag) {
+      case 'A':
+        return 'Aprobado';
+      case 'P':
+        return 'Pendiente';
+      case 'O':
+        return 'Observado';
+      case 'C':
+        return 'Cerrado';
+      default:
+        return '-';
+    }
+  }
+
+  private resolveTipo(item: DataRecord): string {
+    const tipoText = this.getTextValue(item, ['Ped_Tip_Com_Des', 'ped_Tip_Com_Des', 'pedTipComDes']);
+
+    if (tipoText) {
+      return tipoText;
+    }
+
+    const tipoCode = this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']).toUpperCase();
+
+    switch (tipoCode) {
+      case 'CO':
+        return 'Con O/C';
+      case 'SO':
+        return 'Sin O/C';
+      default:
+        return '-';
+    }
+  }
+
+  private mapApprovalUser(item: DataRecord): ApprovalUserOption {
+    return {
+      id: this.getNumberValue(item, ['Usr_Id', 'usr_Id', 'usrId', 'id', 'Id']) ?? 0,
+      code: this.getTextValue(item, ['Usr_Cod', 'usr_Cod', 'usrCod']),
+      name: this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom'])
+    };
+  }
+
+  private mapCentroCostoOption(item: DataRecord): CentroCostoOption {
+    return {
+      id: this.getNumberValue(item, ['Cen_Cos_Id', 'cen_Cos_Id', 'cenCosId', 'id', 'Id']) ?? 0,
+      descripcion: this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes', 'descripcion', 'Descripcion'])
+    };
+  }
+
+  private getTextValue(item: DataRecord, keys: string[]): string {
+    for (const key of keys) {
+      const value = item[key];
+
+      if (value !== null && value !== undefined && String(value).trim()) {
+        return String(value).trim();
+      }
+    }
+
+    return '';
+  }
+
+  private getNumberValue(item: DataRecord, keys: string[]): number | null {
+    for (const key of keys) {
+      const value = Number(item[key]);
+
+      if (Number.isInteger(value) && value > 0) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  private getDecimalValue(item: DataRecord, keys: string[]): number | null {
+    for (const key of keys) {
+      const value = Number(item[key]);
+
+      if (!Number.isNaN(value)) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  private formatDateValue(value: string): string {
+    if (!value) {
+      return '';
+    }
+
+    const datePart = value.trim().split('T')[0].split(' ')[0];
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(datePart);
+
+    if (isoMatch) {
+      return `${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}-${isoMatch[1]}`;
+    }
+
+    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(datePart);
+
+    if (separatedMatch) {
+      return `${separatedMatch[1].padStart(2, '0')}-${separatedMatch[2].padStart(2, '0')}-${separatedMatch[3]}`;
+    }
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return value;
+    }
+
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+
+    return `${month}-${day}-${parsedDate.getFullYear()}`;
+  }
+
+  private toTitleCase(value: string): string {
+    const normalized = value.trim().toLowerCase();
+
+    return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : '-';
+  }
+
+  private isDataRecord(value: unknown): value is DataRecord {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
   private resetPedidoEditor(): void {
     this.cabeceraForm.reset({
-      requisicionCompra: 'PED-1042',
-      usuarioAprobacion: 'mramirez'
+      requisicionCompra: null,
+      usuarioAprobacionId: 0,
+      usuarioAprobacion: ''
     });
     this.centroCostoForm.reset({
-      centroCosto: 'CC-80 Obras',
-      fecha: '04-26-2026'
+      centroCostoId: 0,
+      centroCosto: ''
     });
+    this.nextCentroCostoId = 1;
     this.detalleForm.reset({
       ctaGastoCodigo: '80',
       ctaGastoDescripcion: 'Obras',
@@ -383,19 +716,14 @@ export class RequisicionesPageComponent implements OnInit {
       referencia: 'Compra de materiales para mantenimiento preventivo',
       tipoCompra: 'Sin enlazar',
       ocImportacion: '0',
-      tipo: 'Sin enlazar',
-      oc: 'Sin enlazar',
-      moneda: 'Sin enlazar',
+      oc: '',
+      moneda: null,
       fechaEntrega: '04-30-2026',
-      total: '0',
       sustento: 'Detalle preliminar de distribucion por centros de costo.',
       archivo: 'Sin archivo adjunto'
     });
-    this.centrosCosto = [
-      { id: 1, codigo: 'CC-80 Obras', costo: 'Mantenimiento planta', porcentaje: 45 },
-      { id: 2, codigo: 'CC-21 Logistica', costo: 'Despacho y almacen', porcentaje: 35 },
-      { id: 3, codigo: 'CC-14 Sistemas', costo: 'Soporte operativo', porcentaje: 20 }
-    ];
+    this.centrosCosto = [];
+    this.editandoCentroCostoCantidad = 0;
     this.archivoAdjunto = 'Sin archivo adjunto';
   }
 }

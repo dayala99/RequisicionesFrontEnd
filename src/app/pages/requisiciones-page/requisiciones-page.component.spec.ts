@@ -4,6 +4,9 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 
+import { ApiService } from 'src/app/Services/api.services';
+import { ApprovalUserSelectorDialogComponent } from './approval-user-selector-dialog.component';
+import { CentroCostoSelectorDialogComponent } from './centro-costo-selector-dialog.component';
 import { RequisicionesPageComponent } from './requisiciones-page.component';
 
 @Component({
@@ -18,6 +21,12 @@ describe('RequisicionesPageComponent', () => {
   let component: RequisicionesPageComponent;
   let fixture: ComponentFixture<RequisicionesPageComponent>;
   let matDialogMock: { open: jasmine.Spy };
+  let apiServiceMock: {
+    getListarPedido: jasmine.Spy;
+    getListarPedidoCorrelativoNuevo: jasmine.Spy;
+    getListarUsuarioActivo: jasmine.Spy;
+    getListarCentroCostoActivo: jasmine.Spy;
+  };
 
   beforeEach(async () => {
     matDialogMock = {
@@ -26,10 +35,68 @@ describe('RequisicionesPageComponent', () => {
       })
     };
 
+    apiServiceMock = {
+      getListarPedido: jasmine.createSpy('getListarPedido').and.returnValue(
+        of({
+          elements: [
+            {
+              Ped_Id: 1042,
+              Prv_Nom: 'Mirko Supplies',
+              Ped_Tip_Mon: 1,
+              Ped_Tot: 1850.5,
+              Flg_Est: 'P',
+              Usr_Reg: 'USR018',
+              Ped_Usr_Apr: 'mramirez',
+              Fec_Reg: '2026-04-26T00:00:00',
+              Ped_Arc_Adj_Nom: 'pedido-1042.pdf'
+            },
+            {
+              Ped_Id: 1015,
+              Prv_Nom: 'Andes Equipos',
+              Ped_Tip_Mon: 2,
+              Ped_Tot: 2140,
+              Flg_Est: 'A',
+              Usr_Reg: 'USR027',
+              Ped_Usr_Apr: 'mramirez',
+              Fec_Reg: '2026-04-20T00:00:00',
+              Ped_Arc_Adj_Nom: 'pedido-1015.xlsx'
+            }
+          ]
+        })
+      ),
+      getListarPedidoCorrelativoNuevo: jasmine.createSpy('getListarPedidoCorrelativoNuevo').and.returnValue(
+        of({
+          elements: [
+            { Ped_Id: 1043 }
+          ]
+        })
+      ),
+      getListarUsuarioActivo: jasmine.createSpy('getListarUsuarioActivo').and.returnValue(
+        of({
+          elements: [
+            { Usr_Id: 7, Usr_Cod: 'mramirez', Usr_Nom: 'Miguel Ramirez', Flg_Est: 'A' },
+            { Usr_Id: 9, Usr_Cod: 'agarcia', Usr_Nom: 'Ana Garcia', Flg_Est: 'A' }
+          ]
+        })
+      ),
+      getListarCentroCostoActivo: jasmine.createSpy('getListarCentroCostoActivo').and.returnValue(
+        of({
+          elements: [
+            { Cen_Cos_Id: 1, Cen_Cos_Des: 'CC-80 Obras', Flg_Est: 'A' },
+            { Cen_Cos_Id: 2, Cen_Cos_Des: 'CC-21 Logistica', Flg_Est: 'A' }
+          ]
+        })
+      )
+    };
+
     await TestBed.configureTestingModule({
       imports: [ReactiveFormsModule],
       declarations: [RequisicionesPageComponent, ProviderFormStubComponent],
       providers: [
+        {
+          provide: ApiService,
+          useValue: apiServiceMock
+        },
         {
           provide: MatDialog,
           useValue: matDialogMock
@@ -46,12 +113,48 @@ describe('RequisicionesPageComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('should load registered orders from api on init', () => {
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({});
+    expect(apiServiceMock.getListarUsuarioActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(apiServiceMock.getListarCentroCostoActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(component.requisiciones.length).toBe(2);
+    expect(component.requisiciones[0].codigo).toBe('REQ-1042');
+    expect(component.requisiciones[0].proveedor).toBe('Mirko Supplies');
+    expect(component.requisiciones[0].archivo).toBe('PDF');
+  });
+
+  it('should load approval users from the current usuarios list', () => {
+    expect(component.approvalUsers).toEqual([
+      { id: 7, code: 'mramirez', name: 'Miguel Ramirez' },
+      { id: 9, code: 'agarcia', name: 'Ana Garcia' }
+    ]);
+  });
+
+  it('should load center cost options from api', () => {
+    expect(component.centroCostoOptions).toEqual([
+      { id: 1, descripcion: 'CC-80 Obras' },
+      { id: 2, descripcion: 'CC-21 Logistica' }
+    ]);
+  });
+
+  it('should keep hardcoded catalog options for O/C and moneda using code-description format', () => {
+    expect(component.tipoOc).toEqual([
+      { codigo: 'CO', descripcion: 'Con O/C' },
+      { codigo: 'SO', descripcion: 'Sin O/C' }
+    ]);
+    expect(component.tipoMoneda).toEqual([
+      { codigo: 1, descripcion: 'PEN' },
+      { codigo: 2, descripcion: 'USD' }
+    ]);
+  });
+
   it('should keep the editor hidden until Nuevo is clicked', () => {
     expect(component.mostrarEditorPedido).toBeFalse();
 
     component.ejecutarAccion('Nuevo');
 
     expect(component.mostrarEditorPedido).toBeTrue();
+    expect(component.cabeceraForm.value.requisicionCompra).toBe(1043);
   });
 
   it('should hide the editor when Cerrar is clicked', () => {
@@ -92,12 +195,7 @@ describe('RequisicionesPageComponent', () => {
     expect(matDialogMock.open).toHaveBeenCalled();
   });
 
-  it('should initialize with pending requisitions', () => {
-    expect(component.requisiciones.length).toBe(3);
-    expect(component.requisiciones.every((item) => item.estado === 'Pendiente')).toBeTrue();
-  });
-
-  it('should filter requisitions by provider name', () => {
+  it('should request filtered requisitions by provider name', () => {
     component.filtersForm.patchValue({
       proveedor: 'andes',
       estado: 'Todos'
@@ -105,8 +203,7 @@ describe('RequisicionesPageComponent', () => {
 
     component.aplicarFiltros();
 
-    expect(component.requisiciones.length).toBe(1);
-    expect(component.requisiciones[0].proveedor).toBe('Andes Equipos');
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Prv_Nom: 'andes' });
   });
 
   it('should reset requisition filters to the default values', () => {
@@ -123,36 +220,109 @@ describe('RequisicionesPageComponent', () => {
     expect(component.filtersForm.value).toEqual({
       nroRequisicion: '',
       proveedor: '',
-      estado: 'Pendiente',
+      estado: 'Todos',
       gn: 'Todos',
       tipo: 'Todos'
     });
-    expect(component.requisiciones.length).toBe(3);
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({});
   });
 
-  it('should initialize with mock cost centers', () => {
-    expect(component.centrosCosto.length).toBe(3);
-    expect(component.totalPorcentaje).toBe(100);
+  it('should show the empty database message when there are no registered orders', () => {
+    apiServiceMock.getListarPedido.and.returnValue(of({ elements: [] }));
+
+    fixture = TestBed.createComponent(RequisicionesPageComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.textContent).toContain('No se han encontrado pedidos en la base de datos.');
+  });
+
+  it('should initialize with no center cost rows', () => {
+    expect(component.centrosCosto.length).toBe(0);
+    expect(component.totalPorcentaje).toBe(0);
+    expect(component.cabeceraForm.value.requisicionCompra).toBeNull();
+    expect(component.cabeceraForm.value.usuarioAprobacionId).toBe(0);
+    expect(component.cabeceraForm.value.usuarioAprobacion).toBe('');
+    expect(component.centroCostoForm.value.centroCostoId).toBe(0);
+    expect(component.centroCostoForm.value.centroCosto).toBe('');
+    expect(component.detalleForm.value.oc).toBe('');
+    expect(component.detalleForm.value.moneda).toBeNull();
+  });
+
+  it('should load the requisition number automatically when starting a new order', () => {
+    component.iniciarNuevoPedido();
+
+    expect(apiServiceMock.getListarPedidoCorrelativoNuevo).toHaveBeenCalled();
+    expect(component.cabeceraForm.value.requisicionCompra).toBe(1043);
+  });
+
+  it('should open the approval user dialog and apply the selected user code', () => {
+    matDialogMock.open.and.returnValue({
+      afterClosed: () => of({ id: 9, code: 'agarcia', name: 'Ana Garcia' })
+    });
+
+    component.openApprovalUserDialog();
+
+    expect(matDialogMock.open).toHaveBeenCalledWith(ApprovalUserSelectorDialogComponent, jasmine.objectContaining({
+      data: {
+        users: component.approvalUsers
+      }
+    }));
+    expect(component.cabeceraForm.value.usuarioAprobacionId).toBe(9);
+    expect(component.cabeceraForm.value.usuarioAprobacion).toBe('agarcia');
+  });
+
+  it('should open the center cost dialog and apply the selected center cost', () => {
+    component.centrosCosto = [];
+    matDialogMock.open.and.returnValue({
+      afterClosed: () => of({ id: 2, descripcion: 'CC-21 Logistica' })
+    });
+
+    component.openCentroCostoDialog();
+
+    expect(matDialogMock.open).toHaveBeenCalledWith(CentroCostoSelectorDialogComponent, jasmine.objectContaining({
+      data: {
+        centrosCosto: component.centroCostoOptions
+      }
+    }));
+    expect(component.centrosCosto[0].codigo).toBe(2);
+    expect(component.centrosCosto[0].costo).toBe('CC-21 Logistica');
+    expect(component.centrosCosto[0].cantidad).toBe(0);
+    expect(component.centroCostoForm.value.centroCosto).toBe('');
   });
 
   it('should add a new cost center row', () => {
     component.iniciarNuevoPedido();
-    component.centrosCosto = component.centrosCosto.slice(0, 2);
-    component.centroCostoForm.patchValue({
-      centroCosto: 'CC-55 Proyectos'
-    });
-    component.detalleForm.patchValue({
-      ctaGastoDescripcion: 'Control de proyectos'
-    });
+    component.centrosCosto = [];
 
-    component.agregarCentroCosto();
+    component.agregarCentroCosto({ id: 55, descripcion: 'Proyectos' });
 
-    expect(component.centrosCosto[0].codigo).toBe('CC-55 Proyectos');
-    expect(component.centrosCosto[0].costo).toBe('Control de proyectos');
+    expect(component.centrosCosto[0].codigo).toBe(55);
+    expect(component.centrosCosto[0].costo).toBe('Proyectos');
+    expect(component.centrosCosto[0].cantidad).toBe(0);
+  });
+
+  it('should update quantity only after edit mode is activated', () => {
+    component.centrosCosto = [
+      { id: 1, codigo: 14, costo: 'Sistemas', cantidad: 0 }
+    ];
+
+    component.editarCentroCosto(component.centrosCosto[0]);
+    component.editandoCentroCostoCantidad = 12.345;
+    component.guardarCantidadCentroCosto(1);
+
+    expect(component.centrosCosto[0].cantidad).toBe(12.345);
+    expect(component.editandoCentroCostoId).toBeNull();
   });
 
   it('should remove a cost center row', () => {
     component.iniciarNuevoPedido();
+    component.centrosCosto = [
+      { id: 1, codigo: 80, costo: 'Mantenimiento planta', cantidad: 0 },
+      { id: 2, codigo: 21, costo: 'Despacho y almacen', cantidad: 0 }
+    ];
     component.eliminarCentroCosto(2);
 
     expect(component.centrosCosto.some((item) => item.id === 2)).toBeFalse();

@@ -20,6 +20,35 @@ export interface ProveedoresFiltro {
     Flg_Est?: string;
 }
 
+export interface FormaPagoFiltro {
+    For_Pag_Id?: number;
+    For_Pag_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface CentroCostoFiltro {
+    Cen_Cos_Id?: number;
+    Cen_Cos_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface PedidosFiltro {
+    Ped_Id?: number;
+    Prv_Nom?: string;
+    Flg_Est?: string;
+    Ped_Tip_Com?: string;
+}
+
+export interface CatalogoTextoOption {
+    codigo: string;
+    descripcion: string;
+}
+
+export interface CatalogoNumeroOption {
+    codigo: number;
+    descripcion: string;
+}
+
 export interface ActualizarUsuarioRequest {
     Usr_Id: string;
     Usr_Cod: string;
@@ -147,6 +176,72 @@ export class ApiService {
         }
 
         return this.http.get(this.baseUrl + 'Proveedor/getListarProveedorActivo', { headers, params });
+    }
+
+    getListarFormaPagoActivo(filtros: FormaPagoFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.For_Pag_Id !== undefined) {
+            params = params.append('For_Pag_Id', filtros.For_Pag_Id);
+        }
+
+        if (filtros.For_Pag_Des) {
+            params = params.append('For_Pag_Des', filtros.For_Pag_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'FormaPago/getListarFormaPagoActivo', { headers, params });
+    }
+
+    getListarCentroCostoActivo(filtros: CentroCostoFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Cen_Cos_Id !== undefined) {
+            params = params.append('Cen_Cos_Id', filtros.Cen_Cos_Id);
+        }
+
+        if (filtros.Cen_Cos_Des) {
+            params = params.append('Cen_Cos_Des', filtros.Cen_Cos_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'CentroCosto/getListarCentroCostoActivo', { headers, params });
+    }
+
+    getListarPedido(filtros: PedidosFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Ped_Id !== undefined) {
+            params = params.append('Ped_Id', filtros.Ped_Id);
+        }
+
+        if (filtros.Prv_Nom) {
+            params = params.append('Prv_Nom', filtros.Prv_Nom);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        if (filtros.Ped_Tip_Com) {
+            params = params.append('Ped_Tip_Com', filtros.Ped_Tip_Com);
+        }
+
+        return this.http.get(this.baseUrl + 'Pedido/getListarPedido', { headers, params });
+    }
+
+    getListarPedidoCorrelativoNuevo(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Pedido/getListarPedidoCorrelativoNuevo', { headers });
     }
 
     registrarProveedor(proveedor: RegistrarProveedorRequest): Observable<any> {

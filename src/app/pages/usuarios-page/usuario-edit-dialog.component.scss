@@ -29,7 +29,7 @@
   width: 100%;
   min-height: 2.75rem;
   padding: 0.7rem 0.8rem;
-  border: 1px solid rgba(31, 77, 143, 0.28);
+  border: 1px solid var(--line-soft);
   border-radius: 8px;
   background: #ffffff;
   color: var(--text-primary);
@@ -37,21 +37,21 @@
 }
 
 .usuario-edit__field input:disabled {
-  background: #f8fafc;
+  background: var(--surface-soft);
   color: var(--text-secondary);
 }
 
 .usuario-edit__field input:focus,
 .usuario-edit__field select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(31, 77, 143, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
 .usuario-edit__error {
   margin: 0;
   padding: 0.85rem 1rem;
-  border: 1px solid rgba(185, 28, 28, 0.16);
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
-  background: rgba(254, 242, 242, 0.92);
-  color: #991b1b;
+  background: var(--surface-accent);
+  color: var(--accent);
 }

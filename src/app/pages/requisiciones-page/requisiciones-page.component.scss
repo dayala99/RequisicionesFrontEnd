@@ -2,7 +2,7 @@
   display: grid;
   gap: 1.25rem;
   padding: 1.4rem;
-  border: 1px solid rgba(20, 32, 51, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 18px;
   background: #ffffff;
   box-shadow: var(--shadow-lg);
@@ -38,7 +38,7 @@
 
 .panel {
   padding: 1rem;
-  border: 1px solid rgba(20, 32, 51, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 14px;
   background: #ffffff;
 }
@@ -52,7 +52,7 @@
   display: grid;
   gap: 1.5rem;
   padding: 1.25rem;
-  border: 1px solid rgba(20, 32, 51, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 16px;
   background: #ffffff;
 }
@@ -70,7 +70,7 @@
 
 .editor-section {
   padding-top: 1.25rem;
-  border-top: 1px solid rgba(20, 32, 51, 0.08);
+  border-top: 1px solid var(--line-soft);
 }
 
 .editor-section--attachments {
@@ -110,7 +110,7 @@
 }
 
 .table-toolbar {
-  grid-template-columns: minmax(14rem, 1.5fr) auto minmax(9rem, 0.7fr);
+  grid-template-columns: minmax(14rem, 1.5fr) auto;
   align-items: end;
   margin-bottom: 1rem;
 }
@@ -131,11 +131,47 @@
 .field textarea {
   min-height: 3rem;
   padding: 0.7rem 0.85rem;
-  border: 1px solid rgba(39, 91, 163, 0.2);
+  border: 1px solid var(--line-soft);
   border-radius: 10px;
   background: #ffffff;
   color: var(--text-primary);
   font: inherit;
+}
+
+.selector-code-button {
+  min-height: 3rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--text-primary);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.selector-code-button--wide {
+  justify-self: start;
+  min-width: 9.5rem;
+}
+
+.selector-code-button--selector {
+  min-width: min(22rem, 100%);
+  justify-content: center;
+  text-align: center;
+}
+
+.selector-code-button--accent {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.selector-code-button:disabled {
+  border-color: var(--line-soft);
+  background: var(--surface-disabled);
+  color: var(--text-secondary);
+  cursor: not-allowed;
 }
 
 .field textarea {
@@ -147,8 +183,13 @@
 .field select:focus,
 .field textarea:focus {
   outline: none;
-  border-color: rgba(39, 91, 163, 0.55);
-  box-shadow: 0 0 0 3px rgba(39, 91, 163, 0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.selector-code-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
 .button {
@@ -167,14 +208,14 @@
 }
 
 .button--secondary {
-  border: 1px solid rgba(20, 32, 51, 0.14);
-  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
   color: var(--text-primary);
 }
 
 .table-shell {
   overflow-x: auto;
-  border: 1px solid rgba(20, 32, 51, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 12px;
 }
 
@@ -195,14 +236,14 @@
 .costos-table th,
 .costos-table td {
   padding: 0.95rem 1rem;
-  border-bottom: 1px solid rgba(20, 32, 51, 0.08);
+  border-bottom: 1px solid var(--line-soft);
   text-align: left;
   vertical-align: middle;
 }
 
 .requisiciones-table th,
 .costos-table th {
-  background: #6477a6;
+  background: var(--text-primary);
   color: #ffffff;
   font-weight: 800;
 }
@@ -214,7 +255,7 @@
 
 .requisiciones-table tbody tr:nth-child(even),
 .costos-table tbody tr:nth-child(even) {
-  background: #f8fafc;
+  background: var(--surface-muted);
 }
 
 .file-badge,
@@ -230,33 +271,33 @@
 }
 
 .file-badge {
-  background: #e6eef9;
-  color: #214f8e;
+  background: var(--surface-accent);
+  color: var(--accent);
 }
 
 .status-badge {
-  background: #eef2ff;
-  color: #334155;
+  background: var(--surface-soft);
+  color: var(--text-primary);
 }
 
 .status-badge[data-state='pendiente'] {
-  background: #fff7ed;
-  color: #c2410c;
+  background: var(--surface-accent);
+  color: var(--accent);
 }
 
 .status-badge[data-state='aprobado'] {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--surface-soft);
+  color: var(--text-primary);
 }
 
 .status-badge[data-state='observado'] {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--surface-accent-strong);
+  color: var(--accent);
 }
 
 .status-badge[data-state='cerrado'] {
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--surface-soft);
+  color: var(--text-primary);
 }
 
 .link-button {
@@ -271,12 +312,82 @@
 }
 
 .link-button--danger {
-  color: #b91c1c;
+  color: var(--accent);
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.4rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.icon-button svg,
+.costos-table__action-head svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}
+
+.icon-button--danger {
+  color: var(--accent);
+}
+
+.costos-table__action-head {
+  width: 3.2rem;
+  text-align: center;
+}
+
+.costos-table th:nth-child(3),
+.costos-table td:nth-child(3) {
+  text-align: center;
+}
+
+.cantidad-cell {
+  text-align: center;
+}
+
+.cantidad-input {
+  width: 5.5rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  text-align: center;
+  font: inherit;
+}
+
+.cantidad-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.costos-table td:nth-child(4),
+.costos-table td:nth-child(5) {
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  text-align: center;
+}
+
+.costos-table__action-cell {
+  text-align: center;
+}
+
+.costos-table td:nth-child(5),
+.costos-table th:nth-child(5) {
+  padding-right: 1rem;
 }
 
 .empty-row {
   text-align: center;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .actions-bar {
@@ -289,9 +400,9 @@
   min-width: 7rem;
   min-height: 2.9rem;
   padding: 0.7rem 1rem;
-  border: 1px solid rgba(20, 32, 51, 0.14);
+  border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
   color: var(--text-primary);
   font: inherit;
   font-weight: 700;
@@ -301,9 +412,9 @@
 .row-detail-button {
   min-height: 2.4rem;
   padding: 0.45rem 0.85rem;
-  border: 1px solid rgba(20, 32, 51, 0.14);
+  border: 1px solid var(--line-soft);
   border-radius: 9px;
-  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
   color: var(--text-primary);
   font: inherit;
   font-weight: 700;
@@ -324,7 +435,7 @@
 }
 
 .group-row--meta {
-  grid-template-columns: repeat(3, minmax(9rem, 1fr)) minmax(10rem, 0.9fr) minmax(6rem, 0.45fr);
+  grid-template-columns: repeat(3, minmax(10rem, 1fr));
 }
 
 .attachment-panel {
@@ -335,7 +446,7 @@
 
 .attachment-panel__hint {
   margin: 0;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 0.92rem;
 }
 
@@ -370,19 +481,42 @@
     padding: 1rem;
   }
 
+  .panel,
+  .pedido-editor {
+    padding: 0.9rem;
+  }
+
   .pedidos-card__header {
     flex-direction: column;
   }
 
+  .pedidos-card__header h2 {
+    font-size: 1.55rem;
+  }
+
+  .pedidos-card__description {
+    font-size: 0.92rem;
+  }
+
   .filters-panel__actions,
-  .table-toolbar__actions,
   .attachment-panel__actions {
     flex-direction: column;
+  }
+
+  .table-toolbar__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .button,
   .action-button {
     width: 100%;
+  }
+
+  .selector-code-button--wide,
+  .selector-code-button--selector {
+    width: 100%;
+    min-width: 0;
   }
 
   .editor-actions {
@@ -391,5 +525,46 @@
 
   .requisiciones-table {
     min-width: 64rem;
+  }
+
+  .costos-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .costos-table th,
+  .costos-table td {
+    padding: 0.75rem 0.45rem;
+    font-size: 0.84rem;
+  }
+
+  .costos-table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .costos-table th:nth-child(1),
+  .costos-table td:nth-child(1) {
+    width: 4.5rem;
+  }
+
+  .costos-table th:nth-child(3),
+  .costos-table td:nth-child(3) {
+    width: 5.5rem;
+  }
+
+  .costos-table__action-head,
+  .costos-table td:nth-child(4),
+  .costos-table td:nth-child(5) {
+    width: 3rem;
+  }
+
+  .cantidad-input {
+    width: 100%;
+    max-width: 4.75rem;
+  }
+
+  .field textarea {
+    min-height: 9rem;
   }
 }

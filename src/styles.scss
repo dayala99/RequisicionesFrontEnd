@@ -3,14 +3,20 @@
 :root {
   --font-sans: 'Aptos', 'Segoe UI', sans-serif;
   --font-display: 'Bahnschrift', 'Aptos', sans-serif;
-  --text-primary: #142033;
-  --text-secondary: #566275;
-  --accent: #1f4d8f;
-  --accent-strong: #173b6d;
-  --line-soft: rgba(20, 32, 51, 0.12);
-  --line-strong: rgba(31, 77, 143, 0.22);
-  --shadow-xl: 0 18px 48px rgba(13, 24, 43, 0.1);
-  --shadow-lg: 0 12px 28px rgba(13, 24, 43, 0.08);
+  --text-primary: #6c6b69;
+  --text-secondary: rgba(108, 107, 105, 0.82);
+  --accent: #ff9e31;
+  --accent-strong: #ff9e31;
+  --line-soft: rgba(108, 107, 105, 0.16);
+  --line-strong: rgba(255, 158, 49, 0.34);
+  --shadow-xl: 0 18px 48px rgba(108, 107, 105, 0.14);
+  --shadow-lg: 0 12px 28px rgba(108, 107, 105, 0.1);
+  --surface-soft: #f4f1ed;
+  --surface-muted: #faf8f5;
+  --surface-accent: #fff2e3;
+  --surface-accent-strong: #ffe2bc;
+  --surface-disabled: rgba(108, 107, 105, 0.14);
+  --overlay-backdrop: rgba(108, 107, 105, 0.42);
 }
 
 html,
@@ -21,7 +27,7 @@ body {
 
 html {
   background:
-    linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+    linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
 }
 
 body {
@@ -37,7 +43,7 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(rgba(20, 32, 51, 0.015) 1px, transparent 1px);
+  background: linear-gradient(rgba(108, 107, 105, 0.03) 1px, transparent 1px);
   background-size: 100% 96px;
 }
 
@@ -63,8 +69,8 @@ a {
 }
 
 ::selection {
-  background: rgba(31, 77, 143, 0.18);
-  color: #08111f;
+  background: rgba(255, 158, 49, 0.28);
+  color: #6c6b69;
 }
 
 .mat-dialog-container {
@@ -96,13 +102,13 @@ a {
 }
 
 .mat-stroked-button {
-  border-color: rgba(20, 32, 51, 0.16) !important;
+  border-color: var(--line-soft) !important;
   border-radius: 999px !important;
   color: var(--text-primary) !important;
 }
 
 .mat-stroked-button:hover {
-  background: rgba(20, 32, 51, 0.04);
+  background: var(--surface-accent);
 }
 
 * {

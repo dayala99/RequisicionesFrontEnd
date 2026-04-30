@@ -1,7 +1,7 @@
 .selector-description {
   margin: 0;
   padding: 0 1.5rem;
-  color: #667488;
+  color: var(--text-secondary);
   line-height: 1.6;
 }
 
@@ -18,18 +18,18 @@
   align-items: center;
   width: 100%;
   padding: 0.85rem 1rem;
-  border: 1px solid rgba(20, 32, 51, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 10px;
   background: #ffffff;
-  color: #14213d;
+  color: var(--text-primary);
   cursor: pointer;
   text-align: left;
   transition: background-color 0.18s ease, border-color 0.18s ease;
 }
 
 .option-row:hover {
-  background: #f8fafc;
-  border-color: rgba(31, 77, 143, 0.22);
+  background: var(--surface-soft);
+  border-color: var(--line-strong);
 }
 
 .option-code {
@@ -38,8 +38,8 @@
   justify-content: center;
   min-height: 2.6rem;
   border-radius: 10px;
-  background: #eef4fb;
-  color: #1f4d8f;
+  background: var(--surface-accent);
+  color: var(--accent);
   font-weight: 800;
 }
 

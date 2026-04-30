@@ -98,8 +98,16 @@
               </td>
             </tr>
 
-            <tr *ngIf="!requisiciones.length">
-              <td colspan="12" class="empty-row">No hay pedidos que coincidan con los filtros actuales.</td>
+            <tr *ngIf="isLoadingPedidos">
+              <td colspan="12" class="empty-row">Cargando pedidos registrados...</td>
+            </tr>
+
+            <tr *ngIf="!isLoadingPedidos && errorMessage">
+              <td colspan="12" class="empty-row">{{ errorMessage }}</td>
+            </tr>
+
+            <tr *ngIf="!isLoadingPedidos && !errorMessage && !requisiciones.length">
+              <td colspan="12" class="empty-row">No se han encontrado pedidos en la base de datos.</td>
             </tr>
           </tbody>
         </table>
@@ -111,13 +119,19 @@
     <form class="editor-grid editor-grid--header" [formGroup]="cabeceraForm">
       <label class="field">
         <span>Requisicion de Compra</span>
-        <input type="text" formControlName="requisicionCompra">
+        <input type="number" formControlName="requisicionCompra" min="0" readonly [attr.placeholder]="isLoadingCorrelativo ? 'Cargando...' : 'Auto'">
       </label>
 
-      <label class="field">
+      <div class="field">
         <span>Usuario de Aprobacion</span>
-        <input type="text" formControlName="usuarioAprobacion">
-      </label>
+        <button
+          type="button"
+          class="selector-code-button selector-code-button--wide"
+          [disabled]="isLoadingApprovalUsers || !approvalUsers.length"
+          (click)="openApprovalUserDialog()">
+          {{ isLoadingApprovalUsers ? 'Cargando usuarios...' : approvalUserButtonLabel }}
+        </button>
+      </div>
     </form>
 
     <section class="editor-section">
@@ -126,28 +140,30 @@
       </div>
 
       <form class="table-toolbar" [formGroup]="centroCostoForm">
-        <label class="field">
-          <span>Centro de Costo</span>
-          <input type="text" formControlName="centroCosto">
-        </label>
+        <div class="field">
+          <button
+            type="button"
+            class="selector-code-button selector-code-button--wide selector-code-button--selector selector-code-button--accent"
+            [disabled]="isLoadingCentrosCosto || !centroCostoOptions.length"
+            (click)="openCentroCostoDialog()">
+            {{ isLoadingCentrosCosto ? 'Cargando centros de costo...' : centroCostoButtonLabel }}
+          </button>
+        </div>
 
-        <div class="table-toolbar__actions">
-          <button type="button" class="button button--primary" (click)="agregarCentroCosto()">
-            {{ editandoCentroCostoId !== null ? 'Guardar' : 'Agregar' }}
+        <div class="table-toolbar__actions" *ngIf="editandoCentroCostoId !== null">
+          <button
+            type="button"
+            class="button button--primary"
+            (click)="guardarCantidadCentroCosto(editandoCentroCostoId)">
+            Guardar
           </button>
           <button
-            *ngIf="editandoCentroCostoId !== null"
             type="button"
             class="button button--secondary"
             (click)="cancelarEdicionCentroCosto()">
             Cancelar
           </button>
         </div>
-
-        <label class="field field--date">
-          <span>Fecha</span>
-          <input type="text" formControlName="fecha">
-        </label>
       </form>
 
       <div class="table-shell">
@@ -156,9 +172,9 @@
             <tr>
               <th>Codigo</th>
               <th>Costo</th>
-              <th>Porc. %</th>
-              <th>Editar</th>
-              <th>Eliminar</th>
+              <th>Cantidad</th>
+              <th class="costos-table__action-head"></th>
+              <th class="costos-table__action-head"></th>
             </tr>
           </thead>
 
@@ -166,13 +182,32 @@
             <tr *ngFor="let item of centrosCosto; trackBy: trackByCentroCosto">
               <td>{{ item.codigo }}</td>
               <td>{{ item.costo }}</td>
-              <td>{{ item.porcentaje }}%</td>
-              <td>
-                <button type="button" class="link-button" (click)="editarCentroCosto(item)">Editar</button>
+              <td class="cantidad-cell">
+                <ng-container *ngIf="editandoCentroCostoId === item.id; else cantidadSoloLectura">
+                  <input
+                    type="number"
+                    class="cantidad-input"
+                    min="0"
+                    step="0.001"
+                    [value]="editandoCentroCostoCantidad"
+                    (input)="onCantidadCentroCostoInput($event)"
+                    (keydown.enter)="guardarCantidadCentroCosto(item.id); $event.preventDefault()"
+                    (keydown.escape)="cancelarEdicionCentroCosto()">
+                </ng-container>
+                <ng-template #cantidadSoloLectura>{{ item.cantidad }}</ng-template>
               </td>
-              <td>
-                <button type="button" class="link-button link-button--danger" (click)="eliminarCentroCosto(item.id)">
-                  Eliminar
+              <td class="costos-table__action-cell">
+                <button type="button" class="icon-button" aria-label="Editar centro de costo" (click)="editarCentroCosto(item)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
+                  </svg>
+                </button>
+              </td>
+              <td class="costos-table__action-cell">
+                <button type="button" class="icon-button icon-button--danger" aria-label="Eliminar centro de costo" (click)="eliminarCentroCosto(item.id)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2h4v2H4V6h4l1-2z"/>
+                  </svg>
                 </button>
               </td>
             </tr>
@@ -238,34 +273,24 @@
       <section class="editor-section">
         <div class="group-row group-row--meta">
           <label class="field">
-            <span>Tipo</span>
-            <select formControlName="tipo">
-              <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
-            </select>
-          </label>
-
-          <label class="field">
             <span>O/C</span>
             <select formControlName="oc">
-              <option *ngFor="let option of ocOptions" [value]="option">{{ option }}</option>
+              <option [ngValue]="''">Sin enlazar</option>
+              <option *ngFor="let option of tipoOc" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
           </label>
 
           <label class="field">
             <span>Moneda</span>
             <select formControlName="moneda">
-              <option *ngFor="let option of monedaOptions" [value]="option">{{ option }}</option>
+              <option [ngValue]="null">Sin enlazar</option>
+              <option *ngFor="let option of tipoMoneda" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
           </label>
 
           <label class="field">
             <span>Fecha Entrega</span>
             <input type="text" formControlName="fechaEntrega">
-          </label>
-
-          <label class="field field--small">
-            <span>Total</span>
-            <input type="text" formControlName="total">
           </label>
         </div>
       </section>

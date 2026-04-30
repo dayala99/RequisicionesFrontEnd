@@ -1,5 +1,5 @@
 .home-card {
-  border: 1px solid rgba(20, 32, 51, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 18px;
   background: #ffffff;
   box-shadow: var(--shadow-lg);
@@ -56,12 +56,12 @@
   padding: 1rem 1.1rem;
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: #f8fafc;
+  background: var(--surface-soft);
 }
 
 .home-section--muted {
   padding-top: 1.25rem;
-  border-top: 1px solid rgba(20, 32, 51, 0.08);
+  border-top: 1px solid var(--line-soft);
 }
 
 .home-list {

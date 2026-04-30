@@ -7,19 +7,20 @@
     aria-label="Cerrar menu lateral">
   </button>
 
-  <aside id="sidebar" class="sidebar" [class.sidebar--open]="sidebarOpen">
-    <button
-      type="button"
-      class="mobile-menu-button"
-      (click)="toggleSidebar()"
-      [attr.aria-expanded]="sidebarOpen"
-      aria-controls="sidebar"
-      aria-label="Abrir o cerrar menu lateral">
-      <span></span>
-      <span></span>
-      <span></span>
-    </button>
+  <button
+    type="button"
+    class="mobile-menu-toggle"
+    [class.mobile-menu-toggle--hidden]="sidebarOpen"
+    (click)="toggleSidebar()"
+    [attr.aria-expanded]="sidebarOpen"
+    aria-controls="sidebar"
+    aria-label="Abrir menu lateral">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
 
+  <aside id="sidebar" class="sidebar" [class.sidebar--open]="sidebarOpen">
     <div class="sidebar_brand_top">
       <div class="sidebar_logo">AR</div>
       <div>

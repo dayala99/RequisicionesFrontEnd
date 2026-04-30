@@ -1,22 +1,26 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
-import { PAYMENT_OPTIONS, PROVIDER_RECORDS } from './provider-form.data';
+import { ApiService } from 'src/app/Services/api.services';
 import { PaymentSelectorDialogComponent } from './dialogs/payment-selector-dialog.component';
 import { PaymentOption, ProviderRecord } from './provider-form.models';
 import { ProviderSelectorDialogComponent } from './dialogs/provider-selector-dialog.component';
+
+type DataRecord = Record<string, unknown>;
 
 @Component({
   selector: 'app-provider-form',
   templateUrl: './provider-form.component.html',
   styleUrls: ['./provider-form.component.scss']
 })
-export class ProviderFormComponent {
+export class ProviderFormComponent implements OnInit {
   @Input() embedded = false;
 
-  readonly providers = PROVIDER_RECORDS;
-  readonly paymentOptions = PAYMENT_OPTIONS;
+  providers: ProviderRecord[] = [];
+  paymentOptions: PaymentOption[] = [];
+  isLoadingProviders = false;
+  isLoadingPayments = false;
 
   readonly form = this.formBuilder.nonNullable.group({
     supplierCode: 0,
@@ -40,8 +44,14 @@ export class ProviderFormComponent {
 
   constructor(
     private readonly formBuilder: FormBuilder,
-    private readonly dialog: MatDialog
+    private readonly dialog: MatDialog,
+    private readonly apiService: ApiService
   ) {}
+
+  ngOnInit(): void {
+    this.loadProviders();
+    this.loadPaymentOptions();
+  }
 
   get supplierCode(): number {
     return this.form.controls.supplierCode.value;
@@ -56,7 +66,7 @@ export class ProviderFormComponent {
   }
 
   openProviderDialog(): void {
-    if (this.isEventualMode) {
+    if (this.isEventualMode || !this.providers.length) {
       return;
     }
 
@@ -76,6 +86,10 @@ export class ProviderFormComponent {
   }
 
   openPaymentDialog(): void {
+    if (!this.paymentOptions.length) {
+      return;
+    }
+
     const dialogRef = this.dialog.open(PaymentSelectorDialogComponent, {
       autoFocus: false,
       width: '34rem',
@@ -154,5 +168,109 @@ export class ProviderFormComponent {
     });
     this.disableManualFields();
     this.form.controls.paymentDescription.disable();
+  }
+
+  private loadProviders(): void {
+    this.isLoadingProviders = true;
+
+    this.apiService.getListarProveedorActivo({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.providers = this.extractRecords(response)
+          .map((item) => this.mapProvider(item))
+          .filter((provider) => provider.code > 0 && !!provider.name);
+        this.isLoadingProviders = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando proveedores del formulario:', error);
+        this.providers = [];
+        this.isLoadingProviders = false;
+      }
+    });
+  }
+
+  private loadPaymentOptions(): void {
+    this.isLoadingPayments = true;
+
+    this.apiService.getListarFormaPagoActivo({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.paymentOptions = this.extractRecords(response)
+          .map((item) => this.mapPaymentOption(item))
+          .filter((paymentOption) => paymentOption.code > 0 && !!paymentOption.description);
+        this.isLoadingPayments = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando formas de pago del formulario:', error);
+        this.paymentOptions = [];
+        this.isLoadingPayments = false;
+      }
+    });
+  }
+
+  private extractRecords(response: unknown): DataRecord[] {
+    if (Array.isArray(response)) {
+      return response.filter((value): value is DataRecord => this.isDataRecord(value));
+    }
+
+    if (!this.isDataRecord(response)) {
+      return [];
+    }
+
+    const possibleArrayKeys = ['proveedores', 'Proveedores', 'formasPago', 'FormasPago', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
+
+    for (const key of possibleArrayKeys) {
+      const value = response[key];
+
+      if (Array.isArray(value)) {
+        return value.filter((item): item is DataRecord => this.isDataRecord(item));
+      }
+    }
+
+    return [response];
+  }
+
+  private mapProvider(item: DataRecord): ProviderRecord {
+    return {
+      code: this.getNumberValue(item, ['Prv_Id', 'prv_Id', 'prvId', 'id', 'Id']) ?? 0,
+      name: this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom']),
+      phone: this.getTextValue(item, ['Prv_Tel', 'prv_Tel', 'prvTel']),
+      address: this.getTextValue(item, ['Prv_Dir', 'prv_Dir', 'prvDir']),
+      contact: this.getTextValue(item, ['Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
+      ruc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc'])
+    };
+  }
+
+  private mapPaymentOption(item: DataRecord): PaymentOption {
+    return {
+      code: this.getNumberValue(item, ['For_Pag_Id', 'for_Pag_Id', 'forPagId', 'id', 'Id']) ?? 0,
+      description: this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes', 'description', 'Description'])
+    };
+  }
+
+  private getTextValue(item: DataRecord, keys: string[]): string {
+    for (const key of keys) {
+      const value = item[key];
+
+      if (value !== null && value !== undefined && String(value).trim()) {
+        return String(value).trim();
+      }
+    }
+
+    return '';
+  }
+
+  private getNumberValue(item: DataRecord, keys: string[]): number | null {
+    for (const key of keys) {
+      const value = Number(item[key]);
+
+      if (Number.isInteger(value) && value > 0) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  private isDataRecord(value: unknown): value is DataRecord {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }

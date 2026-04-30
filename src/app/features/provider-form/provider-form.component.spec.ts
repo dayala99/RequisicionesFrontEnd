@@ -3,14 +3,48 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
+import { of } from 'rxjs';
 
+import { ApiService } from 'src/app/Services/api.services';
 import { PaymentSelectorDialogComponent } from './dialogs/payment-selector-dialog.component';
 import { PaymentOption, ProviderRecord } from './provider-form.models';
 import { ProviderSelectorDialogComponent } from './dialogs/provider-selector-dialog.component';
 import { ProviderFormComponent } from './provider-form.component';
 
 describe('ProviderFormComponent', () => {
+  let apiServiceMock: {
+    getListarProveedorActivo: jasmine.Spy;
+    getListarFormaPagoActivo: jasmine.Spy;
+  };
+
   beforeEach(async () => {
+    apiServiceMock = {
+      getListarProveedorActivo: jasmine.createSpy('getListarProveedorActivo').and.returnValue(
+        of({
+          data: [
+            {
+              Prv_Id: 1024,
+              Prv_Nom: 'Proveedor API',
+              Prv_Tel: '01-111-1111',
+              Prv_Dir: 'Calle API 123',
+              Prv_Nom_Con: 'Ana Torres',
+              Prv_Ruc: '20123456789'
+            }
+          ]
+        })
+      ),
+      getListarFormaPagoActivo: jasmine.createSpy('getListarFormaPagoActivo').and.returnValue(
+        of({
+          data: [
+            {
+              For_Pag_Id: 3,
+              For_Pag_Des: 'Credito 30 dias'
+            }
+          ]
+        })
+      )
+    };
+
     await TestBed.configureTestingModule({
       imports: [
         ReactiveFormsModule,
@@ -22,6 +56,9 @@ describe('ProviderFormComponent', () => {
         ProviderFormComponent,
         ProviderSelectorDialogComponent,
         PaymentSelectorDialogComponent
+      ],
+      providers: [
+        { provide: ApiService, useValue: apiServiceMock }
       ]
     }).compileComponents();
   });
@@ -36,6 +73,7 @@ describe('ProviderFormComponent', () => {
   it('should initialize with blocked supplier fields and code values in 0', () => {
     const fixture = TestBed.createComponent(ProviderFormComponent);
     const component = fixture.componentInstance;
+    fixture.detectChanges();
     const form = component.form.controls;
 
     expect(form.supplierCode.value).toBe(0);
@@ -44,6 +82,32 @@ describe('ProviderFormComponent', () => {
     expect(form.supplierName.disabled).toBeTrue();
     expect(form.phone.disabled).toBeTrue();
     expect(form.paymentDescription.disabled).toBeTrue();
+  });
+
+  it('should load providers and payment options from api on init', () => {
+    const fixture = TestBed.createComponent(ProviderFormComponent);
+    const component = fixture.componentInstance;
+
+    fixture.detectChanges();
+
+    expect(apiServiceMock.getListarProveedorActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(apiServiceMock.getListarFormaPagoActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(component.providers).toEqual([
+      {
+        code: 1024,
+        name: 'Proveedor API',
+        phone: '01-111-1111',
+        address: 'Calle API 123',
+        contact: 'Ana Torres',
+        ruc: '20123456789'
+      }
+    ]);
+    expect(component.paymentOptions).toEqual([
+      {
+        code: 3,
+        description: 'Credito 30 dias'
+      }
+    ]);
   });
 
   it('should apply supplier data without changing payment selection', () => {
