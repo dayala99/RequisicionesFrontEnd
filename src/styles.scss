@@ -1,1 +1,116 @@
-/* You can add global styles to this file, and also import other style files */
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+:root {
+  --font-sans: 'Aptos', 'Segoe UI', sans-serif;
+  --font-display: 'Bahnschrift', 'Aptos', sans-serif;
+  --text-primary: #6c6b69;
+  --text-secondary: rgba(108, 107, 105, 0.82);
+  --accent: #ff9e31;
+  --accent-strong: #ff9e31;
+  --line-soft: rgba(108, 107, 105, 0.16);
+  --line-strong: rgba(255, 158, 49, 0.34);
+  --shadow-xl: 0 18px 48px rgba(108, 107, 105, 0.14);
+  --shadow-lg: 0 12px 28px rgba(108, 107, 105, 0.1);
+  --surface-soft: #f4f1ed;
+  --surface-muted: #faf8f5;
+  --surface-accent: #fff2e3;
+  --surface-accent-strong: #ffe2bc;
+  --surface-disabled: rgba(108, 107, 105, 0.14);
+  --overlay-backdrop: rgba(108, 107, 105, 0.42);
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+html {
+  background:
+    linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
+}
+
+body {
+  position: relative;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  background: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(rgba(108, 107, 105, 0.03) 1px, transparent 1px);
+  background-size: 100% 96px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(255, 158, 49, 0.28);
+  color: #6c6b69;
+}
+
+.mat-dialog-container {
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+.mat-dialog-title {
+  margin: 0 !important;
+  padding: 1.25rem 1.25rem 0 !important;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.mat-dialog-content {
+  margin: 0 !important;
+  padding: 0.9rem 1.25rem 1.15rem !important;
+  color: var(--text-secondary);
+}
+
+.mat-dialog-actions {
+  margin: 0 !important;
+  padding: 0 1.25rem 1.25rem !important;
+}
+
+.mat-stroked-button {
+  border-color: var(--line-soft) !important;
+  border-radius: 999px !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-stroked-button:hover {
+  background: var(--surface-accent);
+}
+
+* {
+  box-sizing: border-box;
+}

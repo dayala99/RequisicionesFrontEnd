@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>Seleccionar Forma de Pago</h2>
+<p class="selector-description">Selecciona una opcion.</p>
+
+<div mat-dialog-content class="selector-content">
+  <button
+    *ngFor="let paymentOption of data.paymentOptions; trackBy: trackByCode"
+    type="button"
+    class="option-row"
+    (click)="selectPayment(paymentOption)">
+    <span class="option-code">{{ paymentOption.code }}</span>
+    <span class="option-value">{{ paymentOption.description }}</span>
+  </button>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Cancelar</button>
+</div>
