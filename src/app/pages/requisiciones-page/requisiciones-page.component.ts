@@ -1,13 +1,30 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Observable, forkJoin, from, of } from 'rxjs';
+import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
-import { ApiService, CatalogoNumeroOption, CatalogoTextoOption, PedidosFiltro } from 'src/app/Services/api.services';
+import { ActualizarPedidoRequest, ApiService, CatalogoNumeroOption, CatalogoTextoOption, PedidosFiltro, RegistrarCentroCostoPedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
+import { ProviderFormComponent } from 'src/app/features/provider-form/provider-form.component';
+import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ApprovalUserOption, ApprovalUserSelectorDialogComponent } from './approval-user-selector-dialog.component';
 import { CentroCostoOption, CentroCostoSelectorDialogComponent } from './centro-costo-selector-dialog.component';
 import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
 
 type DataRecord = Record<string, unknown>;
+
+type ProviderFormData = {
+  supplierCode: number;
+  supplierName: string;
+  phone: string;
+  address: string;
+  contact: string;
+  ruc: string;
+  paymentCode: number;
+  paymentDescription: string;
+  isEventual: boolean;
+};
 
 interface RequisitionRow {
   requisicion: number;
@@ -31,6 +48,7 @@ interface CentroCostoRow {
   codigo: number;
   costo: string;
   cantidad: number;
+  persistedId: number | null;
 }
 @Component({
   selector: 'app-requisiciones-page',
@@ -38,6 +56,20 @@ interface CentroCostoRow {
   styleUrls: ['./requisiciones-page.component.scss']
 })
 export class RequisicionesPageComponent implements OnInit {
+  @ViewChild('providerFormRef')
+  set providerFormComponent(value: ProviderFormComponent | undefined) {
+    this._providerFormComponent = value;
+
+    if (value && this.pendingProviderFormData) {
+      value.hydrateForm(this.pendingProviderFormData);
+      this.pendingProviderFormData = null;
+    }
+  }
+
+  get providerFormComponent(): ProviderFormComponent | undefined {
+    return this._providerFormComponent;
+  }
+
   readonly filtersForm: FormGroup;
   readonly cabeceraForm: FormGroup;
   readonly centroCostoForm: FormGroup;
@@ -55,6 +87,7 @@ export class RequisicionesPageComponent implements OnInit {
     { codigo: 1, descripcion: 'PEN' },
     { codigo: 2, descripcion: 'USD' }
   ];
+  readonly pedidoEstadosConsulta = ['A', 'P', 'O', 'C'];
 
   requisiciones: RequisitionRow[] = [];
   centrosCosto: CentroCostoRow[] = [];
@@ -67,20 +100,29 @@ export class RequisicionesPageComponent implements OnInit {
   isLoadingCentrosCosto = false;
   errorMessage = '';
   isLoadingCorrelativo = false;
+  isSavingPedido = false;
   approvalUsers: ApprovalUserOption[] = [];
   centroCostoOptions: CentroCostoOption[] = [];
+  saveErrorMessage = '';
+  selectedPedidoId: number | null = null;
+  isEditingPedido = false;
+  isLoadingPedidoDetalle = false;
 
   private nextCentroCostoId = 1;
+  private _providerFormComponent?: ProviderFormComponent;
+  private pendingProviderFormData: ProviderFormData | null = null;
+  private deletedCentroCostoIds: number[] = [];
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly dialog: MatDialog,
-    private readonly apiService: ApiService
+    private readonly apiService: ApiService,
+    private readonly authService: AuthService
   ) {
     this.filtersForm = this.formBuilder.group({
       nroRequisicion: [''],
       proveedor: [''],
-      estado: ['Todos'],
+      estado: ['Aprobado'],
       gn: ['Todos'],
       tipo: ['Todos']
     });
@@ -97,10 +139,7 @@ export class RequisicionesPageComponent implements OnInit {
     });
 
     this.detalleForm = this.formBuilder.group({
-      ctaGastoCodigo: ['80'],
-      ctaGastoDescripcion: ['Obras'],
       lugarEntrega: ['Los Rosales 555 Santa Anita'],
-      almacen: ['13'],
       referencia: ['Compra de materiales para mantenimiento preventivo'],
       tipoCompra: ['Sin enlazar'],
       ocImportacion: ['0'],
@@ -132,6 +171,10 @@ export class RequisicionesPageComponent implements OnInit {
     return this.centroCostoForm.controls['centroCosto'].value?.trim() || '+ Clic para seleccionar centro de costo';
   }
 
+  get canModifyPedido(): boolean {
+    return this.selectedPedidoId !== null && !this.isLoadingPedidoDetalle;
+  }
+
   aplicarFiltros(): void {
     this.cargarPedidos();
   }
@@ -140,7 +183,7 @@ export class RequisicionesPageComponent implements OnInit {
     this.filtersForm.reset({
       nroRequisicion: '',
       proveedor: '',
-      estado: 'Todos',
+      estado: 'Aprobado',
       gn: 'Todos',
       tipo: 'Todos'
     });
@@ -160,15 +203,73 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
+    if (action === 'Modificar') {
+      this.modificarPedidoSeleccionado();
+      return;
+    }
+
     if (action === 'Cerrar') {
       this.cerrarEditorPedido();
     }
   }
 
+  isActionDisabled(action: string): boolean {
+    if (action === 'Modificar') {
+      return !this.canModifyPedido;
+    }
+
+    return false;
+  }
+
   iniciarNuevoPedido(): void {
     this.resetPedidoEditor();
+    this.isEditingPedido = false;
     this.mostrarEditorPedido = true;
     this.cargarCorrelativoNuevo();
+  }
+
+  seleccionarPedido(item: RequisitionRow): void {
+    this.selectedPedidoId = item.requisicion;
+  }
+
+  isPedidoSeleccionado(item: RequisitionRow): boolean {
+    return this.selectedPedidoId === item.requisicion;
+  }
+
+  modificarPedidoSeleccionado(): void {
+    if (this.selectedPedidoId === null || this.isLoadingPedidoDetalle) {
+      return;
+    }
+
+    this.resetPedidoEditor();
+    this.mostrarEditorPedido = true;
+    this.isEditingPedido = true;
+    this.isLoadingPedidoDetalle = true;
+    this.saveErrorMessage = '';
+
+    forkJoin({
+      pedidoResponse: this.apiService.getListarPedidoModificar(this.selectedPedidoId),
+      centroCostoResponse: this.apiService.getListarPedidoRegistradoCentroCosto(this.selectedPedidoId)
+    }).subscribe({
+      next: ({ pedidoResponse, centroCostoResponse }) => {
+        const pedido = this.extractRecords(pedidoResponse)[0];
+
+        if (!pedido) {
+          this.saveErrorMessage = 'No se encontro informacion del pedido seleccionado.';
+          this.isLoadingPedidoDetalle = false;
+          return;
+        }
+
+        this.populatePedidoEditor(pedido);
+        this.populateCentroCostoEditor(centroCostoResponse);
+        this.isLoadingPedidoDetalle = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando pedido para modificar:', error);
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar la informacion del pedido seleccionado.');
+        this.isLoadingPedidoDetalle = false;
+      }
+    });
   }
 
   openApprovalUserDialog(): void {
@@ -231,6 +332,76 @@ export class RequisicionesPageComponent implements OnInit {
     this.resetPedidoEditor();
     this.mostrarEditorPedido = false;
     this.editandoCentroCostoId = null;
+    this.isEditingPedido = false;
+    this.isLoadingPedidoDetalle = false;
+  }
+
+  guardarPedido(): void {
+    if (this.isSavingPedido) {
+      return;
+    }
+
+    if (this.editandoCentroCostoId !== null) {
+      this.guardarCantidadCentroCosto(this.editandoCentroCostoId);
+    }
+
+    if (this.isEditingPedido) {
+      const payload = this.buildActualizarPedidoPayload();
+
+      if (!payload) {
+        return;
+      }
+
+      this.isSavingPedido = true;
+      this.saveErrorMessage = '';
+
+      this.apiService.patchActualizarPedido(payload).pipe(
+        switchMap((response: unknown) => {
+          this.assertSuccessfulResponse(response, 'No se pudo actualizar el pedido.');
+          return this.sincronizarCentrosCostoPedido(payload.Ped_Id);
+        })
+      ).subscribe({
+        next: () => {
+          this.isSavingPedido = false;
+          this.cerrarEditorPedido();
+          this.cargarPedidos();
+        },
+        error: (error: unknown) => {
+          console.error('Error guardando pedido:', error);
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el pedido. Intenta nuevamente.');
+          this.isSavingPedido = false;
+        }
+      });
+
+      return;
+    }
+
+    const payload = this.buildRegistrarPedidoPayload();
+
+    if (!payload) {
+      return;
+    }
+
+    this.isSavingPedido = true;
+    this.saveErrorMessage = '';
+
+    this.apiService.postRegistrarPedido(payload).pipe(
+      switchMap((response: unknown) => {
+        this.assertSuccessfulResponse(response, 'No se pudo registrar el pedido.');
+        return this.registrarCentrosCostoPedido(payload.Ped_Id);
+      })
+    ).subscribe({
+      next: () => {
+        this.isSavingPedido = false;
+        this.cerrarEditorPedido();
+        this.cargarPedidos();
+      },
+      error: (error: unknown) => {
+        console.error('Error guardando pedido:', error);
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo registrar el pedido. Intenta nuevamente.');
+        this.isSavingPedido = false;
+      }
+    });
   }
 
   agregarCentroCosto(centroCosto: CentroCostoOption): void {
@@ -249,7 +420,8 @@ export class RequisicionesPageComponent implements OnInit {
         id: this.nextCentroCostoId++,
         codigo: centroCosto.id,
         costo: centroCosto.descripcion,
-        cantidad: 0
+        cantidad: 0,
+        persistedId: null
       },
       ...this.centrosCosto
     ];
@@ -285,7 +457,12 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   eliminarCentroCosto(id: number): void {
+    const persistedId = this.centrosCosto.find((item) => item.id === id)?.persistedId;
     this.centrosCosto = this.centrosCosto.filter((item) => item.id !== id);
+
+    if (persistedId) {
+      this.deletedCentroCostoIds = [...this.deletedCentroCostoIds, persistedId];
+    }
 
     if (this.editandoCentroCostoId === id) {
       this.cancelarEdicionCentroCosto();
@@ -328,12 +505,15 @@ export class RequisicionesPageComponent implements OnInit {
     this.errorMessage = '';
     this.requisiciones = [];
 
-    this.apiService.getListarPedido(this.getFiltros()).subscribe({
+    this.buildPedidosRequest(this.getFiltros()).subscribe({
       next: (response: unknown) => {
         this.requisiciones = this.extractRecords(response)
           .map((item) => this.mapPedido(item))
           .filter((item) => item.requisicion > 0)
           .sort((left, right) => right.requisicion - left.requisicion);
+        this.selectedPedidoId = this.requisiciones.some((item) => item.requisicion === this.selectedPedidoId)
+          ? this.selectedPedidoId
+          : null;
         this.isLoadingPedidos = false;
       },
       error: (error: unknown) => {
@@ -343,6 +523,21 @@ export class RequisicionesPageComponent implements OnInit {
         this.isLoadingPedidos = false;
       }
     });
+  }
+
+  private buildPedidosRequest(filtros: PedidosFiltro): Observable<unknown> {
+    if (filtros.Flg_Est) {
+      return this.apiService.getListarPedido(filtros);
+    }
+
+    return forkJoin(
+      this.pedidoEstadosConsulta.map((estado) => this.apiService.getListarPedido({ ...filtros, Flg_Est: estado }))
+    ).pipe(
+      map((responses: unknown[]) => responses.reduce<DataRecord[]>(
+        (records, response) => records.concat(this.extractRecords(response)),
+        []
+      ))
+    );
   }
 
   private cargarUsuariosAprobacion(): void {
@@ -389,12 +584,211 @@ export class RequisicionesPageComponent implements OnInit {
     this.agregarCentroCosto(centroCosto);
   }
 
+  private buildRegistrarPedidoPayload(): RegistrarPedidoRequest | null {
+    const payloadBase = this.buildPedidoPayloadBase();
+    const usuarioRegistro = this.authService.getCurrentUser().trim();
+
+    if (!payloadBase) {
+      return null;
+    }
+
+    if (!usuarioRegistro) {
+      this.saveErrorMessage = 'No se encontro el usuario actual de la sesion.';
+      return null;
+    }
+
+    return {
+      ...payloadBase,
+      Usr_Reg: usuarioRegistro
+    };
+  }
+
+  private buildActualizarPedidoPayload(): ActualizarPedidoRequest | null {
+    const payloadBase = this.buildPedidoPayloadBase();
+    const usuarioModificacion = this.authService.getCurrentUser().trim();
+
+    if (!payloadBase) {
+      return null;
+    }
+
+    if (!usuarioModificacion) {
+      this.saveErrorMessage = 'No se encontro el usuario actual de la sesion.';
+      return null;
+    }
+
+    return {
+      ...payloadBase,
+      Usr_Mod: usuarioModificacion
+    };
+  }
+
+  private buildPedidoPayloadBase(): Omit<RegistrarPedidoRequest, 'Usr_Reg'> | null {
+    const providerFormData = this.getProviderFormData();
+    const requisicionCompra = Number(this.cabeceraForm.controls['requisicionCompra'].value);
+    const usuarioAprobacion = String(this.cabeceraForm.controls['usuarioAprobacion'].value || '').trim();
+    const lugarEntrega = String(this.detalleForm.controls['lugarEntrega'].value || '').trim();
+    const referencia = String(this.detalleForm.controls['referencia'].value || '').trim();
+    const tipoOc = String(this.detalleForm.controls['oc'].value || '').trim();
+    const moneda = Number(this.detalleForm.controls['moneda'].value);
+    const fechaEntrega = this.normalizePedidoFechaEntrega(String(this.detalleForm.controls['fechaEntrega'].value || '').trim());
+    const sustento = String(this.detalleForm.controls['sustento'].value || '').trim();
+    const attachmentName = this.archivoAdjunto !== 'Sin archivo adjunto' ? this.archivoAdjunto : '';
+
+    if (!providerFormData) {
+      this.saveErrorMessage = 'No se pudo leer la informacion del proveedor. Vuelve a abrir el formulario.';
+      return null;
+    }
+
+    if (!Number.isInteger(requisicionCompra) || requisicionCompra <= 0) {
+      this.saveErrorMessage = 'La requisicion de compra aun no tiene un correlativo valido.';
+      return null;
+    }
+
+    if (providerFormData.isEventual) {
+      this.saveErrorMessage = 'El modo eventual aun no se puede guardar porque el endpoint requiere un proveedor registrado.';
+      return null;
+    }
+
+    if (!providerFormData.supplierCode) {
+      this.saveErrorMessage = 'Selecciona un proveedor antes de guardar.';
+      return null;
+    }
+
+    if (!providerFormData.paymentCode) {
+      this.saveErrorMessage = 'Selecciona una forma de pago antes de guardar.';
+      return null;
+    }
+
+    if (!usuarioAprobacion) {
+      this.saveErrorMessage = 'Selecciona un usuario de aprobacion antes de guardar.';
+      return null;
+    }
+
+    if (!tipoOc) {
+      this.saveErrorMessage = 'Selecciona una opcion de O/C antes de guardar.';
+      return null;
+    }
+
+    if (!Number.isInteger(moneda) || moneda <= 0) {
+      this.saveErrorMessage = 'Selecciona una moneda antes de guardar.';
+      return null;
+    }
+
+    if (!fechaEntrega) {
+      this.saveErrorMessage = 'Ingresa una fecha de entrega valida antes de guardar.';
+      return null;
+    }
+
+    return {
+      Ped_Id: requisicionCompra,
+      Ped_Usr_Apr: usuarioAprobacion,
+      Ped_Lug_Ent: lugarEntrega,
+      Ped_Ref: referencia,
+      Ped_Tip_Com: tipoOc,
+      Ped_Tip_Mon: moneda,
+      Ped_Fec_Ent: fechaEntrega,
+      Ped_Sus: sustento,
+      Ped_Arc_Adj_Nom: attachmentName,
+      Ped_Arc_Adj_Rut: '',
+      Ped_Prv_Cod: providerFormData.supplierCode,
+      Ped_For_Pag_Cod: providerFormData.paymentCode
+    };
+  }
+
+  private registrarCentrosCostoPedido(pedId: number): Observable<unknown> {
+    if (!this.centrosCosto.length) {
+      return of(null);
+    }
+
+    return from(this.centrosCosto).pipe(
+      concatMap((item) => this.apiService.postRegistrarCentroCostoPedidoRegistrado(this.buildRegistrarCentroCostoPayload(pedId, item)).pipe(
+        switchMap((response: unknown) => {
+          this.assertSuccessfulResponse(response, `No se pudo registrar el centro de costo ${item.codigo}.`);
+          return of(response);
+        })
+      )),
+      toArray()
+    );
+  }
+
+  private buildRegistrarCentroCostoPayload(pedId: number, item: CentroCostoRow): RegistrarCentroCostoPedidoRequest {
+    return {
+      Ped_Id: pedId,
+      Ped_Cen_Cos: String(item.codigo),
+      Ped_Can: this.normalizeCantidadCentroCosto(item.cantidad)
+    };
+  }
+
+  private sincronizarCentrosCostoPedido(pedId: number): Observable<unknown> {
+    return this.eliminarCentrosCostoPendientes().pipe(
+      switchMap(() => this.registrarCentrosCostoPedido(pedId))
+    );
+  }
+
+  private eliminarCentrosCostoPendientes(): Observable<unknown> {
+    if (!this.deletedCentroCostoIds.length) {
+      return of(null);
+    }
+
+    const ids = [...this.deletedCentroCostoIds];
+    this.deletedCentroCostoIds = [];
+
+    return from(ids).pipe(
+      concatMap((id) => this.apiService.deleteEliminarCentroCostoPedidoRegistrado({ Ped_Cen_Cos_Id: id }).pipe(
+        switchMap((response: unknown) => {
+          this.assertSuccessfulResponse(response, `No se pudo eliminar el centro de costo ${id}.`);
+          return of(response);
+        })
+      )),
+      toArray()
+    );
+  }
+
   private normalizeCantidadCentroCosto(cantidad: number): number {
     if (!Number.isFinite(cantidad) || cantidad < 0) {
       return 0;
     }
 
     return Math.round(cantidad * 1000) / 1000;
+  }
+
+  private getProviderFormData(): ProviderFormData | null {
+    const providerFormData = this.providerFormComponent?.form?.getRawValue?.() ?? this.providerFormComponent?.getFormData?.();
+
+    if (!providerFormData) {
+      return null;
+    }
+
+    return providerFormData as ProviderFormData;
+  }
+
+  private normalizePedidoFechaEntrega(value: string): string {
+    if (!value) {
+      return '';
+    }
+
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value);
+
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}T00:00:00`;
+    }
+
+    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(value);
+
+    if (separatedMatch) {
+      return `${separatedMatch[3]}-${separatedMatch[1].padStart(2, '0')}-${separatedMatch[2].padStart(2, '0')}T00:00:00`;
+    }
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return '';
+    }
+
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+
+    return `${parsedDate.getFullYear()}-${month}-${day}T00:00:00`;
   }
 
   private getFiltros(): PedidosFiltro {
@@ -697,6 +1091,45 @@ export class RequisicionesPageComponent implements OnInit {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
+  private assertSuccessfulResponse(response: unknown, fallbackMessage: string): void {
+    if (!this.isDataRecord(response)) {
+      return;
+    }
+
+    if (response['Success'] === false || response['success'] === false) {
+      throw new Error(this.extractResponseMessage(response) || fallbackMessage);
+    }
+  }
+
+  private extractResponseMessage(response: DataRecord): string {
+    const message = response['Message'] ?? response['message'];
+    return typeof message === 'string' ? message.trim() : '';
+  }
+
+  private resolveErrorMessage(error: unknown, fallbackMessage: string): string {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.trim();
+    }
+
+    if (error instanceof HttpErrorResponse) {
+      const body = error.error;
+
+      if (this.isDataRecord(body)) {
+        const message = this.extractResponseMessage(body);
+
+        if (message) {
+          return message;
+        }
+      }
+
+      if (typeof body === 'string' && body.trim()) {
+        return body.trim();
+      }
+    }
+
+    return fallbackMessage;
+  }
+
   private resetPedidoEditor(): void {
     this.cabeceraForm.reset({
       requisicionCompra: null,
@@ -709,10 +1142,7 @@ export class RequisicionesPageComponent implements OnInit {
     });
     this.nextCentroCostoId = 1;
     this.detalleForm.reset({
-      ctaGastoCodigo: '80',
-      ctaGastoDescripcion: 'Obras',
       lugarEntrega: 'Los Rosales 555 Santa Anita',
-      almacen: '13',
       referencia: 'Compra de materiales para mantenimiento preventivo',
       tipoCompra: 'Sin enlazar',
       ocImportacion: '0',
@@ -725,5 +1155,89 @@ export class RequisicionesPageComponent implements OnInit {
     this.centrosCosto = [];
     this.editandoCentroCostoCantidad = 0;
     this.archivoAdjunto = 'Sin archivo adjunto';
+    this.saveErrorMessage = '';
+    this.isSavingPedido = false;
+    this.isLoadingPedidoDetalle = false;
+    this.deletedCentroCostoIds = [];
+    this.pendingProviderFormData = null;
+    this.providerFormComponent?.resetForm();
+  }
+
+  private populatePedidoEditor(item: DataRecord): void {
+    const pedId = this.getNumberValue(item, ['Ped_Id', 'ped_Id', 'pedId', 'requisicion', 'Requisicion']);
+    const approvalCode = this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'Usr_Apr', 'usrApr']);
+    const approvalUser = this.approvalUsers.find((user) => user.code === approvalCode);
+    const supplierCode = this.getNumberValue(item, ['Ped_Prv_Cod', 'ped_Prv_Cod', 'pedPrvCod']) ?? 0;
+    const paymentCode = this.getNumberValue(item, ['Ped_For_Pag_Cod', 'ped_For_Pag_Cod', 'pedForPagCod']) ?? 0;
+    const selectedRow = this.requisiciones.find((row) => row.requisicion === pedId);
+
+    this.cabeceraForm.patchValue({
+      requisicionCompra: pedId ?? null,
+      usuarioAprobacionId: approvalUser?.id ?? 0,
+      usuarioAprobacion: approvalCode
+    });
+
+    this.detalleForm.patchValue({
+      lugarEntrega: this.getTextValue(item, ['Ped_Lug_Ent', 'ped_Lug_Ent', 'pedLugEnt']),
+      referencia: this.getTextValue(item, ['Ped_Ref', 'ped_Ref', 'pedRef']),
+      tipoCompra: 'Sin enlazar',
+      ocImportacion: '0',
+      oc: this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']),
+      moneda: this.getNumberValue(item, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']),
+      fechaEntrega: this.formatDateValue(this.getTextValue(item, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
+      sustento: this.getTextValue(item, ['Ped_Sus', 'ped_Sus', 'pedSus']),
+      archivo: this.getTextValue(item, ['Ped_Arc_Adj_Nom', 'ped_Arc_Adj_Nom', 'pedArcAdjNom']) || 'Sin archivo adjunto'
+    });
+
+    this.archivoAdjunto = String(this.detalleForm.controls['archivo'].value || 'Sin archivo adjunto');
+
+    const providerFormData: ProviderFormData = {
+      supplierCode,
+      supplierName: selectedRow?.proveedor || '',
+      phone: '',
+      address: '',
+      contact: '',
+      ruc: '',
+      paymentCode,
+      paymentDescription: '',
+      isEventual: false
+    };
+
+    if (this.providerFormComponent) {
+      this.providerFormComponent.hydrateForm(providerFormData);
+      this.pendingProviderFormData = null;
+      return;
+    }
+
+    this.pendingProviderFormData = providerFormData;
+  }
+
+  private populateCentroCostoEditor(response: unknown): void {
+    const centros = this.extractRecords(response)
+      .map((item) => this.mapCentroCostoRegistrado(item))
+      .filter((item): item is CentroCostoRow => item !== null);
+
+    this.centrosCosto = centros;
+    this.nextCentroCostoId = centros.reduce((maxId, item) => Math.max(maxId, item.id), 0) + 1;
+  }
+
+  private mapCentroCostoRegistrado(item: DataRecord): CentroCostoRow | null {
+    const id = this.getNumberValue(item, ['Ped_Cen_Cos_Id', 'ped_Cen_Cos_Id', 'pedCenCosId']);
+    const codigoTexto = this.getTextValue(item, ['Ped_Cen_Cos', 'ped_Cen_Cos', 'pedCenCos']);
+    const codigo = Number(codigoTexto);
+
+    if (!id || !Number.isInteger(codigo) || codigo <= 0) {
+      return null;
+    }
+
+    const centroCosto = this.centroCostoOptions.find((option) => option.id === codigo);
+
+    return {
+      id: this.nextCentroCostoId++,
+      codigo,
+      costo: centroCosto?.descripcion || `Centro de costo ${codigo}`,
+      cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0,
+      persistedId: id
+    };
   }
 }

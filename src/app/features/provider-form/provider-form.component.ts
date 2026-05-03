@@ -8,6 +8,17 @@ import { PaymentOption, ProviderRecord } from './provider-form.models';
 import { ProviderSelectorDialogComponent } from './dialogs/provider-selector-dialog.component';
 
 type DataRecord = Record<string, unknown>;
+type ProviderFormHydration = {
+  supplierCode: number;
+  supplierName: string;
+  phone: string;
+  address: string;
+  contact: string;
+  ruc: string;
+  paymentCode: number;
+  paymentDescription: string;
+  isEventual: boolean;
+};
 
 @Component({
   selector: 'app-provider-form',
@@ -41,6 +52,7 @@ export class ProviderFormComponent implements OnInit {
     this.form.controls.contact,
     this.form.controls.ruc
   ];
+  private pendingHydration: ProviderFormHydration | null = null;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -63,6 +75,48 @@ export class ProviderFormComponent implements OnInit {
 
   get isEventualMode(): boolean {
     return this.form.controls.isEventual.value;
+  }
+
+  getFormData(): ReturnType<ProviderFormComponent['form']['getRawValue']> {
+    return this.form.getRawValue();
+  }
+
+  hydrateForm(data: ProviderFormHydration): void {
+    this.pendingHydration = data;
+    this.applyHydration(data);
+  }
+
+  private applyHydration(data: ProviderFormHydration): void {
+    const provider = this.providers.find((item) => item.code === data.supplierCode);
+    const paymentOption = this.paymentOptions.find((item) => item.code === data.paymentCode);
+    const resolvedData: ProviderFormHydration = {
+      ...data,
+      supplierName: provider?.name || data.supplierName,
+      phone: provider?.phone || data.phone,
+      address: provider?.address || data.address,
+      contact: provider?.contact || data.contact,
+      ruc: provider?.ruc || data.ruc,
+      paymentDescription: paymentOption?.description || data.paymentDescription
+    };
+
+    if (data.isEventual) {
+      this.enableManualFields();
+    } else {
+      this.disableManualFields();
+    }
+
+    this.form.patchValue({
+      supplierCode: resolvedData.supplierCode,
+      supplierName: resolvedData.supplierName,
+      phone: resolvedData.phone,
+      address: resolvedData.address,
+      contact: resolvedData.contact,
+      ruc: resolvedData.ruc,
+      paymentCode: resolvedData.paymentCode,
+      paymentDescription: resolvedData.paymentDescription,
+      isEventual: resolvedData.isEventual
+    });
+    this.form.controls.paymentDescription.disable();
   }
 
   openProviderDialog(): void {
@@ -178,6 +232,7 @@ export class ProviderFormComponent implements OnInit {
         this.providers = this.extractRecords(response)
           .map((item) => this.mapProvider(item))
           .filter((provider) => provider.code > 0 && !!provider.name);
+        this.reapplyPendingHydration();
         this.isLoadingProviders = false;
       },
       error: (error: unknown) => {
@@ -188,6 +243,10 @@ export class ProviderFormComponent implements OnInit {
     });
   }
 
+  resetForm(): void {
+    this.resetToInitialState();
+  }
+
   private loadPaymentOptions(): void {
     this.isLoadingPayments = true;
 
@@ -196,6 +255,7 @@ export class ProviderFormComponent implements OnInit {
         this.paymentOptions = this.extractRecords(response)
           .map((item) => this.mapPaymentOption(item))
           .filter((paymentOption) => paymentOption.code > 0 && !!paymentOption.description);
+        this.reapplyPendingHydration();
         this.isLoadingPayments = false;
       },
       error: (error: unknown) => {
@@ -272,5 +332,13 @@ export class ProviderFormComponent implements OnInit {
 
   private isDataRecord(value: unknown): value is DataRecord {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private reapplyPendingHydration(): void {
+    if (!this.pendingHydration) {
+      return;
+    }
+
+    this.applyHydration(this.pendingHydration);
   }
 }

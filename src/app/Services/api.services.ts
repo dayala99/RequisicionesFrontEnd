@@ -91,6 +91,48 @@ export interface ActualizarProveedorRequest {
     Fec_Mod: string;
 }
 
+export interface RegistrarPedidoRequest {
+    Ped_Id: number;
+    Ped_Usr_Apr: string;
+    Ped_Lug_Ent: string;
+    Ped_Ref: string;
+    Ped_Tip_Com: string;
+    Ped_Tip_Mon: number;
+    Ped_Fec_Ent: string;
+    Ped_Sus: string;
+    Ped_Arc_Adj_Nom: string;
+    Ped_Arc_Adj_Rut: string;
+    Ped_Prv_Cod: number;
+    Ped_For_Pag_Cod: number;
+    Usr_Reg: string;
+}
+
+export interface ActualizarPedidoRequest {
+    Ped_Id: number;
+    Ped_Usr_Apr: string;
+    Ped_Lug_Ent: string;
+    Ped_Ref: string;
+    Ped_Tip_Com: string;
+    Ped_Tip_Mon: number;
+    Ped_Fec_Ent: string;
+    Ped_Sus: string;
+    Ped_Arc_Adj_Nom: string;
+    Ped_Arc_Adj_Rut: string;
+    Ped_Prv_Cod: number;
+    Ped_For_Pag_Cod: number;
+    Usr_Mod: string;
+}
+
+export interface RegistrarCentroCostoPedidoRequest {
+    Ped_Id: number;
+    Ped_Cen_Cos: string;
+    Ped_Can: number;
+}
+
+export interface EliminarCentroCostoPedidoRequest {
+    Ped_Cen_Cos_Id: number;
+}
+
 
 @Injectable({
     providedIn: 'root'
@@ -242,6 +284,40 @@ export class ApiService {
     getListarPedidoCorrelativoNuevo(): Observable<any> {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Pedido/getListarPedidoCorrelativoNuevo', { headers });
+    }
+
+    getListarPedidoModificar(Ped_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Id', Ped_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getListarPedidoModificar', { headers, params });
+    }
+
+    getListarPedidoRegistradoCentroCosto(Ped_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Id', Ped_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getListarPedidoRegistradoCentroCosto', { headers, params });
+    }
+
+    postRegistrarPedido(pedido: RegistrarPedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', pedido, { headers });
+    }
+
+    patchActualizarPedido(pedido: ActualizarPedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedido', pedido, { headers });
+    }
+
+    postRegistrarCentroCostoPedidoRegistrado(centroCosto: RegistrarCentroCostoPedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Pedido/postRegistrarCentroCostoPedidoRegistrado', centroCosto, { headers });
+    }
+
+    deleteEliminarCentroCostoPedidoRegistrado(centroCosto: EliminarCentroCostoPedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.request('delete', this.baseUrl + 'Pedido/deleteEliminarCentroCostoPedidoRegistrado', { headers, body: centroCosto });
     }
 
     registrarProveedor(proveedor: RegistrarProveedorRequest): Observable<any> {

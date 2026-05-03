@@ -132,6 +132,34 @@ describe('ProviderFormComponent', () => {
     expect(component.form.controls.paymentDescription.value).toBe('Credito 15 dias');
   });
 
+  it('should resolve provider and payment details from loaded catalogs when hydrating by codes', () => {
+    const fixture = TestBed.createComponent(ProviderFormComponent);
+    const component = fixture.componentInstance;
+
+    fixture.detectChanges();
+
+    component.hydrateForm({
+      supplierCode: 1024,
+      supplierName: 'Proveedor parcial',
+      phone: '',
+      address: '',
+      contact: '',
+      ruc: '',
+      paymentCode: 3,
+      paymentDescription: '',
+      isEventual: false
+    });
+
+    expect(component.form.controls.supplierCode.value).toBe(1024);
+    expect(component.form.controls.supplierName.value).toBe('Proveedor API');
+    expect(component.form.controls.phone.value).toBe('01-111-1111');
+    expect(component.form.controls.address.value).toBe('Calle API 123');
+    expect(component.form.controls.contact.value).toBe('Ana Torres');
+    expect(component.form.controls.ruc.value).toBe('20123456789');
+    expect(component.form.controls.paymentCode.value).toBe(3);
+    expect(component.form.controls.paymentDescription.value).toBe('Credito 30 dias');
+  });
+
   it('should enable manual provider fields and keep payment popup data when Eventual is active', () => {
     const fixture = TestBed.createComponent(ProviderFormComponent);
     const component = fixture.componentInstance;

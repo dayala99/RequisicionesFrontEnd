@@ -48,10 +48,12 @@
 
 .shell__content {
   width: 100%;
+  min-width: 0;
 }
 
 .content {
   padding: 0 0 1rem;
+  min-width: 0;
 }
 
 .sidebar {
@@ -153,6 +155,7 @@
 
 .content {
   padding: 0 0 1rem;
+  min-width: 0;
 }
 
 @media screen and (max-width: 960px) {

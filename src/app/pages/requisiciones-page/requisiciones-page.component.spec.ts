@@ -1,10 +1,13 @@
 import { Component, Input } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { FormControl, FormGroup } from '@angular/forms';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 
 import { ApiService } from 'src/app/Services/api.services';
+import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ApprovalUserSelectorDialogComponent } from './approval-user-selector-dialog.component';
 import { CentroCostoSelectorDialogComponent } from './centro-costo-selector-dialog.component';
 import { RequisicionesPageComponent } from './requisiciones-page.component';
@@ -15,6 +18,35 @@ import { RequisicionesPageComponent } from './requisiciones-page.component';
 })
 class ProviderFormStubComponent {
   @Input() embedded = false;
+  readonly form = new FormGroup({
+    supplierCode: new FormControl(0, { nonNullable: true }),
+    supplierName: new FormControl('', { nonNullable: true }),
+    phone: new FormControl('', { nonNullable: true }),
+    address: new FormControl('', { nonNullable: true }),
+    contact: new FormControl('', { nonNullable: true }),
+    ruc: new FormControl('', { nonNullable: true }),
+    paymentCode: new FormControl(0, { nonNullable: true }),
+    paymentDescription: new FormControl('', { nonNullable: true }),
+    isEventual: new FormControl(false, { nonNullable: true })
+  });
+
+  hydrateForm(data: ReturnType<ProviderFormStubComponent['form']['getRawValue']>): void {
+    this.form.patchValue(data);
+  }
+
+  resetForm(): void {
+    this.form.reset({
+      supplierCode: 0,
+      supplierName: '',
+      phone: '',
+      address: '',
+      contact: '',
+      ruc: '',
+      paymentCode: 0,
+      paymentDescription: '',
+      isEventual: false
+    });
+  }
 }
 
 describe('RequisicionesPageComponent', () => {
@@ -23,10 +55,17 @@ describe('RequisicionesPageComponent', () => {
   let matDialogMock: { open: jasmine.Spy };
   let apiServiceMock: {
     getListarPedido: jasmine.Spy;
+    getListarPedidoModificar: jasmine.Spy;
+    getListarPedidoRegistradoCentroCosto: jasmine.Spy;
     getListarPedidoCorrelativoNuevo: jasmine.Spy;
     getListarUsuarioActivo: jasmine.Spy;
     getListarCentroCostoActivo: jasmine.Spy;
+    postRegistrarPedido: jasmine.Spy;
+    patchActualizarPedido: jasmine.Spy;
+    postRegistrarCentroCostoPedidoRegistrado: jasmine.Spy;
+    deleteEliminarCentroCostoPedidoRegistrado: jasmine.Spy;
   };
+  let authServiceMock: { getCurrentUser: jasmine.Spy };
 
   beforeEach(async () => {
     matDialogMock = {
@@ -64,6 +103,37 @@ describe('RequisicionesPageComponent', () => {
           ]
         })
       ),
+      getListarPedidoModificar: jasmine.createSpy('getListarPedidoModificar').and.returnValue(
+        of({
+          elements: [
+            {
+              Ped_Id: 1042,
+              Ped_Usr_Apr: 'mramirez',
+              Ped_Lug_Ent: 'Santa Anita',
+              Ped_Ref: 'Compra de prueba',
+              Ped_Tip_Com: 'CO',
+              Ped_Tip_Mon: 1,
+              Ped_Fec_Ent: '2026-04-30T00:00:00',
+              Ped_Sus: 'Sustento de prueba',
+              Ped_Arc_Adj_Nom: 'pedido-1042.pdf',
+              Ped_Prv_Cod: 1024,
+              Ped_For_Pag_Cod: 3
+            }
+          ]
+        })
+      ),
+      getListarPedidoRegistradoCentroCosto: jasmine.createSpy('getListarPedidoRegistradoCentroCosto').and.returnValue(
+        of({
+          elements: [
+            {
+              Ped_Cen_Cos_Id: 2,
+              Ped_Id: 1042,
+              Ped_Cen_Cos: '1',
+              Ped_Can: 3
+            }
+          ]
+        })
+      ),
       getListarPedidoCorrelativoNuevo: jasmine.createSpy('getListarPedidoCorrelativoNuevo').and.returnValue(
         of({
           elements: [
@@ -86,7 +156,35 @@ describe('RequisicionesPageComponent', () => {
             { Cen_Cos_Id: 2, Cen_Cos_Des: 'CC-21 Logistica', Flg_Est: 'A' }
           ]
         })
+      ),
+      postRegistrarPedido: jasmine.createSpy('postRegistrarPedido').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Pedido registrado correctamente'
+        })
+      ),
+      patchActualizarPedido: jasmine.createSpy('patchActualizarPedido').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Pedido actualizado correctamente'
+        })
+      ),
+      postRegistrarCentroCostoPedidoRegistrado: jasmine.createSpy('postRegistrarCentroCostoPedidoRegistrado').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Centro de costo registrado correctamente'
+        })
+      ),
+      deleteEliminarCentroCostoPedidoRegistrado: jasmine.createSpy('deleteEliminarCentroCostoPedidoRegistrado').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Centro de costo eliminado correctamente'
+        })
       )
+    };
+
+    authServiceMock = {
+      getCurrentUser: jasmine.createSpy('getCurrentUser').and.returnValue('admin@demo.com')
     };
 
     await TestBed.configureTestingModule({
@@ -100,6 +198,10 @@ describe('RequisicionesPageComponent', () => {
         {
           provide: MatDialog,
           useValue: matDialogMock
+        },
+        {
+          provide: AuthService,
+          useValue: authServiceMock
         }
       ]
     }).compileComponents();
@@ -114,7 +216,7 @@ describe('RequisicionesPageComponent', () => {
   });
 
   it('should load registered orders from api on init', () => {
-    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({});
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(apiServiceMock.getListarUsuarioActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(apiServiceMock.getListarCentroCostoActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(component.requisiciones.length).toBe(2);
@@ -155,6 +257,39 @@ describe('RequisicionesPageComponent', () => {
 
     expect(component.mostrarEditorPedido).toBeTrue();
     expect(component.cabeceraForm.value.requisicionCompra).toBe(1043);
+  });
+
+  it('should enable modificar only after selecting a pedido row', () => {
+    expect(component.isActionDisabled('Modificar')).toBeTrue();
+
+    component.seleccionarPedido(component.requisiciones[0]);
+
+    expect(component.isActionDisabled('Modificar')).toBeFalse();
+  });
+
+  it('should load pedido data with getListarPedidoModificar when modifying the selected row', () => {
+    component.seleccionarPedido(component.requisiciones[0]);
+
+    component.ejecutarAccion('Modificar');
+    fixture.detectChanges();
+
+    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
+
+    expect(apiServiceMock.getListarPedidoModificar).toHaveBeenCalledWith(1042);
+    expect(apiServiceMock.getListarPedidoRegistradoCentroCosto).toHaveBeenCalledWith(1042);
+    expect(component.mostrarEditorPedido).toBeTrue();
+    expect(component.isEditingPedido).toBeTrue();
+    expect(component.cabeceraForm.value.requisicionCompra).toBe(1042);
+    expect(component.cabeceraForm.value.usuarioAprobacion).toBe('mramirez');
+    expect(component.detalleForm.value.lugarEntrega).toBe('Santa Anita');
+    expect(component.detalleForm.value.referencia).toBe('Compra de prueba');
+    expect(component.detalleForm.value.oc).toBe('CO');
+    expect(component.detalleForm.value.moneda).toBe(1);
+    expect(providerStub.form.value.supplierCode).toBe(1024);
+    expect(providerStub.form.value.paymentCode).toBe(3);
+    expect(component.centrosCosto).toEqual([
+      { id: 1, codigo: 1, costo: 'CC-80 Obras', cantidad: 3, persistedId: 2 }
+    ]);
   });
 
   it('should hide the editor when Cerrar is clicked', () => {
@@ -203,7 +338,12 @@ describe('RequisicionesPageComponent', () => {
 
     component.aplicarFiltros();
 
-    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Prv_Nom: 'andes' });
+    expect(apiServiceMock.getListarPedido.calls.allArgs().slice(-4)).toEqual([
+      [{ Prv_Nom: 'andes', Flg_Est: 'A' }],
+      [{ Prv_Nom: 'andes', Flg_Est: 'P' }],
+      [{ Prv_Nom: 'andes', Flg_Est: 'O' }],
+      [{ Prv_Nom: 'andes', Flg_Est: 'C' }]
+    ]);
   });
 
   it('should reset requisition filters to the default values', () => {
@@ -220,11 +360,11 @@ describe('RequisicionesPageComponent', () => {
     expect(component.filtersForm.value).toEqual({
       nroRequisicion: '',
       proveedor: '',
-      estado: 'Todos',
+      estado: 'Aprobado',
       gn: 'Todos',
       tipo: 'Todos'
     });
-    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({});
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Flg_Est: 'A' });
   });
 
   it('should show the empty database message when there are no registered orders', () => {
@@ -290,6 +430,7 @@ describe('RequisicionesPageComponent', () => {
     expect(component.centrosCosto[0].codigo).toBe(2);
     expect(component.centrosCosto[0].costo).toBe('CC-21 Logistica');
     expect(component.centrosCosto[0].cantidad).toBe(0);
+    expect(component.centrosCosto[0].persistedId).toBeNull();
     expect(component.centroCostoForm.value.centroCosto).toBe('');
   });
 
@@ -302,11 +443,12 @@ describe('RequisicionesPageComponent', () => {
     expect(component.centrosCosto[0].codigo).toBe(55);
     expect(component.centrosCosto[0].costo).toBe('Proyectos');
     expect(component.centrosCosto[0].cantidad).toBe(0);
+    expect(component.centrosCosto[0].persistedId).toBeNull();
   });
 
   it('should update quantity only after edit mode is activated', () => {
     component.centrosCosto = [
-      { id: 1, codigo: 14, costo: 'Sistemas', cantidad: 0 }
+      { id: 1, codigo: 14, costo: 'Sistemas', cantidad: 0, persistedId: null }
     ];
 
     component.editarCentroCosto(component.centrosCosto[0]);
@@ -320,11 +462,133 @@ describe('RequisicionesPageComponent', () => {
   it('should remove a cost center row', () => {
     component.iniciarNuevoPedido();
     component.centrosCosto = [
-      { id: 1, codigo: 80, costo: 'Mantenimiento planta', cantidad: 0 },
-      { id: 2, codigo: 21, costo: 'Despacho y almacen', cantidad: 0 }
+      { id: 1, codigo: 80, costo: 'Mantenimiento planta', cantidad: 0, persistedId: null },
+      { id: 2, codigo: 21, costo: 'Despacho y almacen', cantidad: 0, persistedId: null }
     ];
     component.eliminarCentroCosto(2);
 
     expect(component.centrosCosto.some((item) => item.id === 2)).toBeFalse();
+  });
+
+  it('should save pedido first and then save each center cost row with requisition id', () => {
+    component.iniciarNuevoPedido();
+    fixture.detectChanges();
+
+    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
+
+    providerStub.form.patchValue({
+      supplierCode: 1024,
+      paymentCode: 3
+    });
+
+    component.cabeceraForm.patchValue({
+      requisicionCompra: 1043,
+      usuarioAprobacion: 'mramirez'
+    });
+    component.detalleForm.patchValue({
+      lugarEntrega: 'Santa Anita',
+      referencia: 'Compra de prueba',
+      oc: 'CO',
+      moneda: 1,
+      fechaEntrega: '04-30-2026',
+      sustento: 'Sustento de prueba'
+    });
+    component.centrosCosto = [
+      { id: 1, codigo: 80, costo: 'Obras', cantidad: 10.125, persistedId: null },
+      { id: 2, codigo: 21, costo: 'Logistica', cantidad: 3, persistedId: null }
+    ];
+
+    component.guardarPedido();
+
+    expect(apiServiceMock.postRegistrarPedido).toHaveBeenCalledWith(jasmine.objectContaining({
+      Ped_Id: 1043,
+      Ped_Usr_Apr: 'mramirez',
+      Ped_Lug_Ent: 'Santa Anita',
+      Ped_Ref: 'Compra de prueba',
+      Ped_Tip_Com: 'CO',
+      Ped_Tip_Mon: 1,
+      Ped_Fec_Ent: '2026-04-30T00:00:00',
+      Ped_Prv_Cod: 1024,
+      Ped_For_Pag_Cod: 3,
+      Usr_Reg: 'admin@demo.com'
+    }));
+    expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado).toHaveBeenCalledTimes(2);
+    expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado.calls.argsFor(0)[0]).toEqual({
+      Ped_Id: 1043,
+      Ped_Cen_Cos: '80',
+      Ped_Can: 10.125
+    });
+    expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado.calls.argsFor(1)[0]).toEqual({
+      Ped_Id: 1043,
+      Ped_Cen_Cos: '21',
+      Ped_Can: 3
+    });
+  });
+
+  it('should update pedido with patchActualizarPedido in edit mode', () => {
+    component.seleccionarPedido(component.requisiciones[0]);
+    component.ejecutarAccion('Modificar');
+    fixture.detectChanges();
+
+    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
+
+    providerStub.form.patchValue({
+      supplierCode: 1024,
+      paymentCode: 3
+    });
+
+    component.cabeceraForm.patchValue({
+      usuarioAprobacion: 'mramirez'
+    });
+    component.detalleForm.patchValue({
+      lugarEntrega: 'Lurin',
+      referencia: 'Pedido actualizado',
+      oc: 'SO',
+      moneda: 2,
+      fechaEntrega: '05-01-2026',
+      sustento: 'Actualizacion'
+    });
+    component.centrosCosto = [
+      { id: 1, codigo: 1, costo: 'CC-80 Obras', cantidad: 5, persistedId: 2 },
+      { id: 2, codigo: 2, costo: 'CC-21 Logistica', cantidad: 7, persistedId: null }
+    ];
+
+    component.guardarPedido();
+
+    expect(apiServiceMock.patchActualizarPedido).toHaveBeenCalledWith(jasmine.objectContaining({
+      Ped_Id: 1042,
+      Ped_Usr_Apr: 'mramirez',
+      Ped_Lug_Ent: 'Lurin',
+      Ped_Ref: 'Pedido actualizado',
+      Ped_Tip_Com: 'SO',
+      Ped_Tip_Mon: 2,
+      Ped_Fec_Ent: '2026-05-01T00:00:00',
+      Ped_Prv_Cod: 1024,
+      Ped_For_Pag_Cod: 3,
+      Usr_Mod: 'admin@demo.com'
+    }));
+    expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado).toHaveBeenCalledTimes(2);
+    expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado.calls.argsFor(0)[0]).toEqual({
+      Ped_Id: 1042,
+      Ped_Cen_Cos: '1',
+      Ped_Can: 5
+    });
+    expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado.calls.argsFor(1)[0]).toEqual({
+      Ped_Id: 1042,
+      Ped_Cen_Cos: '2',
+      Ped_Can: 7
+    });
+  });
+
+  it('should delete removed persisted center costs before re-registering current rows in edit mode', () => {
+    component.seleccionarPedido(component.requisiciones[0]);
+    component.ejecutarAccion('Modificar');
+    fixture.detectChanges();
+
+    component.eliminarCentroCosto(1);
+    component.guardarPedido();
+
+    expect(apiServiceMock.deleteEliminarCentroCostoPedidoRegistrado).toHaveBeenCalledWith({ Ped_Cen_Cos_Id: 2 });
+    expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado).not.toHaveBeenCalled();
   });
 });
