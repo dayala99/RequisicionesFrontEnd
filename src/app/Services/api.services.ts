@@ -104,6 +104,7 @@ export interface RegistrarPedidoRequest {
     Ped_Arc_Adj_Rut: string;
     Ped_Prv_Cod: number;
     Ped_For_Pag_Cod: number;
+    Ped_Can_Tot: number;
     Usr_Reg: string;
 }
 
@@ -120,6 +121,7 @@ export interface ActualizarPedidoRequest {
     Ped_Arc_Adj_Rut: string;
     Ped_Prv_Cod: number;
     Ped_For_Pag_Cod: number;
+    Ped_Can_Tot: number;
     Usr_Mod: string;
 }
 

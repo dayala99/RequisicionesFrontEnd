@@ -510,6 +510,7 @@ describe('RequisicionesPageComponent', () => {
       Ped_Fec_Ent: '2026-04-30T00:00:00',
       Ped_Prv_Cod: 1024,
       Ped_For_Pag_Cod: 3,
+      Ped_Can_Tot: 13.125,
       Usr_Reg: 'admin@demo.com'
     }));
     expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado).toHaveBeenCalledTimes(2);
@@ -565,6 +566,7 @@ describe('RequisicionesPageComponent', () => {
       Ped_Fec_Ent: '2026-05-01T00:00:00',
       Ped_Prv_Cod: 1024,
       Ped_For_Pag_Cod: 3,
+      Ped_Can_Tot: 12,
       Usr_Mod: 'admin@demo.com'
     }));
     expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado).toHaveBeenCalledTimes(2);

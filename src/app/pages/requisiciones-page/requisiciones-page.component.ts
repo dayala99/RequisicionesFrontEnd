@@ -354,6 +354,7 @@ export class RequisicionesPageComponent implements OnInit {
 
       this.isSavingPedido = true;
       this.saveErrorMessage = '';
+      console.debug('Ped_Can_Tot actualizar:', payload.Ped_Can_Tot);
 
       this.apiService.patchActualizarPedido(payload).pipe(
         switchMap((response: unknown) => {
@@ -384,6 +385,7 @@ export class RequisicionesPageComponent implements OnInit {
 
     this.isSavingPedido = true;
     this.saveErrorMessage = '';
+    console.debug('Ped_Can_Tot registrar:', payload.Ped_Can_Tot);
 
     this.apiService.postRegistrarPedido(payload).pipe(
       switchMap((response: unknown) => {
@@ -633,6 +635,7 @@ export class RequisicionesPageComponent implements OnInit {
     const fechaEntrega = this.normalizePedidoFechaEntrega(String(this.detalleForm.controls['fechaEntrega'].value || '').trim());
     const sustento = String(this.detalleForm.controls['sustento'].value || '').trim();
     const attachmentName = this.archivoAdjunto !== 'Sin archivo adjunto' ? this.archivoAdjunto : '';
+    const cantidadTotal = this.getTotalCantidadCentroCosto();
 
     if (!providerFormData) {
       this.saveErrorMessage = 'No se pudo leer la informacion del proveedor. Vuelve a abrir el formulario.';
@@ -691,7 +694,8 @@ export class RequisicionesPageComponent implements OnInit {
       Ped_Arc_Adj_Nom: attachmentName,
       Ped_Arc_Adj_Rut: '',
       Ped_Prv_Cod: providerFormData.supplierCode,
-      Ped_For_Pag_Cod: providerFormData.paymentCode
+      Ped_For_Pag_Cod: providerFormData.paymentCode,
+      Ped_Can_Tot: cantidadTotal
     };
   }
 
@@ -750,6 +754,12 @@ export class RequisicionesPageComponent implements OnInit {
     }
 
     return Math.round(cantidad * 1000) / 1000;
+  }
+
+  private getTotalCantidadCentroCosto(): number {
+    return this.normalizeCantidadCentroCosto(
+      this.centrosCosto.reduce((total, item) => total + this.normalizeCantidadCentroCosto(item.cantidad), 0)
+    );
   }
 
   private getProviderFormData(): ProviderFormData | null {
