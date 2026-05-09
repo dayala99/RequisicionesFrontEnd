@@ -12,12 +12,12 @@
     <form class="login-form" [formGroup]="loginForm" (ngSubmit)="submit()">
       <label class="login-field">
         <span>Correo</span>
-        <input type="email" formControlName="email" placeholder="correo@empresa.com" />
+          <input type="email" formControlName="email" />
       </label>
 
       <label class="login-field">
         <span>Contrasena</span>
-        <input type="password" formControlName="password" placeholder="Ingresa tu contrasena" />
+          <input type="password" formControlName="password" />
       </label>
 
       <p class="login-hint">Demo: admin@demo.com / 123456</p>

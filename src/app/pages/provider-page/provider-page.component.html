@@ -24,7 +24,6 @@
         <input
           type="number"
           formControlName="id"
-          placeholder="Prv_Id"
           min="1"
           step="1"
           (input)="sanitizeIdInput($event)">
@@ -32,17 +31,17 @@
 
       <label class="filter-field">
         <span>Nombre</span>
-        <input type="text" formControlName="nombre" placeholder="Prv_Nom">
+        <input type="text" formControlName="nombre">
       </label>
 
       <label class="filter-field">
         <span>RUC</span>
-        <input type="text" formControlName="ruc" placeholder="Prv_Ruc">
+        <input type="text" formControlName="ruc">
       </label>
 
       <label class="filter-field">
         <span>Nombre Contacto</span>
-        <input type="text" formControlName="nombreContacto" placeholder="Prv_Nom_Con">
+        <input type="text" formControlName="nombreContacto">
       </label>
 
       <label class="filter-field filter-field--select">

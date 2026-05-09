@@ -15,6 +15,9 @@ import { PaymentSelectorDialogComponent } from './features/provider-form/dialogs
 import { ProviderSelectorDialogComponent } from './features/provider-form/dialogs/provider-selector-dialog.component';
 import { ProviderFormComponent } from './features/provider-form/provider-form.component';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
+import { FormaPagoEditDialogComponent } from './pages/forma-pago-page/forma-pago-edit-dialog.component';
+import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
+import { FormaPagoRegisterDialogComponent } from './pages/forma-pago-page/forma-pago-register-dialog.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
@@ -23,6 +26,12 @@ import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-c
 import { ApprovalUserSelectorDialogComponent } from './pages/requisiciones-page/approval-user-selector-dialog.component';
 import { CentroCostoSelectorDialogComponent } from './pages/requisiciones-page/centro-costo-selector-dialog.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
+import { TipoServicioEditDialogComponent } from './pages/tipo-servicio-page/tipo-servicio-edit-dialog.component';
+import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
+import { TipoServicioRegisterDialogComponent } from './pages/tipo-servicio-page/tipo-servicio-register-dialog.component';
+import { UnidadMedidaEditDialogComponent } from './pages/unidad-medida-page/unidad-medida-edit-dialog.component';
+import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
+import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/unidad-medida-register-dialog.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
 
@@ -35,6 +44,9 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
   declarations: [
     AppComponent,
     AppLayoutComponent,
+    FormaPagoPageComponent,
+    FormaPagoRegisterDialogComponent,
+    FormaPagoEditDialogComponent,
     HomePageComponent,
     ProviderPageComponent,
     ProviderEditDialogComponent,
@@ -46,6 +58,12 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     ApprovalUserSelectorDialogComponent,
     CentroCostoSelectorDialogComponent,
     RequisicionesPageComponent,
+    TipoServicioPageComponent,
+    TipoServicioRegisterDialogComponent,
+    TipoServicioEditDialogComponent,
+    UnidadMedidaPageComponent,
+    UnidadMedidaRegisterDialogComponent,
+    UnidadMedidaEditDialogComponent,
     LoginPageComponent,
     UsuariosPageComponent,
     UsuarioEditDialogComponent,

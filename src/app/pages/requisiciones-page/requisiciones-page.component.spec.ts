@@ -57,11 +57,16 @@ describe('RequisicionesPageComponent', () => {
     getListarPedido: jasmine.Spy;
     getListarPedidoModificar: jasmine.Spy;
     getListarPedidoRegistradoCentroCosto: jasmine.Spy;
+    getListarDetallePedido: jasmine.Spy;
+    getListarDetallePedidoModificar: jasmine.Spy;
     getListarPedidoCorrelativoNuevo: jasmine.Spy;
     getListarUsuarioActivo: jasmine.Spy;
     getListarCentroCostoActivo: jasmine.Spy;
     postRegistrarPedido: jasmine.Spy;
     patchActualizarPedido: jasmine.Spy;
+    postRegistrarDetallePedido: jasmine.Spy;
+    patchActualizarDetallePedido: jasmine.Spy;
+    deleteEliminarDetallePedido: jasmine.Spy;
     postRegistrarCentroCostoPedidoRegistrado: jasmine.Spy;
     deleteEliminarCentroCostoPedidoRegistrado: jasmine.Spy;
   };
@@ -134,6 +139,34 @@ describe('RequisicionesPageComponent', () => {
           ]
         })
       ),
+      getListarDetallePedido: jasmine.createSpy('getListarDetallePedido').and.returnValue(
+        of({
+          elements: [
+            {
+              Ped_Det_Id: 11,
+              Ped_Cod_Itm: 'ITM-001',
+              Ped_Uni_Med: 'UND',
+              Ped_Can: 2,
+              Ped_Cos_Uni: 15.5,
+              Ped_Cos_Tot: 31
+            }
+          ]
+        })
+      ),
+      getListarDetallePedidoModificar: jasmine.createSpy('getListarDetallePedidoModificar').and.returnValue(
+        of({
+          elements: [
+            {
+              Ped_Det_Id: 11,
+              Ped_Cod_Itm: 'ITM-001',
+              Ped_Uni_Med: 'UND',
+              Ped_Can: 2,
+              Ped_Cos_Uni: 15.5,
+              Ped_Cos_Tot: 31
+            }
+          ]
+        })
+      ),
       getListarPedidoCorrelativoNuevo: jasmine.createSpy('getListarPedidoCorrelativoNuevo').and.returnValue(
         of({
           elements: [
@@ -167,6 +200,24 @@ describe('RequisicionesPageComponent', () => {
         of({
           Success: true,
           Message: 'Pedido actualizado correctamente'
+        })
+      ),
+      postRegistrarDetallePedido: jasmine.createSpy('postRegistrarDetallePedido').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Detalle registrado correctamente'
+        })
+      ),
+      patchActualizarDetallePedido: jasmine.createSpy('patchActualizarDetallePedido').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Detalle actualizado correctamente'
+        })
+      ),
+      deleteEliminarDetallePedido: jasmine.createSpy('deleteEliminarDetallePedido').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Detalle eliminado correctamente'
         })
       ),
       postRegistrarCentroCostoPedidoRegistrado: jasmine.createSpy('postRegistrarCentroCostoPedidoRegistrado').and.returnValue(
@@ -298,6 +349,61 @@ describe('RequisicionesPageComponent', () => {
     component.ejecutarAccion('Cerrar');
 
     expect(component.mostrarEditorPedido).toBeFalse();
+  });
+
+  it('should open a dedicated detail view with linked center costs and mock products', () => {
+    const pedido = component.requisiciones[0];
+
+    component.toggleDetallePedido(pedido);
+
+    expect(component.mostrarDetallePedido).toBeTrue();
+    expect(apiServiceMock.getListarDetallePedido).toHaveBeenCalledWith(1042);
+    expect(apiServiceMock.getListarPedidoRegistradoCentroCosto).toHaveBeenCalledWith(1042);
+    expect(component.detallePedidoCantidadLimite).toBe(3);
+    expect(component.getCentroCostoPedidoExpandido()).toEqual([
+      { id: 1, codigo: 1, costo: 'CC-80 Obras', cantidad: 3, persistedId: 2 }
+    ]);
+    expect(component.getDetallePedidoExpandido()).toEqual([
+      {
+        id: 9001,
+        persistedId: null,
+        item: '1',
+        codigoItem: '1',
+        descripcion: 'CAÑO',
+        unidad: 'UNIDAD',
+        cantidad: 2,
+        precioUnitario: 2,
+        subtotal: 4
+      },
+      {
+        id: 9002,
+        persistedId: null,
+        item: '2',
+        codigoItem: '2',
+        descripcion: 'PAÑAL',
+        unidad: 'DOCENA',
+        cantidad: 1,
+        precioUnitario: 5.5,
+        subtotal: 5.5
+      }
+    ]);
+  });
+
+  it('should block saving detail items when the proposed quantity exceeds the allowed total', () => {
+    component.toggleDetallePedido(component.requisiciones[0]);
+    component.iniciarNuevoPedidoDetalle();
+    component.detallePedidoForm.patchValue({
+      codigoItem: '3',
+      unidad: 'UNIDAD',
+      cantidad: 2,
+      precioUnitario: 1
+    });
+
+    component.guardarPedidoDetalle();
+
+    expect(apiServiceMock.getListarPedidoRegistradoCentroCosto).toHaveBeenCalledWith(1042);
+    expect(apiServiceMock.postRegistrarDetallePedido).not.toHaveBeenCalled();
+    expect(component.detallePedidoErrorMessage).toContain('no puede ser mayor que la cantidad total permitida');
   });
 
   it('should keep the editor open when cancel confirmation is rejected', () => {
@@ -524,6 +630,43 @@ describe('RequisicionesPageComponent', () => {
       Ped_Cen_Cos: '21',
       Ped_Can: 3
     });
+  });
+
+  it('should save pedido with provider code 0 when no provider is selected', () => {
+    component.iniciarNuevoPedido();
+    fixture.detectChanges();
+
+    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
+
+    providerStub.form.patchValue({
+      supplierCode: 0,
+      paymentCode: 3,
+      isEventual: true
+    });
+
+    component.cabeceraForm.patchValue({
+      requisicionCompra: 1044,
+      usuarioAprobacion: 'mramirez'
+    });
+    component.detalleForm.patchValue({
+      lugarEntrega: 'Santa Anita',
+      referencia: 'Pedido sin proveedor',
+      oc: 'CO',
+      moneda: 1,
+      fechaEntrega: '04-30-2026',
+      sustento: 'Sustento de prueba'
+    });
+    component.centrosCosto = [
+      { id: 1, codigo: 80, costo: 'Obras', cantidad: 10, persistedId: null }
+    ];
+
+    component.guardarPedido();
+
+    expect(apiServiceMock.postRegistrarPedido).toHaveBeenCalledWith(jasmine.objectContaining({
+      Ped_Id: 1044,
+      Ped_Prv_Cod: 0,
+      Ped_For_Pag_Cod: 3
+    }));
   });
 
   it('should update pedido with patchActualizarPedido in edit mode', () => {

@@ -38,11 +38,40 @@ describe('AppLayoutComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const links = Array.from(compiled.querySelectorAll('.sidebar_link')).map((element) => element.textContent?.trim());
+    const groupToggle = compiled.querySelector('.sidebar_group_toggle')?.textContent ?? '';
 
     expect(links).toContain('Inicio');
-    expect(links).toContain('Proveedor');
     expect(links).toContain('Pedidos');
+    expect(groupToggle).toContain('Mantenimiento');
+  });
+
+  it('should toggle the mantenimiento group', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+
+    expect(component.maintenanceOpen).toBeFalse();
+
+    component.toggleMaintenanceMenu();
+    expect(component.maintenanceOpen).toBeTrue();
+
+    component.toggleMaintenanceMenu();
+    expect(component.maintenanceOpen).toBeFalse();
+  });
+
+  it('should render usuario and proveedor inside mantenimiento when it is open', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+    component.maintenanceOpen = true;
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const links = Array.from(compiled.querySelectorAll('.sidebar_link--nested')).map((element) => element.textContent?.trim());
+
+    expect(links).toContain('Forma de Pagos');
+    expect(links).toContain('Tipo de Servicio');
+    expect(links).toContain('Unidad de Medida');
     expect(links).toContain('Usuario');
+    expect(links).toContain('Proveedor');
   });
 
   it('should show the current user from the auth session', () => {

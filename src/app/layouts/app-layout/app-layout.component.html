@@ -31,7 +31,42 @@
 
     <nav class="sidebar_menu">
       <a
-        *ngFor="let item of menuItems"
+        *ngFor="let item of menuItems | slice:0:1"
+        [routerLink]="item.route"
+        [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+        routerLinkActive="active"
+        class="sidebar_link"
+        (click)="closeSidebar()">
+        {{ item.label }}
+      </a>
+
+      <div class="sidebar_group" [class.sidebar_group--open]="maintenanceOpen">
+        <button
+          type="button"
+          class="sidebar_group_toggle"
+          [class.active]="isMaintenanceRouteActive()"
+          [attr.aria-expanded]="maintenanceOpen"
+          (click)="toggleMaintenanceMenu()">
+          <span>Mantenimiento</span>
+          <span class="sidebar_group_arrow" [class.sidebar_group_arrow--open]="maintenanceOpen" aria-hidden="true"></span>
+        </button>
+
+        <div class="sidebar_group_links" [class.sidebar_group_links--open]="maintenanceOpen">
+          <div class="sidebar_group_links_inner">
+            <a
+              *ngFor="let item of maintenanceItems"
+              [routerLink]="item.route"
+              routerLinkActive="active"
+              class="sidebar_link sidebar_link--nested"
+              (click)="closeSidebar()">
+              {{ item.label }}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <a
+        *ngFor="let item of menuItems | slice:1"
         [routerLink]="item.route"
         [routerLinkActiveOptions]="{ exact: item.route === '/' }"
         routerLinkActive="active"
@@ -47,12 +82,6 @@
   </aside>
 
   <section class="content">
-    <header class="shell__header">
-      <div class="shell__header_copy">
-        <h1>Modulo de formularios</h1>
-      </div>
-    </header>
-
     <section class="shell__content">
       <router-outlet></router-outlet>
     </section>

@@ -9,7 +9,7 @@
     </div>
   </header>
 
-  <section *ngIf="!mostrarEditorPedido" class="listado-shell">
+  <section *ngIf="!mostrarEditorPedido && !mostrarDetallePedido" class="listado-shell">
     <footer class="actions-bar">
       <button
         *ngFor="let action of actionButtons"
@@ -25,12 +25,12 @@
       <form class="filters-panel" [formGroup]="filtersForm" (ngSubmit)="aplicarFiltros()">
         <label class="field">
           <span>Nro. Requisicion</span>
-          <input type="number" formControlName="nroRequisicion" min="0" placeholder="0">
+          <input type="number" formControlName="nroRequisicion" min="0">
         </label>
 
         <label class="field">
           <span>Proveedor</span>
-          <input type="text" formControlName="proveedor" placeholder="Buscar proveedor">
+          <input type="text" formControlName="proveedor">
         </label>
 
         <label class="field">
@@ -80,28 +80,34 @@
           </thead>
 
           <tbody>
-            <tr
-              *ngFor="let item of requisiciones; trackBy: trackByRequisicion"
-              class="requisiciones-table__row"
-              [class.requisiciones-table__row--selected]="isPedidoSeleccionado(item)"
-              (click)="seleccionarPedido(item)">
-              <td>{{ item.codigo }}</td>
-              <td><span class="file-badge">{{ item.archivo }}</span></td>
-              <td>{{ item.gerencia }}</td>
-              <td>{{ item.fecha }}</td>
-              <td>{{ item.proveedor }}</td>
-              <td>{{ item.moneda }}</td>
-              <td>{{ formatTotal(item.total, item.moneda) }}</td>
-              <td>
-                <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
-              </td>
-              <td>{{ item.codigoUsr }}</td>
-              <td>{{ item.usrAprobacion }}</td>
-              <td>{{ item.fechaUsrGa }}</td>
-              <td>
-                <button type="button" class="row-detail-button" (click)="$event.stopPropagation()">Detalle</button>
-              </td>
-            </tr>
+            <ng-container *ngFor="let item of requisiciones; trackBy: trackByRequisicion">
+              <tr
+                class="requisiciones-table__row"
+                [class.requisiciones-table__row--selected]="isPedidoSeleccionado(item)"
+                (click)="seleccionarPedido(item)">
+                <td>{{ item.codigo }}</td>
+                <td><span class="file-badge">{{ item.archivo }}</span></td>
+                <td>{{ item.gerencia }}</td>
+                <td>{{ item.fecha }}</td>
+                <td>{{ item.proveedor }}</td>
+                <td>{{ item.moneda }}</td>
+                <td>{{ formatTotal(item.total, item.moneda) }}</td>
+                <td>
+                  <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
+                </td>
+                <td>{{ item.codigoUsr }}</td>
+                <td>{{ item.usrAprobacion }}</td>
+                <td>{{ item.fechaUsrGa }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="row-detail-button"
+                    (click)="toggleDetallePedido(item); $event.stopPropagation()">
+                    Detalle
+                  </button>
+                </td>
+              </tr>
+            </ng-container>
 
             <tr *ngIf="isLoadingPedidos">
               <td colspan="12" class="empty-row">Cargando pedidos registrados...</td>
@@ -113,6 +119,158 @@
 
             <tr *ngIf="!isLoadingPedidos && !errorMessage && !requisiciones.length">
               <td colspan="12" class="empty-row">No se han encontrado pedidos en la base de datos.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <section *ngIf="mostrarDetallePedido && detallePedidoSeleccionado" class="pedido-editor pedido-editor--detalle">
+    <header class="pedidos-card__header">
+      <div>
+        <p class="pedidos-card__eyebrow">Detalle</p>
+        <h2>{{ detallePedidoSeleccionado.codigo }}</h2>
+        <p class="pedidos-card__description">
+          Vista de detalle del pedido seleccionado.
+        </p>
+      </div>
+    </header>
+
+    <section class="editor-section">
+      <div class="section-copy">
+        <h3>Items del detalle</h3>
+        <p class="pedidos-card__description">
+          Los codigos reales se definiran despues. Por ahora se muestran productos de ejemplo.
+        </p>
+      </div>
+
+      <div class="editor-grid editor-grid--detalle-meta">
+        <label class="field">
+          <span>Cantidad total permitida</span>
+          <input
+            type="text"
+            class="input--readonly"
+            [value]="formatDetalleNumero(detallePedidoCantidadLimite)"
+            readonly
+            disabled
+            tabindex="-1">
+        </label>
+      </div>
+
+      <div class="pedido-detalle-panel__toolbar">
+        <button
+          type="button"
+          class="button button--primary"
+          [disabled]="!canManagePedidoDetalle"
+          (click)="iniciarNuevoPedidoDetalle()">
+          Nuevo
+        </button>
+        <button
+          type="button"
+          class="button button--secondary"
+          [disabled]="!canModifyPedidoDetalle"
+          (click)="modificarPedidoDetalleSeleccionado()">
+          Modificar
+        </button>
+        <button
+          type="button"
+          class="button button--secondary"
+          [disabled]="!canModifyPedidoDetalle"
+          (click)="eliminarPedidoDetalleSeleccionado()">
+          Eliminar
+        </button>
+        <button
+          type="button"
+          class="button button--secondary"
+          (click)="cerrarDetallePedido()">
+          Cerrar
+        </button>
+      </div>
+
+      <form
+        *ngIf="showPedidoDetalleEditor"
+        class="pedido-detalle-editor"
+        [formGroup]="detallePedidoForm"
+        (ngSubmit)="guardarPedidoDetalle()">
+        <label class="field">
+          <span>Codigo Item</span>
+          <input type="text" formControlName="codigoItem">
+        </label>
+
+        <label class="field">
+          <span>Unidad</span>
+          <input type="text" formControlName="unidad">
+        </label>
+
+        <label class="field">
+          <span>Cantidad</span>
+          <input type="number" min="0" step="0.001" [max]="detallePedidoCantidadDisponible" formControlName="cantidad">
+        </label>
+
+        <label class="field">
+          <span>Precio Unit.</span>
+          <input type="number" min="0" step="0.001" formControlName="precioUnitario">
+        </label>
+
+        <label class="field">
+          <span>Subtotal</span>
+          <input type="text" [value]="formatDetalleNumero(detallePedidoSubtotal)" readonly>
+        </label>
+
+        <div class="pedido-detalle-editor__actions">
+          <button type="submit" class="button button--primary" [disabled]="isSavingPedidoDetalle">
+            {{ isSavingPedidoDetalle ? 'Guardando...' : isEditingPedidoDetalle ? 'Actualizar' : 'Guardar' }}
+          </button>
+          <button type="button" class="button button--secondary" [disabled]="isSavingPedidoDetalle" (click)="cancelarEdicionPedidoDetalle()">
+            Cancelar
+          </button>
+        </div>
+      </form>
+
+      <p *ngIf="detallePedidoErrorMessage" class="editor-feedback editor-feedback--error">
+        {{ detallePedidoErrorMessage }}
+      </p>
+
+      <div *ngIf="isLoadingDetalleExpandido" class="editor-feedback">
+        Cargando detalle del pedido...
+      </div>
+
+      <div *ngIf="!isLoadingDetalleExpandido && detalleExpandidoError" class="editor-feedback editor-feedback--error">
+        {{ detalleExpandidoError }}
+      </div>
+
+      <div *ngIf="!isLoadingDetalleExpandido && !detalleExpandidoError" class="table-shell">
+        <table class="pedido-detalle-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Codigo Item</th>
+              <th>Descripcion</th>
+              <th>Unidad Medida</th>
+              <th>Cantidad</th>
+              <th>Precio Unitario</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr
+              *ngFor="let detail of getDetallePedidoExpandido(); trackBy: trackByPedidoDetalle"
+              class="pedido-detalle-table__row"
+              [class.pedido-detalle-table__row--selected]="isPedidoDetalleSeleccionado(detail)"
+              (click)="seleccionarPedidoDetalle(detail)">
+              <td>{{ detail.item }}</td>
+              <td>{{ detail.codigoItem }}</td>
+              <td>{{ detail.descripcion }}</td>
+              <td>{{ detail.unidad }}</td>
+              <td>{{ formatDetalleNumero(detail.cantidad) }}</td>
+              <td>{{ formatDetalleNumero(detail.precioUnitario) }}</td>
+              <td>{{ formatDetalleNumero(detail.subtotal) }}</td>
+            </tr>
+
+            <tr *ngIf="!getDetallePedidoExpandido().length">
+              <td colspan="7" class="empty-row">No hay items registrados para este pedido.</td>
             </tr>
           </tbody>
         </table>
@@ -280,7 +438,7 @@
 
           <label class="field">
             <span>Fecha Entrega</span>
-            <input type="text" formControlName="fechaEntrega">
+            <input type="date" [min]="pedidoFechaEntregaMinima" formControlName="fechaEntrega">
           </label>
         </div>
       </section>

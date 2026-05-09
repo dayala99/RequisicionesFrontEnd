@@ -4,9 +4,12 @@ import { AuthGuard } from './features/auth/guards/auth.guard';
 import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
 import { LoginRedirectGuard } from './features/auth/guards/login-redirect.guard';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
+import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
+import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
+import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 
 const routes: Routes = [
@@ -28,6 +31,18 @@ const routes: Routes = [
       {
         path: 'proveedor',
         component: ProviderPageComponent
+      },
+      {
+        path: 'forma-pago',
+        component: FormaPagoPageComponent
+      },
+      {
+        path: 'tipo-servicio',
+        component: TipoServicioPageComponent
+      },
+      {
+        path: 'unidad-medida',
+        component: UnidadMedidaPageComponent
       },
       {
         path: 'pedidos',

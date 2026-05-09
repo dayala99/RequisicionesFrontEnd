@@ -10,21 +10,33 @@ import { AuthService } from '../../features/auth/services/auth.service';
 })
 export class AppLayoutComponent {
   sidebarOpen = false;
+  maintenanceOpen: boolean;
 
   readonly menuItems = [
     { label: 'Inicio', route: '/' },
-    { label: 'Usuario', route: '/usuario' },
-    { label: 'Proveedor', route: '/proveedor' },
     { label: 'Pedidos', route: '/pedidos' }
+  ];
+  readonly maintenanceItems = [
+    { label: 'Forma de Pagos', route: '/forma-pago' },
+    { label: 'Tipo de Servicio', route: '/tipo-servicio' },
+    { label: 'Unidad de Medida', route: '/unidad-medida' },
+    { label: 'Usuario', route: '/usuario' },
+    { label: 'Proveedor', route: '/proveedor' }
   ];
 
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router
-  ) {}
+  ) {
+    this.maintenanceOpen = this.isMaintenanceRouteActive();
+  }
 
   toggleSidebar(): void {
     this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  toggleMaintenanceMenu(): void {
+    this.maintenanceOpen = !this.maintenanceOpen;
   }
 
   closeSidebar(): void {
@@ -39,5 +51,9 @@ export class AppLayoutComponent {
 
   get currentUser(): string {
     return this.authService.getCurrentUser() || 'usuario';
+  }
+
+  isMaintenanceRouteActive(): boolean {
+    return this.maintenanceItems.some((item) => this.router.url.startsWith(item.route));
   }
 }
