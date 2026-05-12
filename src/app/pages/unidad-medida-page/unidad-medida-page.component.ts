@@ -25,7 +25,6 @@ interface UnidadMedidaRow {
 export class UnidadMedidaPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   unidadesMedida: UnidadMedidaRow[] = [];
-  selectedUnidadMedidaId: number | null = null;
   isLoading = false;
   errorMessage = '';
 
@@ -54,13 +53,11 @@ export class UnidadMedidaPageComponent implements OnInit {
         this.unidadesMedida = this.extractRecords(response)
           .map((item) => this.mapUnidadMedida(item))
           .sort((left, right) => (left.uniMedId ?? 0) - (right.uniMedId ?? 0));
-        this.syncSelectedUnidadMedida();
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando unidades de medida:', error);
         this.unidadesMedida = [];
-        this.selectedUnidadMedidaId = null;
         this.errorMessage = 'No se pudo cargar la informacion de unidades de medida. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -92,10 +89,8 @@ export class UnidadMedidaPageComponent implements OnInit {
     });
   }
 
-  editarUnidadMedida(): void {
-    const unidadMedida = this.unidadesMedida.find((item) => item.uniMedId === this.selectedUnidadMedidaId);
-
-    if (!unidadMedida || unidadMedida.uniMedId === null) {
+  editarUnidadMedida(unidadMedida: UnidadMedidaRow): void {
+    if (unidadMedida.uniMedId === null) {
       return;
     }
 
@@ -115,14 +110,6 @@ export class UnidadMedidaPageComponent implements OnInit {
     });
   }
 
-  seleccionarUnidadMedida(unidadMedida: UnidadMedidaRow): void {
-    this.selectedUnidadMedidaId = unidadMedida.uniMedId;
-  }
-
-  isSelected(unidadMedida: UnidadMedidaRow): boolean {
-    return unidadMedida.uniMedId !== null && unidadMedida.uniMedId === this.selectedUnidadMedidaId;
-  }
-
   trackByUnidadMedida(_index: number, unidadMedida: UnidadMedidaRow): string {
     return unidadMedida.uniMedId !== null ? String(unidadMedida.uniMedId) : `${unidadMedida.uniMedDes}-${unidadMedida.uniMedAbr}`;
   }
@@ -139,12 +126,6 @@ export class UnidadMedidaPageComponent implements OnInit {
     if (sanitizedValue !== input.value) {
       input.value = sanitizedValue;
       this.filtersForm.controls['codigo'].setValue(sanitizedValue, { emitEvent: false });
-    }
-  }
-
-  private syncSelectedUnidadMedida(): void {
-    if (!this.unidadesMedida.some((item) => item.uniMedId === this.selectedUnidadMedidaId)) {
-      this.selectedUnidadMedidaId = this.unidadesMedida[0]?.uniMedId ?? null;
     }
   }
 

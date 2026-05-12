@@ -9,6 +9,7 @@
     <label class="item-dialog__field">
       <span>Descripcion</span>
       <input type="text" formControlName="itmDes" maxlength="120">
+      <small class="item-dialog__error" *ngIf="form.controls['itmDes'].touched && (form.controls['itmDes'].hasError('required') || form.controls['itmDes'].hasError('whitespace'))">Campo Descripcion obligatorio.</small>
     </label>
 
     <label class="item-dialog__field">
@@ -40,6 +41,7 @@
             No hay coincidencias
           </div>
         </div>
+        <small class="item-dialog__error" *ngIf="form.controls['itmGrp'].touched && (form.controls['itmGrp'].hasError('required') || form.controls['itmGrp'].hasError('whitespace'))">Campo Grupo obligatorio.</small>
       </div>
     </label>
 

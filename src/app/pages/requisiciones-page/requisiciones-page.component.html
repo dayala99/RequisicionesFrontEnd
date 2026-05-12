@@ -4,7 +4,7 @@
       <p class="pedidos-card__eyebrow">Administracion</p>
       <h2>Pedidos</h2>
       <p class="pedidos-card__description">
-        Formulario unificado para proveedor y centros de costo dentro del flujo del pedido.
+        Formulario de pedidos y centros de costo dentro del flujo del pedido.
       </p>
     </div>
   </header>
@@ -50,7 +50,7 @@
         <label class="field field--compact">
           <span>Tipo</span>
           <select formControlName="tipo">
-            <option *ngFor="let option of tipoOptions" [value]="option">{{ option }}</option>
+            <option *ngFor="let option of tipoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
           </select>
         </label>
 
@@ -266,6 +266,7 @@
           (click)="openApprovalUserDialog()">
           {{ isLoadingApprovalUsers ? 'Cargando usuarios...' : approvalUserButtonLabel }}
         </button>
+        <small class="editor-feedback editor-feedback--error" *ngIf="cabeceraForm.controls['usuarioAprobacion'].touched && (cabeceraForm.controls['usuarioAprobacion'].hasError('required') || cabeceraForm.controls['usuarioAprobacion'].hasError('whitespace'))">Campo Usuario de Aprobacion obligatorio.</small>
       </div>
     </form>
 
@@ -365,6 +366,7 @@
           <label class="field field--wide">
             <span>Lugar de Entrega</span>
             <input type="text" formControlName="lugarEntrega">
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['lugarEntrega'].touched && (detalleForm.controls['lugarEntrega'].hasError('required') || detalleForm.controls['lugarEntrega'].hasError('whitespace'))">Campo Lugar de Entrega obligatorio.</small>
           </label>
         </div>
       </section>
@@ -374,18 +376,14 @@
           <label class="field field--wide">
             <span>Referencia</span>
             <input type="text" formControlName="referencia">
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['referencia'].touched && (detalleForm.controls['referencia'].hasError('required') || detalleForm.controls['referencia'].hasError('whitespace'))">Campo Referencia obligatorio.</small>
           </label>
 
-          <label class="field">
+          <label class="field field--wide">
             <span>Tipo de Compra</span>
             <select formControlName="tipoCompra">
               <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
             </select>
-          </label>
-
-          <label class="field field--small">
-            <span>OC - Importacion</span>
-            <input type="text" formControlName="ocImportacion">
           </label>
         </div>
       </section>
@@ -393,11 +391,12 @@
       <section class="editor-section">
         <div class="group-row group-row--meta">
           <label class="field">
-            <span>O/C</span>
+            <span>Tipo de Servicio</span>
             <select formControlName="oc">
               <option [ngValue]="''">Sin enlazar</option>
-              <option *ngFor="let option of tipoOc" [ngValue]="option.codigo">{{ option.descripcion }}</option>
+              <option *ngFor="let option of tipoServicioOptions" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['oc'].touched && detalleForm.controls['oc'].hasError('required')">Campo Tipo de Servicio obligatorio.</small>
           </label>
 
           <label class="field">
@@ -406,11 +405,13 @@
               <option [ngValue]="null">Sin enlazar</option>
               <option *ngFor="let option of tipoMoneda" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['moneda'].touched && detalleForm.controls['moneda'].hasError('required')">Campo Moneda obligatorio.</small>
           </label>
 
           <label class="field">
             <span>Fecha Entrega</span>
             <input type="date" [min]="pedidoFechaEntregaMinima" formControlName="fechaEntrega">
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['fechaEntrega'].touched && detalleForm.controls['fechaEntrega'].hasError('required')">Campo Fecha Entrega obligatorio.</small>
           </label>
         </div>
       </section>
@@ -419,6 +420,7 @@
         <label class="field field--textarea">
           <span>Sustento</span>
           <textarea formControlName="sustento" rows="7"></textarea>
+          <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['sustento'].touched && (detalleForm.controls['sustento'].hasError('required') || detalleForm.controls['sustento'].hasError('whitespace'))">Campo Sustento obligatorio.</small>
         </label>
 
         <div class="attachment-panel">
@@ -437,10 +439,6 @@
         </div>
       </section>
     </form>
-
-    <section class="provider-inline">
-      <app-provider-form #providerFormRef [embedded]="true"></app-provider-form>
-    </section>
 
     <footer class="editor-actions">
       <p *ngIf="saveErrorMessage" class="editor-feedback editor-feedback--error">{{ saveErrorMessage }}</p>

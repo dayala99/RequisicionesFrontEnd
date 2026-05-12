@@ -24,7 +24,6 @@ interface GrupoItemRow {
 export class GrupoItemPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   gruposItem: GrupoItemRow[] = [];
-  selectedGrupoItemId: number | null = null;
   isLoading = false;
   errorMessage = '';
   private appliedFilters: GrupoItemFiltro = { Flg_Est: 'A' };
@@ -56,13 +55,11 @@ export class GrupoItemPageComponent implements OnInit {
         this.gruposItem = this.extractRecords(response)
           .map((item) => this.mapGrupoItem(item))
           .sort((left, right) => (left.grpId ?? 0) - (right.grpId ?? 0));
-        this.syncSelectedGrupoItem();
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando grupos de item:', error);
         this.gruposItem = [];
-        this.selectedGrupoItemId = null;
         this.errorMessage = 'No se pudo cargar la informacion de grupos de item. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -94,10 +91,8 @@ export class GrupoItemPageComponent implements OnInit {
     });
   }
 
-  editarGrupoItem(): void {
-    const grupoItem = this.gruposItem.find((item) => item.grpId === this.selectedGrupoItemId);
-
-    if (!grupoItem || grupoItem.grpId === null) {
+  editarGrupoItem(grupoItem: GrupoItemRow): void {
+    if (grupoItem.grpId === null) {
       return;
     }
 
@@ -115,14 +110,6 @@ export class GrupoItemPageComponent implements OnInit {
         this.cargarGrupoItem();
       }
     });
-  }
-
-  seleccionarGrupoItem(grupoItem: GrupoItemRow): void {
-    this.selectedGrupoItemId = grupoItem.grpId;
-  }
-
-  isSelected(grupoItem: GrupoItemRow): boolean {
-    return grupoItem.grpId !== null && grupoItem.grpId === this.selectedGrupoItemId;
   }
 
   trackByGrupoItem(_index: number, grupoItem: GrupoItemRow): string {
@@ -154,12 +141,6 @@ export class GrupoItemPageComponent implements OnInit {
     if (sanitizedValue !== input.value) {
       input.value = sanitizedValue;
       this.filtersForm.controls['codigo'].setValue(sanitizedValue, { emitEvent: false });
-    }
-  }
-
-  private syncSelectedGrupoItem(): void {
-    if (!this.gruposItem.some((item) => item.grpId === this.selectedGrupoItemId)) {
-      this.selectedGrupoItemId = this.gruposItem[0]?.grpId ?? null;
     }
   }
 

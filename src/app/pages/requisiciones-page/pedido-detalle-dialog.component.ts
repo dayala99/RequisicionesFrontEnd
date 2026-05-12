@@ -55,7 +55,13 @@ export class PedidoDetalleDialogComponent {
   }
 
   get unitButtonLabel(): string {
-    return String(this.form.controls['unitCode'].value ?? '').trim() || 'Seleccionar unidad';
+    const unitCode = String(this.form.controls['unitCode'].value ?? '').trim();
+
+    if (!unitCode) {
+      return 'Seleccionar unidad';
+    }
+
+    return this.data.units.find((unit) => unit.code === unitCode)?.abbreviation || unitCode;
   }
 
   formatNumber(value: number): string {
@@ -110,7 +116,7 @@ export class PedidoDetalleDialogComponent {
       }
 
       this.form.patchValue({
-        unitCode: selectedUnit.code,
+        unitCode: String(selectedUnit.id),
         unitDescription: selectedUnit.description
       });
       this.errorMessage = '';
@@ -145,8 +151,13 @@ export class PedidoDetalleDialogComponent {
       return;
     }
 
-    if (unitPrice < 0) {
-      this.errorMessage = 'El precio unitario no puede ser negativo.';
+    if (unitPrice <= 0) {
+      this.errorMessage = 'El precio unitario debe ser mayor a cero.';
+      return;
+    }
+
+    if (this.subtotal <= 0) {
+      this.errorMessage = 'El subtotal debe ser mayor a cero.';
       return;
     }
 

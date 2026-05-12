@@ -9,6 +9,7 @@
     <label class="forma-pago-dialog__field">
       <span>Descripcion</span>
       <input type="text" formControlName="forPagDes" maxlength="120">
+      <small class="forma-pago-dialog__error" *ngIf="form.controls['forPagDes'].touched && (form.controls['forPagDes'].hasError('required') || form.controls['forPagDes'].hasError('whitespace'))">Campo Descripcion obligatorio.</small>
     </label>
 
     <p *ngIf="errorMessage" class="forma-pago-dialog__error">{{ errorMessage }}</p>

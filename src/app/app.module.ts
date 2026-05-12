@@ -15,6 +15,9 @@ import { PaymentSelectorDialogComponent } from './features/provider-form/dialogs
 import { ProviderSelectorDialogComponent } from './features/provider-form/dialogs/provider-selector-dialog.component';
 import { ProviderFormComponent } from './features/provider-form/provider-form.component';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
+import { BancoEditDialogComponent } from './pages/banco-page/banco-edit-dialog.component';
+import { BancoPageComponent } from './pages/banco-page/banco-page.component';
+import { BancoRegisterDialogComponent } from './pages/banco-page/banco-register-dialog.component';
 import { FormaPagoEditDialogComponent } from './pages/forma-pago-page/forma-pago-edit-dialog.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { FormaPagoRegisterDialogComponent } from './pages/forma-pago-page/forma-pago-register-dialog.component';
@@ -25,6 +28,9 @@ import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ItemEditDialogComponent } from './pages/item-page/item-edit-dialog.component';
 import { ItemPageComponent } from './pages/item-page/item-page.component';
 import { ItemRegisterDialogComponent } from './pages/item-page/item-register-dialog.component';
+import { MonedaEditDialogComponent } from './pages/moneda-page/moneda-edit-dialog.component';
+import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
+import { MonedaRegisterDialogComponent } from './pages/moneda-page/moneda-register-dialog.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
@@ -54,6 +60,12 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
   declarations: [
     AppComponent,
     AppLayoutComponent,
+    BancoPageComponent,
+    BancoRegisterDialogComponent,
+    BancoEditDialogComponent,
+    MonedaPageComponent,
+    MonedaRegisterDialogComponent,
+    MonedaEditDialogComponent,
     FormaPagoPageComponent,
     FormaPagoRegisterDialogComponent,
     FormaPagoEditDialogComponent,

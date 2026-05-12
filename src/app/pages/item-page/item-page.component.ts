@@ -32,7 +32,6 @@ export class ItemPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   items: ItemRow[] = [];
   gruposItem: GrupoItemOption[] = [];
-  selectedItemId: number | null = null;
   isLoading = false;
   errorMessage = '';
   isGrupoDropdownOpen = false;
@@ -65,13 +64,11 @@ export class ItemPageComponent implements OnInit {
         this.items = this.extractRecords(response)
           .map((item) => this.mapItem(item))
           .sort((left, right) => (left.itmId ?? 0) - (right.itmId ?? 0));
-        this.syncSelectedItem();
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando items:', error);
         this.items = [];
-        this.selectedItemId = null;
         this.errorMessage = 'No se pudo cargar la informacion de items. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -104,10 +101,8 @@ export class ItemPageComponent implements OnInit {
     });
   }
 
-  editarItem(): void {
-    const item = this.items.find((currentItem) => currentItem.itmId === this.selectedItemId);
-
-    if (!item || item.itmId === null || item.itmGrp === null) {
+  editarItem(item: ItemRow): void {
+    if (item.itmId === null || item.itmGrp === null) {
       return;
     }
 
@@ -125,14 +120,6 @@ export class ItemPageComponent implements OnInit {
         this.cargarItems();
       }
     });
-  }
-
-  seleccionarItem(item: ItemRow): void {
-    this.selectedItemId = item.itmId;
-  }
-
-  isSelected(item: ItemRow): boolean {
-    return item.itmId !== null && item.itmId === this.selectedItemId;
   }
 
   trackByItem(_index: number, item: ItemRow): string {
@@ -210,12 +197,6 @@ export class ItemPageComponent implements OnInit {
         this.gruposItem = [];
       }
     });
-  }
-
-  private syncSelectedItem(): void {
-    if (!this.items.some((item) => item.itmId === this.selectedItemId)) {
-      this.selectedItemId = this.items[0]?.itmId ?? null;
-    }
   }
 
   private getFiltros(): ItemFiltro {

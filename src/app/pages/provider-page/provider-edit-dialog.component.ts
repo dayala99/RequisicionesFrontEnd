@@ -6,6 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActualizarProveedorRequest, ApiService } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator, optionalPatternValidator } from 'src/app/shared/validators/form-validators';
 
 interface ProviderEditData {
   proveedor: {
@@ -54,14 +55,14 @@ export class ProviderEditDialogComponent {
     const initialBank = this.bankOptions.find((bank) => bank.id === initialBankId) || this.bankOptions[0];
 
     this.form = this.formBuilder.group({
-      prvNom: [data.proveedor.prvNom, [Validators.required, Validators.maxLength(120)]],
-      prvRuc: [data.proveedor.prvRuc, [Validators.required, Validators.maxLength(20)]],
-      prvTel: [data.proveedor.prvTel, [Validators.required, Validators.maxLength(30)]],
-      prvDir: [data.proveedor.prvDir, [Validators.required, Validators.maxLength(180)]],
-      prvNomCon: [data.proveedor.prvNomCon, [Validators.required, Validators.maxLength(120)]],
+      prvNom: [data.proveedor.prvNom, [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
+      prvRuc: [data.proveedor.prvRuc, [Validators.required, noWhitespaceValidator(), Validators.maxLength(20), optionalPatternValidator(/^\d{11}$/)]],
+      prvTel: [data.proveedor.prvTel, [Validators.required, noWhitespaceValidator(), Validators.maxLength(30), optionalPatternValidator(/^[0-9()+\-\s]{6,30}$/)]],
+      prvDir: [data.proveedor.prvDir, [Validators.required, noWhitespaceValidator(), Validators.maxLength(180)]],
+      prvNomCon: [data.proveedor.prvNomCon, [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
       prvEmail: [data.proveedor.prvEmail, [Validators.email, Validators.maxLength(180)]],
-      prvNroCueBan: [data.proveedor.prvNroCueBan || initialBank.accountNumber, [Validators.maxLength(40)]],
-      prvNroCueBanCci: [data.proveedor.prvNroCueBanCci || initialBank.cci, [Validators.maxLength(40)]],
+      prvNroCueBan: [data.proveedor.prvNroCueBan || initialBank.accountNumber, [Validators.required, noWhitespaceValidator(), Validators.maxLength(40), optionalPatternValidator(/^\d{6,40}$/)]],
+      prvNroCueBanCci: [data.proveedor.prvNroCueBanCci || initialBank.cci, [Validators.required, noWhitespaceValidator(), Validators.maxLength(40), optionalPatternValidator(/^\d{6,40}$/)]],
       prvBan: [initialBankId, [Validators.required, Validators.min(1)]],
       flgEst: [data.proveedor.flgEst || 'A', Validators.required]
     });

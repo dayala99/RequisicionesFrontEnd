@@ -24,7 +24,6 @@ interface TipoServicioRow {
 export class TipoServicioPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   tiposServicio: TipoServicioRow[] = [];
-  selectedTipoServicioId: number | null = null;
   isLoading = false;
   errorMessage = '';
 
@@ -54,13 +53,11 @@ export class TipoServicioPageComponent implements OnInit {
         this.tiposServicio = this.extractRecords(response)
           .map((item) => this.mapTipoServicio(item))
           .sort((left, right) => (left.tipSerId ?? 0) - (right.tipSerId ?? 0));
-        this.syncSelectedTipoServicio();
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando tipos de servicio:', error);
         this.tiposServicio = [];
-        this.selectedTipoServicioId = null;
         this.errorMessage = 'No se pudo cargar la informacion de tipos de servicio. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -92,10 +89,8 @@ export class TipoServicioPageComponent implements OnInit {
     });
   }
 
-  editarTipoServicio(): void {
-    const tipoServicio = this.tiposServicio.find((item) => item.tipSerId === this.selectedTipoServicioId);
-
-    if (!tipoServicio || tipoServicio.tipSerId === null) {
+  editarTipoServicio(tipoServicio: TipoServicioRow): void {
+    if (tipoServicio.tipSerId === null) {
       return;
     }
 
@@ -115,14 +110,6 @@ export class TipoServicioPageComponent implements OnInit {
     });
   }
 
-  seleccionarTipoServicio(tipoServicio: TipoServicioRow): void {
-    this.selectedTipoServicioId = tipoServicio.tipSerId;
-  }
-
-  isSelected(tipoServicio: TipoServicioRow): boolean {
-    return tipoServicio.tipSerId !== null && tipoServicio.tipSerId === this.selectedTipoServicioId;
-  }
-
   trackByTipoServicio(_index: number, tipoServicio: TipoServicioRow): string {
     return tipoServicio.tipSerId !== null ? String(tipoServicio.tipSerId) : tipoServicio.tipSerDes;
   }
@@ -139,12 +126,6 @@ export class TipoServicioPageComponent implements OnInit {
     if (sanitizedValue !== input.value) {
       input.value = sanitizedValue;
       this.filtersForm.controls['codigo'].setValue(sanitizedValue, { emitEvent: false });
-    }
-  }
-
-  private syncSelectedTipoServicio(): void {
-    if (!this.tiposServicio.some((item) => item.tipSerId === this.selectedTipoServicioId)) {
-      this.selectedTipoServicioId = this.tiposServicio[0]?.tipSerId ?? null;
     }
   }
 

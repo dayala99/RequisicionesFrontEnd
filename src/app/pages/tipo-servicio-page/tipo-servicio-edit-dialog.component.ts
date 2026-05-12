@@ -6,6 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActualizarTipoServicioRequest, ApiService } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 interface TipoServicioEditData {
   tipoServicio: {
@@ -33,7 +34,7 @@ export class TipoServicioEditDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      tipSerDes: [data.tipoServicio.tipSerDes, [Validators.required, Validators.maxLength(120)]],
+      tipSerDes: [data.tipoServicio.tipSerDes, [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
       flgEst: [data.tipoServicio.flgEst || 'A', Validators.required]
     });
   }

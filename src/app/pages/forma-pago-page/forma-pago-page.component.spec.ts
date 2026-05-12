@@ -57,7 +57,6 @@ describe('FormaPagoPageComponent', () => {
   it('should load formas de pago on init', () => {
     expect(apiServiceMock.getListarFormaPagoActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(component.formasPago.length).toBe(2);
-    expect(component.selectedFormaPagoId).toBe(1);
   });
 
   it('should search formas de pago using ID, descripcion and estado filters', () => {
@@ -104,10 +103,8 @@ describe('FormaPagoPageComponent', () => {
     }));
   });
 
-  it('should open edit dialog for selected row', () => {
-    component.selectedFormaPagoId = 2;
-
-    component.editarFormaPago();
+  it('should open edit dialog for the provided row', () => {
+    component.editarFormaPago(component.formasPago[1]);
 
     expect(matDialogMock.open).toHaveBeenCalledWith(FormaPagoEditDialogComponent, jasmine.objectContaining({
       data: {

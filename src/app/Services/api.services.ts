@@ -51,6 +51,18 @@ export interface UnidadMedidaFiltro {
     Flg_Est?: string;
 }
 
+export interface BancoFiltro {
+    Ban_Id?: number;
+    Ban_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface MonedaFiltro {
+    Mon_Id?: number;
+    Mon_Des?: string;
+    Flg_Est?: string;
+}
+
 export interface RegistrarFormaPagoRequest {
     For_Pag_Des: string;
     Usr_Reg: string;
@@ -111,6 +123,34 @@ export interface ActualizarUnidadMedidaRequest {
     Uni_Med_Id: number;
     Uni_Med_Des: string;
     Uni_Med_Abr: string;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
+export interface RegistrarBancoRequest {
+    Ban_Des: string;
+    Ban_Abr: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarBancoRequest {
+    Ban_Id: number;
+    Ban_Des: string;
+    Ban_Abr: string;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
+export interface RegistrarMonedaRequest {
+    Mon_Des: string;
+    Mon_Abr: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarMonedaRequest {
+    Mon_Id: number;
+    Mon_Des: string;
+    Mon_Abr: string;
     Flg_Est: string;
     Usr_Mod: string;
 }
@@ -239,8 +279,8 @@ export interface EliminarCentroCostoPedidoRequest {
 
 export interface RegistrarDetallePedidoRequest {
     Ped_Cab_Id: number;
-    Ped_Cod_Itm: string;
-    Ped_Uni_Med: string;
+    Ped_Cod_Itm: number;
+    Ped_Uni_Med: number;
     Ped_Can: number;
     Ped_Cos_Uni: number;
     Ped_Cos_Tot: number;
@@ -249,8 +289,8 @@ export interface RegistrarDetallePedidoRequest {
 
 export interface ActualizarDetallePedidoRequest {
     Ped_Det_Id: number;
-    Ped_Cod_Itm: string;
-    Ped_Uni_Med: string;
+    Ped_Cod_Itm: number;
+    Ped_Uni_Med: number;
     Ped_Can: number;
     Ped_Cos_Uni: number;
     Ped_Cos_Tot: number;
@@ -375,6 +415,64 @@ export class ApiService {
     actualizarFormaPago(formaPago: ActualizarFormaPagoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.patch(this.baseUrl + 'FormaPago/patchActualizarFormaPago', formaPago, { headers });
+    }
+
+    getListarBanco(filtros: BancoFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Ban_Id !== undefined) {
+            params = params.append('Ban_Id', filtros.Ban_Id);
+        }
+
+        if (filtros.Ban_Des) {
+            params = params.append('Ban_Des', filtros.Ban_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'Banco/getListarBanco', { headers, params });
+    }
+
+    registrarBanco(banco: RegistrarBancoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Banco/postRegistrarBanco', banco, { headers });
+    }
+
+    actualizarBanco(banco: ActualizarBancoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Banco/patchActualizarBanco', banco, { headers });
+    }
+
+    getListarMoneda(filtros: MonedaFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Mon_Id !== undefined) {
+            params = params.append('Mon_Id', filtros.Mon_Id);
+        }
+
+        if (filtros.Mon_Des) {
+            params = params.append('Mon_Des', filtros.Mon_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'Moneda/getListarMoneda', { headers, params });
+    }
+
+    registrarMoneda(moneda: RegistrarMonedaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Moneda/postRegistrarMoneda', moneda, { headers });
+    }
+
+    actualizarMoneda(moneda: ActualizarMonedaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Moneda/patchActualizarMoneda', moneda, { headers });
     }
 
     getListarGrupoItem(filtros: GrupoItemFiltro = {}): Observable<any> {

@@ -47,11 +47,13 @@
         <span>Cantidad</span>
         <input type="number" min="0" step="0.001" [max]="data.cantidadDisponible" formControlName="quantity">
         <small>Disponible: {{ formatNumber(data.cantidadDisponible) }}</small>
+        <small class="pedido-detalle-dialog__error" *ngIf="form.controls['quantity'].touched && form.controls['quantity'].value <= 0">Campo Cantidad obligatorio.</small>
       </label>
 
       <label class="pedido-detalle-dialog__field">
         <span>Precio Unitario sin IGV</span>
         <input type="number" min="0" step="0.001" formControlName="unitPrice">
+        <small class="pedido-detalle-dialog__error" *ngIf="form.controls['unitPrice'].touched && form.controls['unitPrice'].value <= 0">Campo Precio Unitario obligatorio.</small>
       </label>
 
       <label class="pedido-detalle-dialog__field">

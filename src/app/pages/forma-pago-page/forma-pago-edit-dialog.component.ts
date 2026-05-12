@@ -6,6 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActualizarFormaPagoRequest, ApiService } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 interface FormaPagoEditData {
   formaPago: {
@@ -33,7 +34,7 @@ export class FormaPagoEditDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      forPagDes: [data.formaPago.forPagDes, [Validators.required, Validators.maxLength(120)]],
+      forPagDes: [data.formaPago.forPagDes, [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
       flgEst: [data.formaPago.flgEst || 'A', Validators.required]
     });
   }

@@ -1,12 +1,11 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, forkJoin, from, of } from 'rxjs';
 import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
 import { ActualizarDetallePedidoRequest, ActualizarPedidoEstadoRequest, ActualizarPedidoRequest, ApiService, CatalogoNumeroOption, CatalogoTextoOption, EliminarDetallePedidoRequest, PedidosFiltro, RegistrarCentroCostoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
-import { ProviderFormComponent } from 'src/app/features/provider-form/provider-form.component';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ApprovalUserOption, ApprovalUserSelectorDialogComponent } from './approval-user-selector-dialog.component';
 import { CentroCostoOption, CentroCostoSelectorDialogComponent } from './centro-costo-selector-dialog.component';
@@ -14,25 +13,9 @@ import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
 import { PedidoDetalleDialogValue, PedidoDetalleItemOption, PedidoDetalleUnidadOption } from './pedido-detalle-dialog.models';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 type DataRecord = Record<string, unknown>;
-
-type ProviderFormData = {
-  supplierCode: number;
-  supplierName: string;
-  phone: string;
-  address: string;
-  contact: string;
-  ruc: string;
-  email: string;
-  bankCode: number;
-  bankName: string;
-  bankAccountNumber: string;
-  bankCci: string;
-  paymentCode: number;
-  paymentDescription: string;
-  isEventual: boolean;
-};
 
 interface RequisitionRow {
   requisicion: number;
@@ -78,40 +61,20 @@ interface PedidoDetalleRow {
   styleUrls: ['./requisiciones-page.component.scss']
 })
 export class RequisicionesPageComponent implements OnInit {
-  @ViewChild('providerFormRef')
-  set providerFormComponent(value: ProviderFormComponent | undefined) {
-    this._providerFormComponent = value;
-
-    if (value && this.pendingProviderFormData) {
-      value.hydrateForm(this.pendingProviderFormData);
-      this.pendingProviderFormData = null;
-    }
-  }
-
-  get providerFormComponent(): ProviderFormComponent | undefined {
-    return this._providerFormComponent;
-  }
-
   readonly filtersForm: FormGroup;
   readonly cabeceraForm: FormGroup;
   readonly centroCostoForm: FormGroup;
   readonly detalleForm: FormGroup;
   readonly detallePedidoForm: FormGroup;
-  readonly estadoOptions = ['Todos', 'Pendiente', 'Aprobado', 'Observado', 'Cerrado'];
+  readonly estadoOptions = ['Pendiente', 'Aprobado', 'Cancelado'];
   readonly gnOptions = ['Todos', 'GN', 'GA', 'GC'];
-  readonly tipoOptions = ['Todos', 'Con O/C', 'Sin O/C'];
+  tipoOptions: CatalogoTextoOption[] = [
+    { codigo: '', descripcion: 'Todos' }
+  ];
   readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Duplicar', 'Imprimir', 'Cerrar'];
   readonly tipoCompraOptions = ['Sin enlazar', 'Local', 'Importacion'];
-  readonly tipoOc: CatalogoTextoOption[] = [
-    { codigo: 'CO', descripcion: 'Con O/C' },
-    { codigo: 'SO', descripcion: 'Sin O/C' }
-  ];
-  readonly tipoMoneda: CatalogoNumeroOption[] = [
-    { codigo: 1, descripcion: 'PEN' },
-    { codigo: 2, descripcion: 'USD' }
-  ];
-  readonly pedidoEstadosConsulta = ['A', 'P', 'O', 'C'];
-
+  tipoServicioOptions: CatalogoTextoOption[] = [];
+  tipoMoneda: CatalogoNumeroOption[] = [];
   requisiciones: RequisitionRow[] = [];
   centrosCosto: CentroCostoRow[] = [];
   editandoCentroCostoId: number | null = null;
@@ -146,8 +109,6 @@ export class RequisicionesPageComponent implements OnInit {
   detallePedidoCantidadLimite = 0;
 
   private nextCentroCostoId = 1;
-  private _providerFormComponent?: ProviderFormComponent;
-  private pendingProviderFormData: ProviderFormData | null = null;
   private deletedCentroCostoIds: number[] = [];
   private detallePedidoCabecera: RequisitionRow | null = null;
 
@@ -160,15 +121,15 @@ export class RequisicionesPageComponent implements OnInit {
     this.filtersForm = this.formBuilder.group({
       nroRequisicion: [''],
       proveedor: [''],
-      estado: ['Aprobado'],
+      estado: ['Pendiente'],
       gn: ['Todos'],
-      tipo: ['Todos']
+      tipo: ['']
     });
 
     this.cabeceraForm = this.formBuilder.group({
       requisicionCompra: [null],
       usuarioAprobacionId: [0],
-      usuarioAprobacion: ['']
+      usuarioAprobacion: ['', [Validators.required, noWhitespaceValidator()]]
     });
 
     this.centroCostoForm = this.formBuilder.group({
@@ -177,14 +138,13 @@ export class RequisicionesPageComponent implements OnInit {
     });
 
     this.detalleForm = this.formBuilder.group({
-      lugarEntrega: ['Los Rosales 555 Santa Anita'],
-      referencia: ['Compra de materiales para mantenimiento preventivo'],
+      lugarEntrega: ['', [Validators.required, noWhitespaceValidator()]],
+      referencia: ['', [Validators.required, noWhitespaceValidator()]],
       tipoCompra: ['Sin enlazar'],
-      ocImportacion: ['0'],
-      oc: [''],
-      moneda: [null],
-      fechaEntrega: [this.getPedidoFechaEntregaMinima()],
-      sustento: ['Detalle preliminar de distribucion por centros de costo.'],
+      oc: ['', Validators.required],
+      moneda: [null, Validators.required],
+      fechaEntrega: [this.getPedidoFechaEntregaMinima(), Validators.required],
+      sustento: ['', [Validators.required, noWhitespaceValidator()]],
       archivo: ['Sin archivo adjunto']
     });
 
@@ -271,7 +231,7 @@ export class RequisicionesPageComponent implements OnInit {
     this.filtersForm.reset({
       nroRequisicion: '',
       proveedor: '',
-      estado: 'Aprobado',
+      estado: 'Pendiente',
       gn: 'Todos',
       tipo: 'Todos'
     });
@@ -502,11 +462,12 @@ export class RequisicionesPageComponent implements OnInit {
 
     this.isSavingPedidoDetalle = true;
     this.detallePedidoErrorMessage = '';
+    const selectedDetail = this.getSelectedPedidoDetalleRow();
 
     this.validarCantidadTotalDetalle(this.expandedPedidoId, payload.Ped_Can).pipe(
-      switchMap(() => this.isEditingPedidoDetalle && this.selectedPedidoDetalleId !== null
+      switchMap(() => this.isEditingPedidoDetalle && selectedDetail?.persistedId !== null
         ? this.apiService.patchActualizarDetallePedido({
-            Ped_Det_Id: this.selectedPedidoDetalleId,
+            Ped_Det_Id: selectedDetail!.persistedId!,
             Ped_Cod_Itm: payload.Ped_Cod_Itm,
             Ped_Uni_Med: payload.Ped_Uni_Med,
             Ped_Can: payload.Ped_Can,
@@ -542,11 +503,16 @@ export class RequisicionesPageComponent implements OnInit {
 
     const selectedDetail = this.getSelectedPedidoDetalleRow();
 
+    if (!selectedDetail || selectedDetail.persistedId === null) {
+      this.detallePedidoErrorMessage = 'Selecciona un detalle registrado para eliminarlo.';
+      return;
+    }
+
     this.isSavingPedidoDetalle = true;
     this.detallePedidoErrorMessage = '';
 
     this.apiService.deleteEliminarDetallePedido({
-      Ped_Det_Id: this.selectedPedidoDetalleId!
+      Ped_Det_Id: selectedDetail.persistedId
     } as EliminarDetallePedidoRequest).pipe(
       switchMap((response: unknown) => {
         this.assertSuccessfulResponse(response, 'No se pudo eliminar el detalle del pedido.');
@@ -714,8 +680,8 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
-    if (this.editandoCentroCostoId !== null) {
-      this.guardarCantidadCentroCosto(this.editandoCentroCostoId);
+    if (this.editandoCentroCostoId !== null && !this.guardarCantidadCentroCosto(this.editandoCentroCostoId)) {
+      return;
     }
 
     if (this.isEditingPedido) {
@@ -825,17 +791,26 @@ export class RequisicionesPageComponent implements OnInit {
     this.editandoCentroCostoCantidad = this.normalizeCantidadCentroCosto(cantidad);
   }
 
-  guardarCantidadCentroCosto(id: number): void {
+  guardarCantidadCentroCosto(id: number): boolean {
+    const cantidadNormalizada = this.normalizeCantidadCentroCosto(this.editandoCentroCostoCantidad);
+
+    if (cantidadNormalizada <= 0) {
+      this.saveErrorMessage = 'La cantidad del centro de costo debe ser mayor a cero.';
+      return false;
+    }
+
     this.centrosCosto = this.centrosCosto.map((item) =>
       item.id === id
         ? {
             ...item,
-            cantidad: this.normalizeCantidadCentroCosto(this.editandoCentroCostoCantidad)
+            cantidad: cantidadNormalizada
           }
         : item
     );
 
+    this.saveErrorMessage = '';
     this.cancelarEdicionCentroCosto();
+    return true;
   }
 
   eliminarCentroCosto(id: number): void {
@@ -915,18 +890,7 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private buildPedidosRequest(filtros: PedidosFiltro): Observable<unknown> {
-    if (filtros.Flg_Est) {
-      return this.apiService.getListarPedido(filtros);
-    }
-
-    return forkJoin(
-      this.pedidoEstadosConsulta.map((estado) => this.apiService.getListarPedido({ ...filtros, Flg_Est: estado }))
-    ).pipe(
-      map((responses: unknown[]) => responses.reduce<DataRecord[]>(
-        (records, response) => records.concat(this.extractRecords(response)),
-        []
-      ))
-    );
+    return this.apiService.getListarPedido(filtros);
   }
 
   private cargarUsuariosAprobacion(): void {
@@ -968,9 +932,11 @@ export class RequisicionesPageComponent implements OnInit {
   private cargarCatalogosDetallePedido(): void {
     forkJoin({
       itemsResponse: this.apiService.getListarItem({ Flg_Est: 'A' }),
-      unitsResponse: this.apiService.getListarUnidadMedida({ Flg_Est: 'A' })
+      unitsResponse: this.apiService.getListarUnidadMedida({ Flg_Est: 'A' }),
+      serviceTypesResponse: this.apiService.getListarTipoServicioActivo({ Flg_Est: 'A' }),
+      currenciesResponse: this.apiService.getListarMoneda({ Flg_Est: 'A' })
     }).subscribe({
-      next: ({ itemsResponse, unitsResponse }) => {
+      next: ({ itemsResponse, unitsResponse, serviceTypesResponse, currenciesResponse }) => {
         this.detalleItemOptions = this.extractRecords(itemsResponse)
           .map((item) => this.mapDetalleItemOption(item))
           .filter((item): item is PedidoDetalleItemOption => item !== null)
@@ -979,11 +945,26 @@ export class RequisicionesPageComponent implements OnInit {
           .map((item) => this.mapDetalleUnidadOption(item))
           .filter((item): item is PedidoDetalleUnidadOption => item !== null)
           .sort((left, right) => left.description.localeCompare(right.description));
+        this.tipoServicioOptions = this.extractRecords(serviceTypesResponse)
+          .map((item) => this.mapTipoServicioOption(item))
+          .filter((item): item is CatalogoTextoOption => item !== null)
+          .sort((left, right) => left.descripcion.localeCompare(right.descripcion));
+        this.tipoMoneda = this.extractRecords(currenciesResponse)
+          .map((item) => this.mapMonedaOption(item))
+          .filter((item): item is CatalogoNumeroOption => item !== null)
+          .sort((left, right) => left.descripcion.localeCompare(right.descripcion));
+        this.tipoOptions = [
+          { codigo: '', descripcion: 'Todos' },
+          ...this.tipoServicioOptions
+        ];
       },
       error: (error: unknown) => {
         console.error('Error cargando catalogos de detalle de pedido:', error);
         this.detalleItemOptions = [];
         this.detalleUnidadOptions = [];
+        this.tipoServicioOptions = [];
+        this.tipoMoneda = [];
+        this.tipoOptions = [{ codigo: '', descripcion: 'Todos' }];
       }
     });
   }
@@ -1091,50 +1072,76 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private buildPedidoPayloadBase(): Omit<RegistrarPedidoRequest, 'Usr_Reg'> | null {
-    const providerFormData = this.getProviderFormData();
     const requisicionCompra = Number(this.cabeceraForm.controls['requisicionCompra'].value);
     const usuarioAprobacion = String(this.cabeceraForm.controls['usuarioAprobacion'].value || '').trim();
     const lugarEntrega = String(this.detalleForm.controls['lugarEntrega'].value || '').trim();
     const referencia = String(this.detalleForm.controls['referencia'].value || '').trim();
-    const tipoOc = String(this.detalleForm.controls['oc'].value || '').trim();
+    const tipoServicio = String(this.detalleForm.controls['oc'].value || '').trim();
     const moneda = Number(this.detalleForm.controls['moneda'].value);
     const fechaEntrega = this.normalizePedidoFechaEntrega(String(this.detalleForm.controls['fechaEntrega'].value || '').trim());
     const sustento = String(this.detalleForm.controls['sustento'].value || '').trim();
     const attachmentName = this.archivoAdjunto !== 'Sin archivo adjunto' ? this.archivoAdjunto : '';
     const cantidadTotal = this.getTotalCantidadCentroCosto();
 
-    if (!providerFormData) {
-      this.saveErrorMessage = 'No se pudo leer la informacion del proveedor. Vuelve a abrir el formulario.';
-      return null;
-    }
-
     if (!Number.isInteger(requisicionCompra) || requisicionCompra <= 0) {
       this.saveErrorMessage = 'El pedido aun no tiene un correlativo valido.';
       return null;
     }
 
-    if (!providerFormData.paymentCode) {
-      this.saveErrorMessage = 'Selecciona una forma de pago antes de guardar.';
-      return null;
-    }
-
     if (!usuarioAprobacion) {
+      this.cabeceraForm.controls['usuarioAprobacion'].markAsTouched();
       this.saveErrorMessage = 'Selecciona un usuario de aprobacion antes de guardar.';
       return null;
     }
 
-    if (!tipoOc) {
-      this.saveErrorMessage = 'Selecciona una opcion de O/C antes de guardar.';
+    if (!lugarEntrega) {
+      this.detalleForm.controls['lugarEntrega'].markAsTouched();
+      this.saveErrorMessage = 'Ingresa un lugar de entrega antes de guardar.';
+      return null;
+    }
+
+    if (!referencia) {
+      this.detalleForm.controls['referencia'].markAsTouched();
+      this.saveErrorMessage = 'Ingresa una referencia antes de guardar.';
+      return null;
+    }
+
+    if (!tipoServicio) {
+      this.detalleForm.controls['oc'].markAsTouched();
+      this.saveErrorMessage = 'Selecciona un tipo de servicio antes de guardar.';
       return null;
     }
 
     if (!Number.isInteger(moneda) || moneda <= 0) {
+      this.detalleForm.controls['moneda'].markAsTouched();
       this.saveErrorMessage = 'Selecciona una moneda antes de guardar.';
       return null;
     }
 
     if (!fechaEntrega) {
+      this.detalleForm.controls['fechaEntrega'].markAsTouched();
       this.saveErrorMessage = 'Ingresa una fecha de entrega valida antes de guardar.';
+      return null;
+    }
+
+    if (!sustento) {
+      this.detalleForm.controls['sustento'].markAsTouched();
+      this.saveErrorMessage = 'Ingresa un sustento antes de guardar.';
+      return null;
+    }
+
+    if (!this.centrosCosto.length) {
+      this.saveErrorMessage = 'Agrega al menos un centro de costo antes de guardar.';
+      return null;
+    }
+
+    if (this.centrosCosto.some((item) => this.normalizeCantidadCentroCosto(item.cantidad) <= 0)) {
+      this.saveErrorMessage = 'Todas las cantidades de centros de costo deben ser mayores a cero.';
+      return null;
+    }
+
+    if (cantidadTotal <= 0) {
+      this.saveErrorMessage = 'La cantidad total del pedido debe ser mayor a cero.';
       return null;
     }
 
@@ -1143,16 +1150,14 @@ export class RequisicionesPageComponent implements OnInit {
       Ped_Usr_Apr: usuarioAprobacion,
       Ped_Lug_Ent: lugarEntrega,
       Ped_Ref: referencia,
-      Ped_Tip_Com: tipoOc,
+      Ped_Tip_Com: tipoServicio,
       Ped_Tip_Mon: moneda,
       Ped_Fec_Ent: fechaEntrega,
       Ped_Sus: sustento,
       Ped_Arc_Adj_Nom: attachmentName,
       Ped_Arc_Adj_Rut: '',
-      Ped_Prv_Cod: Number.isInteger(providerFormData.supplierCode) && providerFormData.supplierCode > 0
-        ? providerFormData.supplierCode
-        : 0,
-      Ped_For_Pag_Cod: providerFormData.paymentCode,
+      Ped_Prv_Cod: 0,
+      Ped_For_Pag_Cod: 0,
       Ped_Can_Tot: cantidadTotal
     };
   }
@@ -1259,16 +1264,6 @@ export class RequisicionesPageComponent implements OnInit {
     );
   }
 
-  private getProviderFormData(): ProviderFormData | null {
-    const providerFormData = this.providerFormComponent?.form?.getRawValue?.() ?? this.providerFormComponent?.getFormData?.();
-
-    if (!providerFormData) {
-      return null;
-    }
-
-    return providerFormData as ProviderFormData;
-  }
-
   private normalizePedidoFechaEntrega(value: string): string {
     if (!value) {
       return '';
@@ -1323,10 +1318,8 @@ export class RequisicionesPageComponent implements OnInit {
       filtros.Flg_Est = estado;
     }
 
-    const tipo = this.mapTipoFilter(filters.tipo);
-
-    if (tipo) {
-      filtros.Ped_Tip_Com = tipo;
+    if (filters.tipo?.trim()) {
+      filtros.Ped_Tip_Com = filters.tipo.trim();
     }
 
     return filtros;
@@ -1365,21 +1358,8 @@ export class RequisicionesPageComponent implements OnInit {
         return 'P';
       case 'Aprobado':
         return 'A';
-      case 'Observado':
-        return 'O';
-      case 'Cerrado':
+      case 'Cancelado':
         return 'C';
-      default:
-        return '';
-    }
-  }
-
-  private mapTipoFilter(tipo: string): string {
-    switch (tipo) {
-      case 'Con O/C':
-        return 'CO';
-      case 'Sin O/C':
-        return 'SO';
       default:
         return '';
     }
@@ -1454,15 +1434,8 @@ export class RequisicionesPageComponent implements OnInit {
     }
 
     const currencyCode = this.getNumberValue(item, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']);
-
-    switch (currencyCode) {
-      case 1:
-        return 'PEN';
-      case 2:
-        return 'USD';
-      default:
-        return '-';
-    }
+    const option = this.tipoMoneda.find((current) => current.codigo === currencyCode);
+    return option?.descripcion || '-';
   }
 
   private resolveStatus(item: DataRecord): string {
@@ -1479,10 +1452,9 @@ export class RequisicionesPageComponent implements OnInit {
         return 'Aprobado';
       case 'P':
         return 'Pendiente';
-      case 'O':
-        return 'Observado';
       case 'C':
-        return 'Cerrado';
+      case 'O':
+        return 'Cancelado';
       default:
         return '-';
     }
@@ -1495,16 +1467,9 @@ export class RequisicionesPageComponent implements OnInit {
       return tipoText;
     }
 
-    const tipoCode = this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']).toUpperCase();
-
-    switch (tipoCode) {
-      case 'CO':
-        return 'Con O/C';
-      case 'SO':
-        return 'Sin O/C';
-      default:
-        return '-';
-    }
+    const tipoCode = this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']);
+    const option = this.tipoServicioOptions.find((current) => current.codigo === tipoCode);
+    return option?.descripcion || '-';
   }
 
   private mapApprovalUser(item: DataRecord): ApprovalUserOption {
@@ -1519,6 +1484,34 @@ export class RequisicionesPageComponent implements OnInit {
     return {
       id: this.getNumberValue(item, ['Cen_Cos_Id', 'cen_Cos_Id', 'cenCosId', 'id', 'Id']) ?? 0,
       descripcion: this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes', 'descripcion', 'Descripcion'])
+    };
+  }
+
+  private mapTipoServicioOption(item: DataRecord): CatalogoTextoOption | null {
+    const id = this.getNumberValue(item, ['Tip_Ser_Id', 'tip_Ser_Id', 'tipSerId', 'id', 'Id']);
+    const descripcion = this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'descripcion', 'Descripcion']);
+
+    if (!id || !descripcion) {
+      return null;
+    }
+
+    return {
+      codigo: String(id),
+      descripcion
+    };
+  }
+
+  private mapMonedaOption(item: DataRecord): CatalogoNumeroOption | null {
+    const id = this.getNumberValue(item, ['Mon_Id', 'mon_Id', 'monId', 'id', 'Id']);
+    const descripcion = this.getTextValue(item, ['Mon_Abr', 'mon_Abr', 'monAbr', 'Mon_Des', 'mon_Des', 'monDes', 'descripcion', 'Descripcion']);
+
+    if (!id || !descripcion) {
+      return null;
+    }
+
+    return {
+      codigo: id,
+      descripcion: descripcion.toUpperCase()
     };
   }
 
@@ -1679,14 +1672,13 @@ export class RequisicionesPageComponent implements OnInit {
     });
     this.nextCentroCostoId = 1;
     this.detalleForm.reset({
-      lugarEntrega: 'Los Rosales 555 Santa Anita',
-      referencia: 'Compra de materiales para mantenimiento preventivo',
+      lugarEntrega: '',
+      referencia: '',
       tipoCompra: 'Sin enlazar',
-      ocImportacion: '0',
       oc: '',
       moneda: null,
       fechaEntrega: this.getPedidoFechaEntregaMinima(),
-      sustento: 'Detalle preliminar de distribucion por centros de costo.',
+      sustento: '',
       archivo: 'Sin archivo adjunto'
     });
     this.centrosCosto = [];
@@ -1696,17 +1688,12 @@ export class RequisicionesPageComponent implements OnInit {
     this.isSavingPedido = false;
     this.isLoadingPedidoDetalle = false;
     this.deletedCentroCostoIds = [];
-    this.pendingProviderFormData = null;
-    this.providerFormComponent?.resetForm();
   }
 
   private populatePedidoEditor(item: DataRecord): void {
     const pedId = this.getNumberValue(item, ['Ped_Id', 'ped_Id', 'pedId', 'requisicion', 'Requisicion']);
     const approvalCode = this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'Usr_Apr', 'usrApr']);
     const approvalUser = this.approvalUsers.find((user) => user.code === approvalCode);
-    const supplierCode = this.getNumberValue(item, ['Ped_Prv_Cod', 'ped_Prv_Cod', 'pedPrvCod']) ?? 0;
-    const paymentCode = this.getNumberValue(item, ['Ped_For_Pag_Cod', 'ped_For_Pag_Cod', 'pedForPagCod']) ?? 0;
-    const selectedRow = this.requisiciones.find((row) => row.requisicion === pedId);
 
     this.cabeceraForm.patchValue({
       requisicionCompra: pedId ?? null,
@@ -1718,7 +1705,6 @@ export class RequisicionesPageComponent implements OnInit {
       lugarEntrega: this.getTextValue(item, ['Ped_Lug_Ent', 'ped_Lug_Ent', 'pedLugEnt']),
       referencia: this.getTextValue(item, ['Ped_Ref', 'ped_Ref', 'pedRef']),
       tipoCompra: 'Sin enlazar',
-      ocImportacion: '0',
       oc: this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']),
       moneda: this.getNumberValue(item, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']),
       fechaEntrega: this.formatDateInputValue(this.getTextValue(item, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
@@ -1727,31 +1713,6 @@ export class RequisicionesPageComponent implements OnInit {
     });
 
     this.archivoAdjunto = String(this.detalleForm.controls['archivo'].value || 'Sin archivo adjunto');
-
-    const providerFormData: ProviderFormData = {
-      supplierCode,
-      supplierName: selectedRow?.proveedor || '',
-      phone: '',
-      address: '',
-      contact: '',
-      ruc: '',
-      email: '',
-      bankCode: 0,
-      bankName: '',
-      bankAccountNumber: '',
-      bankCci: '',
-      paymentCode,
-      paymentDescription: '',
-      isEventual: false
-    };
-
-    if (this.providerFormComponent) {
-      this.providerFormComponent.hydrateForm(providerFormData);
-      this.pendingProviderFormData = null;
-      return;
-    }
-
-    this.pendingProviderFormData = providerFormData;
   }
 
   private populateCentroCostoEditor(response: unknown): void {
@@ -1815,7 +1776,7 @@ export class RequisicionesPageComponent implements OnInit {
 
     return {
       id,
-      code: abbreviation,
+      code: String(id),
       description,
       abbreviation
     };
@@ -1889,19 +1850,19 @@ export class RequisicionesPageComponent implements OnInit {
       return null;
     }
 
-    const codigoItem = String(this.detallePedidoForm.controls['codigoItem'].value || '').trim();
-    const unidad = String(this.detallePedidoForm.controls['unidad'].value || '').trim();
+    const codigoItem = Number(String(this.detallePedidoForm.controls['codigoItem'].value || '').trim());
+    const unidad = Number(String(this.detallePedidoForm.controls['unidad'].value || '').trim());
     const cantidad = this.normalizeCantidadCentroCosto(Number(this.detallePedidoForm.controls['cantidad'].value));
     const precioUnitario = this.normalizeCantidadCentroCosto(Number(this.detallePedidoForm.controls['precioUnitario'].value));
     const subtotal = this.normalizeCantidadCentroCosto(cantidad * precioUnitario);
     const usuarioRegistro = this.authService.getCurrentUser().trim();
 
-    if (!codigoItem) {
+    if (!Number.isInteger(codigoItem) || codigoItem <= 0) {
       this.detallePedidoErrorMessage = 'Selecciona un item.';
       return null;
     }
 
-    if (!unidad) {
+    if (!Number.isInteger(unidad) || unidad <= 0) {
       this.detallePedidoErrorMessage = 'Selecciona una unidad de medida.';
       return null;
     }
@@ -1913,6 +1874,16 @@ export class RequisicionesPageComponent implements OnInit {
 
     if (cantidad > this.detallePedidoCantidadDisponible) {
       this.detallePedidoErrorMessage = `La cantidad no puede ser mayor a ${this.formatDetalleNumero(this.detallePedidoCantidadDisponible)}.`;
+      return null;
+    }
+
+    if (precioUnitario <= 0) {
+      this.detallePedidoErrorMessage = 'El precio unitario debe ser mayor a cero.';
+      return null;
+    }
+
+    if (subtotal <= 0) {
+      this.detallePedidoErrorMessage = 'El subtotal debe ser mayor a cero.';
       return null;
     }
 

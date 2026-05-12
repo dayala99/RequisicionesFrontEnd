@@ -6,6 +6,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { ApiService, RegistrarTipoServicioRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 @Component({
   selector: 'app-tipo-servicio-register-dialog',
@@ -24,7 +25,7 @@ export class TipoServicioRegisterDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      tipSerDes: ['', [Validators.required, Validators.maxLength(120)]]
+      tipSerDes: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]]
     });
   }
 

@@ -9,6 +9,7 @@
     <label class="grupo-item-dialog__field">
       <span>Descripcion</span>
       <input type="text" formControlName="grpDes" maxlength="120">
+      <small class="grupo-item-dialog__error" *ngIf="form.controls['grpDes'].touched && (form.controls['grpDes'].hasError('required') || form.controls['grpDes'].hasError('whitespace'))">Campo Descripcion obligatorio.</small>
     </label>
 
     <label class="grupo-item-dialog__field">

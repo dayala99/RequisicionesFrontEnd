@@ -68,6 +68,8 @@ describe('AppLayoutComponent', () => {
     const links = Array.from(compiled.querySelectorAll('.sidebar_link--nested')).map((element) => element.textContent?.trim());
 
     expect(links).toContain('Forma de Pagos');
+    expect(links).toContain('Banco');
+    expect(links).toContain('Moneda');
     expect(links).toContain('Tipo de Servicio');
     expect(links).toContain('Unidad de Medida');
     expect(links).toContain('Usuario');

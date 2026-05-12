@@ -18,6 +18,8 @@ export class AppLayoutComponent {
   ];
   readonly maintenanceItems = [
     { label: 'Forma de Pagos', route: '/forma-pago' },
+    { label: 'Banco', route: '/banco' },
+    { label: 'Moneda', route: '/moneda' },
     { label: 'Grupo de Item', route: '/grupo-item' },
     { label: 'Item', route: '/item' },
     { label: 'Tipo de Servicio', route: '/tipo-servicio' },

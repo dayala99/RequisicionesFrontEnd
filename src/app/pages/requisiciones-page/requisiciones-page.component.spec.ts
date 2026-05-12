@@ -64,6 +64,7 @@ describe('RequisicionesPageComponent', () => {
     getListarCentroCostoActivo: jasmine.Spy;
     getListarItem: jasmine.Spy;
     getListarUnidadMedida: jasmine.Spy;
+    getListarMoneda: jasmine.Spy;
     postRegistrarPedido: jasmine.Spy;
     patchActualizarPedidoEstado: jasmine.Spy;
     patchActualizarPedido: jasmine.Spy;
@@ -209,6 +210,14 @@ describe('RequisicionesPageComponent', () => {
           ]
         })
       ),
+      getListarMoneda: jasmine.createSpy('getListarMoneda').and.returnValue(
+        of({
+          elements: [
+            { Mon_Id: 1, Mon_Des: 'Soles', Mon_Abr: 'PEN', Flg_Est: 'A' },
+            { Mon_Id: 2, Mon_Des: 'Dolares', Mon_Abr: 'USD', Flg_Est: 'A' }
+          ]
+        })
+      ),
       postRegistrarPedido: jasmine.createSpy('postRegistrarPedido').and.returnValue(
         of({
           Success: true,
@@ -292,11 +301,12 @@ describe('RequisicionesPageComponent', () => {
   });
 
   it('should load registered orders from api on init', () => {
-    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Flg_Est: 'P' });
     expect(apiServiceMock.getListarUsuarioActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(apiServiceMock.getListarCentroCostoActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(apiServiceMock.getListarItem).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(apiServiceMock.getListarUnidadMedida).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(apiServiceMock.getListarMoneda).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(component.requisiciones.length).toBe(2);
     expect(component.requisiciones[0].codigo).toBe('PED-1042');
     expect(component.requisiciones[0].proveedor).toBe('Mirko Supplies');
@@ -317,11 +327,7 @@ describe('RequisicionesPageComponent', () => {
     ]);
   });
 
-  it('should keep hardcoded catalog options for O/C and moneda using code-description format', () => {
-    expect(component.tipoOc).toEqual([
-      { codigo: 'CO', descripcion: 'Con O/C' },
-      { codigo: 'SO', descripcion: 'Sin O/C' }
-    ]);
+  it('should load moneda options from api using code-description format', () => {
     expect(component.tipoMoneda).toEqual([
       { codigo: 1, descripcion: 'PEN' },
       { codigo: 2, descripcion: 'USD' }
@@ -351,8 +357,6 @@ describe('RequisicionesPageComponent', () => {
     component.ejecutarAccion('Modificar');
     fixture.detectChanges();
 
-    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
-
     expect(apiServiceMock.getListarPedidoModificar).toHaveBeenCalledWith(1042);
     expect(apiServiceMock.getListarPedidoRegistradoCentroCosto).toHaveBeenCalledWith(1042);
     expect(component.mostrarEditorPedido).toBeTrue();
@@ -363,8 +367,6 @@ describe('RequisicionesPageComponent', () => {
     expect(component.detalleForm.value.referencia).toBe('Compra de prueba');
     expect(component.detalleForm.value.oc).toBe('CO');
     expect(component.detalleForm.value.moneda).toBe(1);
-    expect(providerStub.form.value.supplierCode).toBe(1024);
-    expect(providerStub.form.value.paymentCode).toBe(3);
     expect(component.centrosCosto).toEqual([
       { id: 1, codigo: 1, costo: 'CC-80 Obras', cantidad: 3, persistedId: 2 }
     ]);
@@ -455,24 +457,19 @@ describe('RequisicionesPageComponent', () => {
   it('should request filtered requisitions by provider name', () => {
     component.filtersForm.patchValue({
       proveedor: 'andes',
-      estado: 'Todos'
+      estado: 'Pendiente'
     });
 
     component.aplicarFiltros();
 
-    expect(apiServiceMock.getListarPedido.calls.allArgs().slice(-4)).toEqual([
-      [{ Prv_Nom: 'andes', Flg_Est: 'A' }],
-      [{ Prv_Nom: 'andes', Flg_Est: 'P' }],
-      [{ Prv_Nom: 'andes', Flg_Est: 'O' }],
-      [{ Prv_Nom: 'andes', Flg_Est: 'C' }]
-    ]);
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Prv_Nom: 'andes', Flg_Est: 'P' });
   });
 
   it('should reset requisition filters to the default values', () => {
     component.filtersForm.patchValue({
       nroRequisicion: '1032',
       proveedor: 'tech',
-      estado: 'Observado',
+      estado: 'Cancelado',
       gn: 'GC',
       tipo: 'Sin O/C'
     });
@@ -482,11 +479,11 @@ describe('RequisicionesPageComponent', () => {
     expect(component.filtersForm.value).toEqual({
       nroRequisicion: '',
       proveedor: '',
-      estado: 'Aprobado',
+      estado: 'Pendiente',
       gn: 'Todos',
       tipo: 'Todos'
     });
-    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Flg_Est: 'P' });
   });
 
   it('should show the empty database message when there are no registered orders', () => {
@@ -511,6 +508,7 @@ describe('RequisicionesPageComponent', () => {
     expect(component.centroCostoForm.value.centroCosto).toBe('');
     expect(component.detalleForm.value.oc).toBe('');
     expect(component.detalleForm.value.moneda).toBeNull();
+    expect(component.detalleForm.value.sustento).toBe('');
   });
 
   it('should load the requisition number automatically when starting a new order', () => {
@@ -596,13 +594,6 @@ describe('RequisicionesPageComponent', () => {
     component.iniciarNuevoPedido();
     fixture.detectChanges();
 
-    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
-
-    providerStub.form.patchValue({
-      supplierCode: 1024,
-      paymentCode: 3
-    });
-
     component.cabeceraForm.patchValue({
       requisicionCompra: 1043,
       usuarioAprobacion: 'mramirez'
@@ -630,8 +621,8 @@ describe('RequisicionesPageComponent', () => {
       Ped_Tip_Com: 'CO',
       Ped_Tip_Mon: 1,
       Ped_Fec_Ent: '2026-04-30T00:00:00',
-      Ped_Prv_Cod: 1024,
-      Ped_For_Pag_Cod: 3,
+      Ped_Prv_Cod: 0,
+      Ped_For_Pag_Cod: 0,
       Ped_Can_Tot: 13.125,
       Usr_Reg: 'admin@demo.com'
     }));
@@ -656,14 +647,6 @@ describe('RequisicionesPageComponent', () => {
     component.iniciarNuevoPedido();
     fixture.detectChanges();
 
-    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
-
-    providerStub.form.patchValue({
-      supplierCode: 0,
-      paymentCode: 3,
-      isEventual: true
-    });
-
     component.cabeceraForm.patchValue({
       requisicionCompra: 1044,
       usuarioAprobacion: 'mramirez'
@@ -685,7 +668,7 @@ describe('RequisicionesPageComponent', () => {
     expect(apiServiceMock.postRegistrarPedido).toHaveBeenCalledWith(jasmine.objectContaining({
       Ped_Id: 1044,
       Ped_Prv_Cod: 0,
-      Ped_For_Pag_Cod: 3
+      Ped_For_Pag_Cod: 0
     }));
     expect(apiServiceMock.patchActualizarPedidoEstado).toHaveBeenCalledWith({
       Ped_Id: 1044,
@@ -697,13 +680,6 @@ describe('RequisicionesPageComponent', () => {
     component.seleccionarPedido(component.requisiciones[0]);
     component.ejecutarAccion('Modificar');
     fixture.detectChanges();
-
-    const providerStub = fixture.debugElement.query(By.directive(ProviderFormStubComponent))?.componentInstance as ProviderFormStubComponent;
-
-    providerStub.form.patchValue({
-      supplierCode: 1024,
-      paymentCode: 3
-    });
 
     component.cabeceraForm.patchValue({
       usuarioAprobacion: 'mramirez'
@@ -731,8 +707,8 @@ describe('RequisicionesPageComponent', () => {
       Ped_Tip_Com: 'SO',
       Ped_Tip_Mon: 2,
       Ped_Fec_Ent: '2026-05-01T00:00:00',
-      Ped_Prv_Cod: 1024,
-      Ped_For_Pag_Cod: 3,
+      Ped_Prv_Cod: 0,
+      Ped_For_Pag_Cod: 0,
       Ped_Can_Tot: 12,
       Usr_Mod: 'admin@demo.com'
     }));

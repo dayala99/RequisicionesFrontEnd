@@ -68,7 +68,6 @@ describe('ItemPageComponent', () => {
     expect(apiServiceMock.getListarItem).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(component.items.length).toBe(2);
     expect(component.gruposItem.length).toBe(2);
-    expect(component.selectedItemId).toBe(1);
   });
 
   it('should search items using ID, descripcion, grupo and estado filters', () => {
@@ -119,10 +118,8 @@ describe('ItemPageComponent', () => {
     }));
   });
 
-  it('should open edit dialog for selected row', () => {
-    component.selectedItemId = 2;
-
-    component.editarItem();
+  it('should open edit dialog for the provided row', () => {
+    component.editarItem(component.items[1]);
 
     expect(matDialogMock.open).toHaveBeenCalledWith(ItemEditDialogComponent, jasmine.objectContaining({
       data: {

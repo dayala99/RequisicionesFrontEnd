@@ -10,14 +10,6 @@
       <button type="button" class="tipo-servicio-card__create" (click)="registrarTipoServicio()">
         Nuevo
       </button>
-
-      <button
-        type="button"
-        class="tipo-servicio-card__edit"
-        [disabled]="selectedTipoServicioId === null || isLoading"
-        (click)="editarTipoServicio()">
-        Modificar
-      </button>
     </div>
   </header>
 
@@ -73,20 +65,28 @@
           <th>ID</th>
           <th>Descripcion</th>
           <th>Estado</th>
+          <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        <tr
-          *ngFor="let tipoServicio of tiposServicio; trackBy: trackByTipoServicio"
-          [class.is-selected]="isSelected(tipoServicio)"
-          (click)="seleccionarTipoServicio(tipoServicio)">
+        <tr *ngFor="let tipoServicio of tiposServicio; trackBy: trackByTipoServicio">
           <td>{{ tipoServicio.tipSerId ?? '-' }}</td>
           <td>{{ tipoServicio.tipSerDes || '-' }}</td>
           <td>
             <span class="status-pill" [class.status-pill--inactive]="!tipoServicio.activo">
               {{ tipoServicio.estado }}
             </span>
+          </td>
+          <td>
+            <button
+              type="button"
+              class="table-action"
+              aria-label="Editar tipo de servicio"
+              [disabled]="tipoServicio.tipSerId === null"
+              (click)="editarTipoServicio(tipoServicio)">
+              &#9998;
+            </button>
           </td>
         </tr>
       </tbody>

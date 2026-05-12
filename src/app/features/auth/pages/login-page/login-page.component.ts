@@ -3,6 +3,7 @@ import { FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 @Component({
   selector: 'app-login-page',
@@ -14,7 +15,7 @@ export class LoginPageComponent {
 
   readonly loginForm = this.formBuilder.nonNullable.group({
     email: ['admin@demo.com', [Validators.required, Validators.email]],
-    password: ['123456', [Validators.required]]
+    password: ['123456', [Validators.required, noWhitespaceValidator()]]
   });
 
   constructor(

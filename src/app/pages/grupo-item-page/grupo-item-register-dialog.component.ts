@@ -6,6 +6,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { ApiService, RegistrarGrupoItemRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 @Component({
   selector: 'app-grupo-item-register-dialog',
@@ -24,7 +25,7 @@ export class GrupoItemRegisterDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      grpDes: ['', [Validators.required, Validators.maxLength(120)]]
+      grpDes: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]]
     });
   }
 
