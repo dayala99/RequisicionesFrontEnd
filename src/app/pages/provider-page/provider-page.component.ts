@@ -13,6 +13,10 @@ interface ProviderRow {
   prvTel: string;
   prvDir: string;
   prvNomCon: string;
+  prvEmail: string;
+  prvNroCueBan: string;
+  prvNroCueBanCci: string;
+  prvBan: number | null;
   fecha: string;
   flgEst: string;
   activo: boolean;
@@ -211,6 +215,10 @@ export class ProviderPageComponent implements OnInit {
     const prvTel = this.getTextValue(item, ['Prv_Tel', 'prv_Tel', 'prvTel']);
     const prvDir = this.getTextValue(item, ['Prv_Dir', 'prv_Dir', 'prvDir']);
     const prvNomCon = this.getTextValue(item, ['Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']);
+    const prvEmail = this.getTextValue(item, ['Prv_Email', 'prv_Email', 'prvEmail']);
+    const prvNroCueBan = this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']);
+    const prvNroCueBanCci = this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci']);
+    const prvBan = this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan']);
     const fecha = this.formatDateValue(this.getTextValue(item, [
       'Fecha',
       'fecha',
@@ -236,6 +244,10 @@ export class ProviderPageComponent implements OnInit {
       prvTel,
       prvDir,
       prvNomCon,
+      prvEmail,
+      prvNroCueBan,
+      prvNroCueBanCci,
+      prvBan,
       fecha,
       flgEst,
       activo: flgEst.toUpperCase() === 'A',

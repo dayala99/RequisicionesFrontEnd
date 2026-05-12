@@ -1,0 +1,106 @@
+.pedido-detalle-dialog {
+  display: block;
+}
+
+.pedido-detalle-dialog__content {
+  display: grid;
+  gap: 1rem;
+  min-width: min(40rem, 80vw);
+}
+
+.pedido-detalle-dialog__meta,
+.pedido-detalle-dialog__selector-row,
+.pedido-detalle-dialog__numbers {
+  display: grid;
+  gap: 1rem;
+}
+
+.pedido-detalle-dialog__meta {
+  grid-template-columns: minmax(11rem, 1fr) minmax(7rem, 0.6fr);
+}
+
+.pedido-detalle-dialog__selector-row {
+  grid-template-columns: minmax(9rem, 0.5fr) minmax(16rem, 1.5fr);
+}
+
+.pedido-detalle-dialog__numbers {
+  grid-template-columns: repeat(3, minmax(10rem, 1fr));
+}
+
+.pedido-detalle-dialog__field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.pedido-detalle-dialog__field span {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.pedido-detalle-dialog__field small {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.pedido-detalle-dialog__field input {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.pedido-detalle-dialog__field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.input--readonly {
+  background: #eef1f4 !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--line-soft) !important;
+  opacity: 1;
+  -webkit-text-fill-color: var(--text-secondary);
+}
+
+.selector-code-button {
+  min-height: 2.9rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--text-primary);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.selector-code-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.pedido-detalle-dialog__error {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-accent);
+  color: var(--accent);
+}
+
+@media screen and (max-width: 760px) {
+  .pedido-detalle-dialog__content {
+    min-width: min(28rem, 88vw);
+  }
+
+  .pedido-detalle-dialog__meta,
+  .pedido-detalle-dialog__selector-row,
+  .pedido-detalle-dialog__numbers {
+    grid-template-columns: 1fr;
+  }
+}

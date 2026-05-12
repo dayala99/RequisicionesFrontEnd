@@ -1,0 +1,64 @@
+<form class="item-dialog" [formGroup]="form" (ngSubmit)="guardar()">
+  <h2 mat-dialog-title>Modificar Item</h2>
+
+  <mat-dialog-content class="item-dialog__content">
+    <p class="item-dialog__description">
+      Actualiza la descripcion, el grupo o el estado del item seleccionado.
+    </p>
+
+    <label class="item-dialog__field">
+      <span>Descripcion</span>
+      <input type="text" formControlName="itmDes" maxlength="120">
+    </label>
+
+    <label class="item-dialog__field">
+      <span>Grupo</span>
+      <div class="item-dialog__combobox" [class.item-dialog__combobox--open]="isGrupoDropdownOpen">
+        <input
+          type="text"
+          formControlName="itmGrp"
+          autocomplete="off"
+          [disabled]="isLoadingGroups || !gruposItem.length"
+          placeholder="Escribe o selecciona un grupo"
+          (focus)="openGrupoDropdown()"
+          (blur)="closeGrupoDropdown()"
+          (input)="onGrupoInput()">
+        <button type="button" class="item-dialog__combobox-toggle" (click)="toggleGrupoDropdown()" tabindex="-1" aria-label="Mostrar grupos">
+          <span class="item-dialog__combobox-chevron"></span>
+        </button>
+
+        <div *ngIf="isGrupoDropdownOpen && !isLoadingGroups && gruposItem.length" class="item-dialog__combobox-panel">
+          <button
+            *ngFor="let grupo of filteredGrupoOptions"
+            type="button"
+            class="item-dialog__combobox-option"
+            (mousedown)="selectGrupo(grupo)">
+            {{ grupo }}
+          </button>
+
+          <div *ngIf="!filteredGrupoOptions.length" class="item-dialog__combobox-empty">
+            No hay coincidencias
+          </div>
+        </div>
+      </div>
+    </label>
+
+    <label class="item-dialog__field">
+      <span>Estado</span>
+      <select formControlName="flgEst">
+        <option value="A">Activo</option>
+        <option value="I">Inactivo</option>
+      </select>
+    </label>
+
+    <p *ngIf="isLoadingGroups" class="item-dialog__hint">Cargando grupos de item...</p>
+    <p *ngIf="errorMessage" class="item-dialog__error">{{ errorMessage }}</p>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="item-dialog__actions">
+    <button mat-stroked-button type="button" (click)="cerrar()" [disabled]="isSaving">Cancelar</button>
+    <button mat-flat-button color="primary" type="submit" [disabled]="isSaving || isLoadingGroups || !gruposItem.length">
+      {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
+    </button>
+  </mat-dialog-actions>
+</form>

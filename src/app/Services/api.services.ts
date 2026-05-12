@@ -26,6 +26,95 @@ export interface FormaPagoFiltro {
     Flg_Est?: string;
 }
 
+export interface GrupoItemFiltro {
+    Grp_Id?: number;
+    Grp_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface ItemFiltro {
+    Itm_Id?: number;
+    Itm_Des?: string;
+    Itm_Grp?: number;
+    Flg_Est?: string;
+}
+
+export interface TipoServicioFiltro {
+    Tip_Ser_Id?: number;
+    Tip_Ser_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface UnidadMedidaFiltro {
+    Uni_Med_Id?: number;
+    Uni_Med_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface RegistrarFormaPagoRequest {
+    For_Pag_Des: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarFormaPagoRequest {
+    For_Pag_Id: number;
+    For_Pag_Des: string;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
+export interface RegistrarGrupoItemRequest {
+    Grp_Des: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarGrupoItemRequest {
+    Grp_Id: number;
+    Grp_Des: string;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
+export interface RegistrarItemRequest {
+    Itm_Des: string;
+    Itm_Grp: number;
+    Usr_Reg: string;
+}
+
+export interface ActualizarItemRequest {
+    Itm_Id: number;
+    Itm_Des: string;
+    Itm_Grp: number;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
+export interface RegistrarTipoServicioRequest {
+    Tip_Ser_Des: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarTipoServicioRequest {
+    Tip_Ser_Id: number;
+    Tip_Ser_Des: string;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
+export interface RegistrarUnidadMedidaRequest {
+    Uni_Med_Des: string;
+    Uni_Med_Abr: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarUnidadMedidaRequest {
+    Uni_Med_Id: number;
+    Uni_Med_Des: string;
+    Uni_Med_Abr: string;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
 export interface CentroCostoFiltro {
     Cen_Cos_Id?: number;
     Cen_Cos_Des?: string;
@@ -74,6 +163,10 @@ export interface RegistrarProveedorRequest {
     Prv_Tel: string;
     Prv_Dir: string;
     Prv_Nom_Con: string;
+    Prv_Email?: string;
+    Prv_Nro_Cue_Ban?: string;
+    Prv_Nro_Cue_Ban_CCI?: string;
+    Prv_Ban?: number;
     Usr_Reg: string;
 }
 
@@ -84,6 +177,10 @@ export interface ActualizarProveedorRequest {
     Prv_Tel: string;
     Prv_Dir: string;
     Prv_Nom_Con: string;
+    Prv_Email?: string;
+    Prv_Nro_Cue_Ban?: string;
+    Prv_Nro_Cue_Ban_CCI?: string;
+    Prv_Ban?: number;
     Flg_Est: string;
     Usr_Reg: string;
     Fec_Reg: string;
@@ -125,6 +222,11 @@ export interface ActualizarPedidoRequest {
     Usr_Mod: string;
 }
 
+export interface ActualizarPedidoEstadoRequest {
+    Ped_Id: number;
+    Flg_Est: string;
+}
+
 export interface RegistrarCentroCostoPedidoRequest {
     Ped_Id: number;
     Ped_Cen_Cos: string;
@@ -133,6 +235,30 @@ export interface RegistrarCentroCostoPedidoRequest {
 
 export interface EliminarCentroCostoPedidoRequest {
     Ped_Cen_Cos_Id: number;
+}
+
+export interface RegistrarDetallePedidoRequest {
+    Ped_Cab_Id: number;
+    Ped_Cod_Itm: string;
+    Ped_Uni_Med: string;
+    Ped_Can: number;
+    Ped_Cos_Uni: number;
+    Ped_Cos_Tot: number;
+    Usr_Reg: string;
+}
+
+export interface ActualizarDetallePedidoRequest {
+    Ped_Det_Id: number;
+    Ped_Cod_Itm: string;
+    Ped_Uni_Med: string;
+    Ped_Can: number;
+    Ped_Cos_Uni: number;
+    Ped_Cos_Tot: number;
+    Usr_Mod: string;
+}
+
+export interface EliminarDetallePedidoRequest {
+    Ped_Det_Id: number;
 }
 
 
@@ -241,6 +367,136 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'FormaPago/getListarFormaPagoActivo', { headers, params });
     }
 
+    registrarFormaPago(formaPago: RegistrarFormaPagoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'FormaPago/postRegistrarFormaPago', formaPago, { headers });
+    }
+
+    actualizarFormaPago(formaPago: ActualizarFormaPagoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'FormaPago/patchActualizarFormaPago', formaPago, { headers });
+    }
+
+    getListarGrupoItem(filtros: GrupoItemFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Grp_Id !== undefined) {
+            params = params.append('Grp_Id', filtros.Grp_Id);
+        }
+
+        if (filtros.Grp_Des) {
+            params = params.append('Grp_Des', filtros.Grp_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'GrupoItem/getListarGrupoItem', { headers, params });
+    }
+
+    registrarGrupoItem(grupoItem: RegistrarGrupoItemRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'GrupoItem/postRegistrarGrupoItem', grupoItem, { headers });
+    }
+
+    actualizarGrupoItem(grupoItem: ActualizarGrupoItemRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'GrupoItem/patchActualizarGrupoItem', grupoItem, { headers });
+    }
+
+    getListarItem(filtros: ItemFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Itm_Id !== undefined) {
+            params = params.append('Itm_Id', filtros.Itm_Id);
+        }
+
+        if (filtros.Itm_Des) {
+            params = params.append('Itm_Des', filtros.Itm_Des);
+        }
+
+        if (filtros.Itm_Grp !== undefined) {
+            params = params.append('Itm_Grp', filtros.Itm_Grp);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'Item/getListarItem', { headers, params });
+    }
+
+    registrarItem(item: RegistrarItemRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Item/postRegistrarItem', item, { headers });
+    }
+
+    actualizarItem(item: ActualizarItemRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarItem', item, { headers });
+    }
+
+    getListarTipoServicioActivo(filtros: TipoServicioFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Tip_Ser_Id !== undefined) {
+            params = params.append('Tip_Ser_Id', filtros.Tip_Ser_Id);
+        }
+
+        if (filtros.Tip_Ser_Des) {
+            params = params.append('Tip_Ser_Des', filtros.Tip_Ser_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'TipoServicio/getListarTipoServicioActivo', { headers, params });
+    }
+
+    registrarTipoServicio(tipoServicio: RegistrarTipoServicioRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'TipoServicio/postRegistrarTipoServicio', tipoServicio, { headers });
+    }
+
+    actualizarTipoServicio(tipoServicio: ActualizarTipoServicioRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'TipoServicio/patchActualizarTipoServicio', tipoServicio, { headers });
+    }
+
+    getListarUnidadMedida(filtros: UnidadMedidaFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Uni_Med_Id !== undefined) {
+            params = params.append('Uni_Med_Id', filtros.Uni_Med_Id);
+        }
+
+        if (filtros.Uni_Med_Des) {
+            params = params.append('Uni_Med_Des', filtros.Uni_Med_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'UnidadMedida/getListarUnidadMedida', { headers, params });
+    }
+
+    registrarUnidadMedida(unidadMedida: RegistrarUnidadMedidaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'UnidadMedida/postRegistrarUnidadMedida', unidadMedida, { headers });
+    }
+
+    actualizarUnidadMedida(unidadMedida: ActualizarUnidadMedidaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'UnidadMedida/patchActualizarUnidadMedida', unidadMedida, { headers });
+    }
+
     getListarCentroCostoActivo(filtros: CentroCostoFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -302,6 +558,20 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'Pedido/getListarPedidoRegistradoCentroCosto', { headers, params });
     }
 
+    getListarDetallePedido(Ped_Cab_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Cab_Id', Ped_Cab_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getListarDetallePedido', { headers, params });
+    }
+
+    getListarDetallePedidoModificar(Ped_Det_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Det_Id', Ped_Det_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getListarDetallePedidoModificar', { headers, params });
+    }
+
     postRegistrarPedido(pedido: RegistrarPedidoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', pedido, { headers });
@@ -310,6 +580,26 @@ export class ApiService {
     patchActualizarPedido(pedido: ActualizarPedidoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedido', pedido, { headers });
+    }
+
+    patchActualizarPedidoEstado(pedido: ActualizarPedidoEstadoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedidoEstado', pedido, { headers });
+    }
+
+    postRegistrarDetallePedido(detalle: RegistrarDetallePedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Pedido/postRegistrarDetallePedido', detalle, { headers });
+    }
+
+    patchActualizarDetallePedido(detalle: ActualizarDetallePedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Pedido/patchActualizarDetallePedido', detalle, { headers });
+    }
+
+    deleteEliminarDetallePedido(detalle: EliminarDetallePedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.request('delete', this.baseUrl + 'Pedido/patchActualizarDetallePedido', { headers, body: detalle });
     }
 
     postRegistrarCentroCostoPedidoRegistrado(centroCosto: RegistrarCentroCostoPedidoRequest): Observable<any> {

@@ -30,7 +30,7 @@
           <input
             type="text"
             formControlName="supplierName"
-            placeholder="Seleccione un proveedor o active Eventual" />
+          />
         </div>
       </label>
 
@@ -72,8 +72,44 @@
           <input
             type="text"
             formControlName="paymentDescription"
-            placeholder="Seleccione una forma de pago" />
+          />
         </div>
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label class="field-group">
+        <span class="field-label">Email</span>
+        <input type="text" formControlName="email" />
+      </label>
+
+      <label class="field-group">
+        <span class="field-label">Banco</span>
+        <div class="selector-wrap">
+          <button
+            type="button"
+            class="code-trigger"
+            disabled
+            aria-label="Codigo de banco">
+            {{ form.controls.bankCode.value }}
+          </button>
+          <input
+            type="text"
+            formControlName="bankName"
+          />
+        </div>
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label class="field-group">
+        <span class="field-label">Nro. Cuenta Bancaria</span>
+        <input type="text" formControlName="bankAccountNumber" />
+      </label>
+
+      <label class="field-group">
+        <span class="field-label">CCI</span>
+        <input type="text" formControlName="bankCci" />
       </label>
     </div>
   </form>

@@ -9,7 +9,7 @@ import { UsuariosPageComponent } from './usuarios-page.component';
 describe('UsuariosPageComponent', () => {
   let component: UsuariosPageComponent;
   let fixture: ComponentFixture<UsuariosPageComponent>;
-  let apiServiceMock: { getUsuarios: jasmine.Spy; getListarUsuarioActivo: jasmine.Spy };
+  let apiServiceMock: { getListarUsuarioActivo: jasmine.Spy };
   let matDialogMock: { open: jasmine.Spy };
 
   beforeEach(async () => {
@@ -24,7 +24,6 @@ describe('UsuariosPageComponent', () => {
     ]);
 
     apiServiceMock = {
-      getUsuarios: jasmine.createSpy('getUsuarios').and.returnValue(usuariosResponse),
       getListarUsuarioActivo: jasmine.createSpy('getListarUsuarioActivo').and.returnValue(usuariosResponse)
     };
     matDialogMock = {
@@ -107,32 +106,15 @@ describe('UsuariosPageComponent', () => {
     expect(component.filtersForm.controls['codigo'].value).toBe('');
   });
 
-  it('should fallback to shorter codigo prefixes when exact search returns no rows', () => {
-    apiServiceMock.getListarUsuarioActivo.and.returnValues(
-      of([]),
-      of([
-        {
-          Usr_Id: 1,
-          Usr_Cod: 'GOGO',
-          Usr_Nom: 'Usuario Uno',
-          Fec_Reg: '2024-05-01T13:45:20',
-          Flg_Est: 'I'
-        },
-        {
-          Usr_Id: 13,
-          Usr_Cod: 'GOGOX',
-          Usr_Nom: 'Usuario Trece',
-          Fec_Reg: '2024-05-01T13:45:20',
-          Flg_Est: 'I'
-        }
-      ])
-    );
-
+  it('should search users by exact filters', () => {
+    apiServiceMock.getListarUsuarioActivo.calls.reset();
     component.filtersForm.patchValue({ codigo: '12', estado: 'I' });
+
     component.cargarUsuarios();
 
-    expect(apiServiceMock.getListarUsuarioActivo).toHaveBeenCalledTimes(3);
-    expect(component.usuarios.length).toBe(2);
-    expect(component.usuarios.map((usuario) => usuario.usrId)).toEqual([1, 13]);
+    expect(apiServiceMock.getListarUsuarioActivo).toHaveBeenCalledWith({
+      Usr_Id: 12,
+      Flg_Est: 'I'
+    });
   });
 });

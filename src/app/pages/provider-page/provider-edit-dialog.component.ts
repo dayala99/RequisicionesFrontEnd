@@ -15,6 +15,10 @@ interface ProviderEditData {
     prvTel: string;
     prvDir: string;
     prvNomCon: string;
+    prvEmail: string;
+    prvNroCueBan: string;
+    prvNroCueBanCci: string;
+    prvBan: number | null;
     flgEst: string;
     usrReg: string;
     fecReg: string;
@@ -29,6 +33,12 @@ interface ProviderEditData {
   styleUrls: ['./provider-dialog.component.scss']
 })
 export class ProviderEditDialogComponent {
+  readonly bankOptions = [
+    { id: 1, label: 'BCP', accountNumber: '11111111111', cci: '11111111111111111111' },
+    { id: 2, label: 'BBVA', accountNumber: '22222222222', cci: '22222222222222222222' },
+    { id: 3, label: 'Interbank', accountNumber: '33333333333', cci: '33333333333333333333' },
+    { id: 4, label: 'Scotiabank', accountNumber: '44444444444', cci: '44444444444444444444' }
+  ];
   readonly form: FormGroup;
   isSaving = false;
   errorMessage = '';
@@ -40,12 +50,19 @@ export class ProviderEditDialogComponent {
     private readonly apiService: ApiService,
     private readonly authService: AuthService
   ) {
+    const initialBankId = data.proveedor.prvBan || this.bankOptions[0].id;
+    const initialBank = this.bankOptions.find((bank) => bank.id === initialBankId) || this.bankOptions[0];
+
     this.form = this.formBuilder.group({
       prvNom: [data.proveedor.prvNom, [Validators.required, Validators.maxLength(120)]],
       prvRuc: [data.proveedor.prvRuc, [Validators.required, Validators.maxLength(20)]],
       prvTel: [data.proveedor.prvTel, [Validators.required, Validators.maxLength(30)]],
       prvDir: [data.proveedor.prvDir, [Validators.required, Validators.maxLength(180)]],
       prvNomCon: [data.proveedor.prvNomCon, [Validators.required, Validators.maxLength(120)]],
+      prvEmail: [data.proveedor.prvEmail, [Validators.email, Validators.maxLength(180)]],
+      prvNroCueBan: [data.proveedor.prvNroCueBan || initialBank.accountNumber, [Validators.maxLength(40)]],
+      prvNroCueBanCci: [data.proveedor.prvNroCueBanCci || initialBank.cci, [Validators.maxLength(40)]],
+      prvBan: [initialBankId, [Validators.required, Validators.min(1)]],
       flgEst: [data.proveedor.flgEst || 'A', Validators.required]
     });
   }
@@ -65,6 +82,10 @@ export class ProviderEditDialogComponent {
       prvTel: string;
       prvDir: string;
       prvNomCon: string;
+      prvEmail: string;
+      prvNroCueBan: string;
+      prvNroCueBanCci: string;
+      prvBan: number | null;
       flgEst: string;
     };
     const currentOperator = this.getCurrentOperator();
@@ -76,6 +97,10 @@ export class ProviderEditDialogComponent {
       Prv_Tel: values.prvTel.trim(),
       Prv_Dir: values.prvDir.trim(),
       Prv_Nom_Con: values.prvNomCon.trim(),
+      Prv_Email: this.normalizeOptionalText(values.prvEmail),
+      Prv_Nro_Cue_Ban: this.normalizeOptionalText(values.prvNroCueBan),
+      Prv_Nro_Cue_Ban_CCI: this.normalizeOptionalText(values.prvNroCueBanCci),
+      Prv_Ban: this.parseOptionalPositiveInteger(values.prvBan),
       Flg_Est: values.flgEst,
       Usr_Reg: this.normalizeOperator(this.data.proveedor.usrReg) || currentOperator,
       Fec_Reg: this.data.proveedor.fecReg || currentIsoDate,
@@ -126,6 +151,35 @@ export class ProviderEditDialogComponent {
     }
 
     return value;
+  }
+
+  private normalizeOptionalText(value: string | null | undefined): string | undefined {
+    const normalizedValue = value?.trim();
+    return normalizedValue ? normalizedValue : undefined;
+  }
+
+  onBankChange(bankIdRaw: string | number): void {
+    const bankId = Number(bankIdRaw);
+    const selectedBank = this.bankOptions.find((bank) => bank.id === bankId);
+
+    if (!selectedBank) {
+      return;
+    }
+
+    this.form.patchValue({
+      prvNroCueBan: selectedBank.accountNumber,
+      prvNroCueBanCci: selectedBank.cci
+    });
+  }
+
+  private parseOptionalPositiveInteger(value: number | string | null | undefined): number | undefined {
+    const numericValue = Number(value);
+
+    if (!Number.isInteger(numericValue) || numericValue <= 0) {
+      return undefined;
+    }
+
+    return numericValue;
   }
 
   private getErrorMessage(error: unknown): string {
