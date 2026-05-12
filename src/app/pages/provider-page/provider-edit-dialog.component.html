@@ -40,6 +40,30 @@
         <input type="text" formControlName="prvNomCon">
       </label>
 
+      <label class="provider-dialog__field">
+        <span>Email</span>
+        <input type="email" formControlName="prvEmail">
+      </label>
+
+      <label class="provider-dialog__field">
+        <span>Banco</span>
+        <select formControlName="prvBan" #bankSelect (change)="onBankChange(bankSelect.value)">
+          <option *ngFor="let bank of bankOptions" [value]="bank.id">
+            {{ bank.label }} ({{ bank.id }})
+          </option>
+        </select>
+      </label>
+
+      <label class="provider-dialog__field">
+        <span>Nro. Cuenta Bancaria</span>
+        <input type="text" formControlName="prvNroCueBan">
+      </label>
+
+      <label class="provider-dialog__field">
+        <span>CCI</span>
+        <input type="text" formControlName="prvNroCueBanCci">
+      </label>
+
       <label class="provider-dialog__field provider-dialog__field--full">
         <span>Direccion</span>
         <input type="text" formControlName="prvDir">

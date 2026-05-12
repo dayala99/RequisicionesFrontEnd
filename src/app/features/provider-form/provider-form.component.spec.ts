@@ -28,7 +28,11 @@ describe('ProviderFormComponent', () => {
               Prv_Tel: '01-111-1111',
               Prv_Dir: 'Calle API 123',
               Prv_Nom_Con: 'Ana Torres',
-              Prv_Ruc: '20123456789'
+              Prv_Ruc: '20123456789',
+              Prv_Email: 'api@proveedor.com',
+              Prv_Ban: 2,
+              Prv_Nro_Cue_Ban: '22222222222',
+              Prv_Nro_Cue_Ban_CCI: '22222222222222222222'
             }
           ]
         })
@@ -99,7 +103,12 @@ describe('ProviderFormComponent', () => {
         phone: '01-111-1111',
         address: 'Calle API 123',
         contact: 'Ana Torres',
-        ruc: '20123456789'
+        ruc: '20123456789',
+        email: 'api@proveedor.com',
+        bankCode: 2,
+        bankName: 'BBVA',
+        bankAccountNumber: '22222222222',
+        bankCci: '22222222222222222222'
       }
     ]);
     expect(component.paymentOptions).toEqual([
@@ -119,7 +128,12 @@ describe('ProviderFormComponent', () => {
       phone: '01-111-1111',
       address: 'Calle Prueba 123',
       contact: 'Ana Torres',
-      ruc: '20123456789'
+      ruc: '20123456789',
+      email: 'demo@proveedor.com',
+      bankCode: 3,
+      bankName: 'Interbank',
+      bankAccountNumber: '33333333333',
+      bankCci: '33333333333333333333'
     };
 
     component.applySelectedPayment({ code: 2, description: 'Credito 15 dias' });
@@ -128,6 +142,9 @@ describe('ProviderFormComponent', () => {
     expect(component.form.controls.supplierCode.value).toBe(1024);
     expect(component.form.controls.supplierName.value).toBe('Proveedor Demo');
     expect(component.form.controls.contact.value).toBe('Ana Torres');
+    expect(component.form.controls.email.value).toBe('demo@proveedor.com');
+    expect(component.form.controls.bankCode.value).toBe(3);
+    expect(component.form.controls.bankName.value).toBe('Interbank');
     expect(component.form.controls.paymentCode.value).toBe(2);
     expect(component.form.controls.paymentDescription.value).toBe('Credito 15 dias');
   });
@@ -145,6 +162,11 @@ describe('ProviderFormComponent', () => {
       address: '',
       contact: '',
       ruc: '',
+      email: '',
+      bankCode: 0,
+      bankName: '',
+      bankAccountNumber: '',
+      bankCci: '',
       paymentCode: 3,
       paymentDescription: '',
       isEventual: false
@@ -156,6 +178,11 @@ describe('ProviderFormComponent', () => {
     expect(component.form.controls.address.value).toBe('Calle API 123');
     expect(component.form.controls.contact.value).toBe('Ana Torres');
     expect(component.form.controls.ruc.value).toBe('20123456789');
+    expect(component.form.controls.email.value).toBe('api@proveedor.com');
+    expect(component.form.controls.bankCode.value).toBe(2);
+    expect(component.form.controls.bankName.value).toBe('BBVA');
+    expect(component.form.controls.bankAccountNumber.value).toBe('22222222222');
+    expect(component.form.controls.bankCci.value).toBe('22222222222222222222');
     expect(component.form.controls.paymentCode.value).toBe(3);
     expect(component.form.controls.paymentDescription.value).toBe('Credito 30 dias');
   });
@@ -192,6 +219,7 @@ describe('ProviderFormComponent', () => {
     expect(component.form.controls.paymentCode.value).toBe(0);
     expect(component.form.controls.supplierName.value).toBe('');
     expect(component.form.controls.supplierName.disabled).toBeTrue();
+    expect(component.form.controls.bankName.value).toBe('');
     expect(component.form.controls.paymentDescription.disabled).toBeTrue();
   });
 });

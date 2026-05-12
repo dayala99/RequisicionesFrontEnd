@@ -5,7 +5,9 @@ import { LoginPageComponent } from './features/auth/pages/login-page/login-page.
 import { LoginRedirectGuard } from './features/auth/guards/login-redirect.guard';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
+import { GrupoItemPageComponent } from './pages/grupo-item-page/grupo-item-page.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
+import { ItemPageComponent } from './pages/item-page/item-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
@@ -35,6 +37,14 @@ const routes: Routes = [
       {
         path: 'forma-pago',
         component: FormaPagoPageComponent
+      },
+      {
+        path: 'grupo-item',
+        component: GrupoItemPageComponent
+      },
+      {
+        path: 'item',
+        component: ItemPageComponent
       },
       {
         path: 'tipo-servicio',

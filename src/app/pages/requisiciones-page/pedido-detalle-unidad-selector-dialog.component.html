@@ -1,0 +1,20 @@
+<h2 mat-dialog-title>Seleccionar Unidad de Medida</h2>
+<p class="selector-description">Elige la unidad de medida para el item del detalle.</p>
+
+<div mat-dialog-content class="selector-content">
+  <button
+    *ngFor="let unit of data.units; trackBy: trackByUnit"
+    type="button"
+    class="option-row"
+    (click)="selectUnit(unit)">
+    <span class="option-code">{{ unit.code }}</span>
+    <span class="option-value">
+      {{ unit.description }}
+      <small>{{ unit.abbreviation }}</small>
+    </span>
+  </button>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Cancelar</button>
+</div>

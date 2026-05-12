@@ -13,6 +13,12 @@ import { GlobalVariable } from 'src/app/VarGlobals';
   styleUrls: ['./provider-dialog.component.scss']
 })
 export class ProviderRegisterDialogComponent {
+  readonly bankOptions = [
+    { id: 1, label: 'BCP', accountNumber: '11111111111', cci: '11111111111111111111' },
+    { id: 2, label: 'BBVA', accountNumber: '22222222222', cci: '22222222222222222222' },
+    { id: 3, label: 'Interbank', accountNumber: '33333333333', cci: '33333333333333333333' },
+    { id: 4, label: 'Scotiabank', accountNumber: '44444444444', cci: '44444444444444444444' }
+  ];
   readonly form: FormGroup;
   isSaving = false;
   errorMessage = '';
@@ -28,7 +34,11 @@ export class ProviderRegisterDialogComponent {
       prvRuc: ['', [Validators.required, Validators.maxLength(20)]],
       prvTel: ['', [Validators.required, Validators.maxLength(30)]],
       prvDir: ['', [Validators.required, Validators.maxLength(180)]],
-      prvNomCon: ['', [Validators.required, Validators.maxLength(120)]]
+      prvNomCon: ['', [Validators.required, Validators.maxLength(120)]],
+      prvEmail: ['', [Validators.email, Validators.maxLength(180)]],
+      prvNroCueBan: [this.bankOptions[0].accountNumber, [Validators.maxLength(40)]],
+      prvNroCueBanCci: [this.bankOptions[0].cci, [Validators.maxLength(40)]],
+      prvBan: [1, [Validators.required, Validators.min(1)]]
     });
   }
 
@@ -47,6 +57,10 @@ export class ProviderRegisterDialogComponent {
       prvTel: string;
       prvDir: string;
       prvNomCon: string;
+      prvEmail: string;
+      prvNroCueBan: string;
+      prvNroCueBanCci: string;
+      prvBan: number | null;
     };
     const payload: RegistrarProveedorRequest = {
       Prv_Nom: values.prvNom.trim(),
@@ -54,6 +68,10 @@ export class ProviderRegisterDialogComponent {
       Prv_Tel: values.prvTel.trim(),
       Prv_Dir: values.prvDir.trim(),
       Prv_Nom_Con: values.prvNomCon.trim(),
+      Prv_Email: this.normalizeOptionalText(values.prvEmail),
+      Prv_Nro_Cue_Ban: this.normalizeOptionalText(values.prvNroCueBan),
+      Prv_Nro_Cue_Ban_CCI: this.normalizeOptionalText(values.prvNroCueBanCci),
+      Prv_Ban: this.parseOptionalPositiveInteger(values.prvBan),
       Usr_Reg: this.getCurrentOperator()
     };
 
@@ -98,6 +116,35 @@ export class ProviderRegisterDialogComponent {
     }
 
     return value;
+  }
+
+  private normalizeOptionalText(value: string | null | undefined): string | undefined {
+    const normalizedValue = value?.trim();
+    return normalizedValue ? normalizedValue : undefined;
+  }
+
+  onBankChange(bankIdRaw: string | number): void {
+    const bankId = Number(bankIdRaw);
+    const selectedBank = this.bankOptions.find((bank) => bank.id === bankId);
+
+    if (!selectedBank) {
+      return;
+    }
+
+    this.form.patchValue({
+      prvNroCueBan: selectedBank.accountNumber,
+      prvNroCueBanCci: selectedBank.cci
+    });
+  }
+
+  private parseOptionalPositiveInteger(value: number | string | null | undefined): number | undefined {
+    const numericValue = Number(value);
+
+    if (!Number.isInteger(numericValue) || numericValue <= 0) {
+      return undefined;
+    }
+
+    return numericValue;
   }
 
   private getErrorMessage(error: unknown): string {

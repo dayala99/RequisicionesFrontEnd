@@ -62,7 +62,10 @@ describe('RequisicionesPageComponent', () => {
     getListarPedidoCorrelativoNuevo: jasmine.Spy;
     getListarUsuarioActivo: jasmine.Spy;
     getListarCentroCostoActivo: jasmine.Spy;
+    getListarItem: jasmine.Spy;
+    getListarUnidadMedida: jasmine.Spy;
     postRegistrarPedido: jasmine.Spy;
+    patchActualizarPedidoEstado: jasmine.Spy;
     patchActualizarPedido: jasmine.Spy;
     postRegistrarDetallePedido: jasmine.Spy;
     patchActualizarDetallePedido: jasmine.Spy;
@@ -144,7 +147,7 @@ describe('RequisicionesPageComponent', () => {
           elements: [
             {
               Ped_Det_Id: 11,
-              Ped_Cod_Itm: 'ITM-001',
+              Ped_Cod_Itm: '1',
               Ped_Uni_Med: 'UND',
               Ped_Can: 2,
               Ped_Cos_Uni: 15.5,
@@ -158,7 +161,7 @@ describe('RequisicionesPageComponent', () => {
           elements: [
             {
               Ped_Det_Id: 11,
-              Ped_Cod_Itm: 'ITM-001',
+              Ped_Cod_Itm: '1',
               Ped_Uni_Med: 'UND',
               Ped_Can: 2,
               Ped_Cos_Uni: 15.5,
@@ -190,10 +193,32 @@ describe('RequisicionesPageComponent', () => {
           ]
         })
       ),
+      getListarItem: jasmine.createSpy('getListarItem').and.returnValue(
+        of({
+          elements: [
+            { Itm_Id: 1, Itm_Des: 'Lapicero', Itm_Grp: 1, Grp_Des: 'Utiles', Flg_Est: 'A' },
+            { Itm_Id: 2, Itm_Des: 'Escoba', Itm_Grp: 1, Grp_Des: 'Limpieza', Flg_Est: 'A' }
+          ]
+        })
+      ),
+      getListarUnidadMedida: jasmine.createSpy('getListarUnidadMedida').and.returnValue(
+        of({
+          elements: [
+            { Uni_Med_Id: 1, Uni_Med_Des: 'Unidad', Uni_Med_Abr: 'UND', Flg_Est: 'A' },
+            { Uni_Med_Id: 2, Uni_Med_Des: 'Docena', Uni_Med_Abr: 'DOC', Flg_Est: 'A' }
+          ]
+        })
+      ),
       postRegistrarPedido: jasmine.createSpy('postRegistrarPedido').and.returnValue(
         of({
           Success: true,
           Message: 'Pedido registrado correctamente'
+        })
+      ),
+      patchActualizarPedidoEstado: jasmine.createSpy('patchActualizarPedidoEstado').and.returnValue(
+        of({
+          Success: true,
+          Message: 'Estado actualizado correctamente'
         })
       ),
       patchActualizarPedido: jasmine.createSpy('patchActualizarPedido').and.returnValue(
@@ -270,8 +295,10 @@ describe('RequisicionesPageComponent', () => {
     expect(apiServiceMock.getListarPedido).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(apiServiceMock.getListarUsuarioActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(apiServiceMock.getListarCentroCostoActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(apiServiceMock.getListarItem).toHaveBeenCalledWith({ Flg_Est: 'A' });
+    expect(apiServiceMock.getListarUnidadMedida).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(component.requisiciones.length).toBe(2);
-    expect(component.requisiciones[0].codigo).toBe('REQ-1042');
+    expect(component.requisiciones[0].codigo).toBe('PED-1042');
     expect(component.requisiciones[0].proveedor).toBe('Mirko Supplies');
     expect(component.requisiciones[0].archivo).toBe('PDF');
   });
@@ -351,7 +378,7 @@ describe('RequisicionesPageComponent', () => {
     expect(component.mostrarEditorPedido).toBeFalse();
   });
 
-  it('should open a dedicated detail view with linked center costs and mock products', () => {
+  it('should open a dedicated detail view with linked center costs and registered detail items', () => {
     const pedido = component.requisiciones[0];
 
     component.toggleDetallePedido(pedido);
@@ -365,36 +392,25 @@ describe('RequisicionesPageComponent', () => {
     ]);
     expect(component.getDetallePedidoExpandido()).toEqual([
       {
-        id: 9001,
-        persistedId: null,
+        id: 11,
+        persistedId: 11,
         item: '1',
         codigoItem: '1',
-        descripcion: 'CAÑO',
-        unidad: 'UNIDAD',
+        descripcion: 'Lapicero',
+        unidadCodigo: 'UND',
+        unidad: 'Unidad',
         cantidad: 2,
-        precioUnitario: 2,
-        subtotal: 4
-      },
-      {
-        id: 9002,
-        persistedId: null,
-        item: '2',
-        codigoItem: '2',
-        descripcion: 'PAÑAL',
-        unidad: 'DOCENA',
-        cantidad: 1,
-        precioUnitario: 5.5,
-        subtotal: 5.5
+        precioUnitario: 15.5,
+        subtotal: 31
       }
     ]);
   });
 
   it('should block saving detail items when the proposed quantity exceeds the allowed total', () => {
     component.toggleDetallePedido(component.requisiciones[0]);
-    component.iniciarNuevoPedidoDetalle();
     component.detallePedidoForm.patchValue({
       codigoItem: '3',
-      unidad: 'UNIDAD',
+      unidad: 'UND',
       cantidad: 2,
       precioUnitario: 1
     });
@@ -619,6 +635,10 @@ describe('RequisicionesPageComponent', () => {
       Ped_Can_Tot: 13.125,
       Usr_Reg: 'admin@demo.com'
     }));
+    expect(apiServiceMock.patchActualizarPedidoEstado).toHaveBeenCalledWith({
+      Ped_Id: 1043,
+      Flg_Est: 'P'
+    });
     expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado).toHaveBeenCalledTimes(2);
     expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado.calls.argsFor(0)[0]).toEqual({
       Ped_Id: 1043,
@@ -667,6 +687,10 @@ describe('RequisicionesPageComponent', () => {
       Ped_Prv_Cod: 0,
       Ped_For_Pag_Cod: 3
     }));
+    expect(apiServiceMock.patchActualizarPedidoEstado).toHaveBeenCalledWith({
+      Ped_Id: 1044,
+      Flg_Est: 'P'
+    });
   });
 
   it('should update pedido with patchActualizarPedido in edit mode', () => {
@@ -724,6 +748,7 @@ describe('RequisicionesPageComponent', () => {
       Ped_Can: 7
     });
   });
+
 
   it('should delete removed persisted center costs before re-registering current rows in edit mode', () => {
     component.seleccionarPedido(component.requisiciones[0]);

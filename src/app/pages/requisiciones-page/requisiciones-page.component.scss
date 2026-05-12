@@ -443,6 +443,27 @@
   text-align: center;
 }
 
+.pedido-detalle-table__action-head {
+  width: 3.2rem;
+  text-align: center;
+}
+
+.pedido-detalle-table__action-cell {
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  text-align: center;
+}
+
+.pedido-detalle-table td:nth-last-child(-n + 2) {
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+}
+
+.pedido-detalle-table td:last-child,
+.pedido-detalle-table th:last-child {
+  padding-right: 1rem;
+}
+
 .costos-table td:nth-child(5),
 .costos-table th:nth-child(5) {
   padding-right: 1rem;
@@ -646,6 +667,15 @@
   .costos-table__action-head,
   .costos-table td:nth-child(4),
   .costos-table td:nth-child(5) {
+    width: 3rem;
+  }
+
+  .pedido-detalle-table {
+    min-width: 52rem;
+  }
+
+  .pedido-detalle-table__action-head,
+  .pedido-detalle-table td:nth-last-child(-n + 2) {
     width: 3rem;
   }
 

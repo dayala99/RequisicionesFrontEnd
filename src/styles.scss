@@ -106,6 +106,7 @@ a {
 .animated-dialog-pane .mat-mdc-dialog-surface {
   animation: dialog-pop-in 0.22s ease-out;
   transform-origin: center top;
+  overflow: visible !important;
 }
 
 .animated-dialog-backdrop {

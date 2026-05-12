@@ -5,12 +5,15 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, forkJoin, from, of } from 'rxjs';
 import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
-import { ActualizarDetallePedidoRequest, ActualizarPedidoRequest, ApiService, CatalogoNumeroOption, CatalogoTextoOption, EliminarDetallePedidoRequest, PedidosFiltro, RegistrarCentroCostoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
+import { ActualizarDetallePedidoRequest, ActualizarPedidoEstadoRequest, ActualizarPedidoRequest, ApiService, CatalogoNumeroOption, CatalogoTextoOption, EliminarDetallePedidoRequest, PedidosFiltro, RegistrarCentroCostoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
 import { ProviderFormComponent } from 'src/app/features/provider-form/provider-form.component';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ApprovalUserOption, ApprovalUserSelectorDialogComponent } from './approval-user-selector-dialog.component';
 import { CentroCostoOption, CentroCostoSelectorDialogComponent } from './centro-costo-selector-dialog.component';
 import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
+import { PedidoDetalleDeleteDialogComponent } from './pedido-detalle-delete-dialog.component';
+import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
+import { PedidoDetalleDialogValue, PedidoDetalleItemOption, PedidoDetalleUnidadOption } from './pedido-detalle-dialog.models';
 
 type DataRecord = Record<string, unknown>;
 
@@ -21,6 +24,11 @@ type ProviderFormData = {
   address: string;
   contact: string;
   ruc: string;
+  email: string;
+  bankCode: number;
+  bankName: string;
+  bankAccountNumber: string;
+  bankCci: string;
   paymentCode: number;
   paymentDescription: string;
   isEventual: boolean;
@@ -57,6 +65,7 @@ interface PedidoDetalleRow {
   item: string;
   codigoItem: string;
   descripcion: string;
+  unidadCodigo: string;
   unidad: string;
   cantidad: number;
   precioUnitario: number;
@@ -91,7 +100,7 @@ export class RequisicionesPageComponent implements OnInit {
   readonly estadoOptions = ['Todos', 'Pendiente', 'Aprobado', 'Observado', 'Cerrado'];
   readonly gnOptions = ['Todos', 'GN', 'GA', 'GC'];
   readonly tipoOptions = ['Todos', 'Con O/C', 'Sin O/C'];
-  readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Duplicar', 'Imprimir', 'Aprobar', 'Cerrar'];
+  readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Duplicar', 'Imprimir', 'Cerrar'];
   readonly tipoCompraOptions = ['Sin enlazar', 'Local', 'Importacion'];
   readonly tipoOc: CatalogoTextoOption[] = [
     { codigo: 'CO', descripcion: 'Con O/C' },
@@ -127,36 +136,14 @@ export class RequisicionesPageComponent implements OnInit {
   detalleExpandidoError = '';
   pedidoDetalles: Record<number, PedidoDetalleRow[]> = {};
   pedidoCentrosCosto: Record<number, CentroCostoRow[]> = {};
+  pedidoDetalleCantidadLimites: Record<number, number> = {};
+  detalleItemOptions: PedidoDetalleItemOption[] = [];
+  detalleUnidadOptions: PedidoDetalleUnidadOption[] = [];
   selectedPedidoDetalleId: number | null = null;
   isEditingPedidoDetalle = false;
-  showPedidoDetalleEditor = false;
   isSavingPedidoDetalle = false;
   detallePedidoErrorMessage = '';
   detallePedidoCantidadLimite = 0;
-  readonly detallePedidoMockRows: PedidoDetalleRow[] = [
-    {
-      id: 9001,
-      persistedId: null,
-      item: '1',
-      codigoItem: '1',
-      descripcion: 'CAÑO',
-      unidad: 'UNIDAD',
-      cantidad: 10,
-      precioUnitario: 2,
-      subtotal: 20
-    },
-    {
-      id: 9002,
-      persistedId: null,
-      item: '2',
-      codigoItem: '2',
-      descripcion: 'PAÑAL',
-      unidad: 'DOCENA',
-      cantidad: 10,
-      precioUnitario: 5.5,
-      subtotal: 55
-    }
-  ];
 
   private nextCentroCostoId = 1;
   private _providerFormComponent?: ProviderFormComponent;
@@ -212,6 +199,7 @@ export class RequisicionesPageComponent implements OnInit {
   ngOnInit(): void {
     this.cargarUsuariosAprobacion();
     this.cargarCentrosCosto();
+    this.cargarCatalogosDetallePedido();
     this.cargarPedidos();
     this.resetPedidoEditor();
     this.mostrarEditorPedido = false;
@@ -354,6 +342,7 @@ export class RequisicionesPageComponent implements OnInit {
     this.resetDetallePedidoEditor();
 
     if (this.pedidoDetalles[item.requisicion] && this.pedidoCentrosCosto[item.requisicion]) {
+      this.detallePedidoCantidadLimite = this.pedidoDetalleCantidadLimites[item.requisicion] ?? 0;
       this.isLoadingDetalleExpandido = false;
       return;
     }
@@ -368,8 +357,10 @@ export class RequisicionesPageComponent implements OnInit {
         this.pedidoDetalles[item.requisicion] = this.extractRecords(detalleResponse)
           .map((detail, index) => this.mapPedidoDetalle(detail, index))
           .filter((detail): detail is PedidoDetalleRow => detail !== null);
+        this.updatePedidoTotal(item.requisicion);
         this.pedidoCentrosCosto[item.requisicion] = this.mapCentroCostoRegistrados(centroCostoResponse);
         this.detallePedidoCantidadLimite = this.extractTotalCantidadPermitida(centroCostoResponse);
+        this.pedidoDetalleCantidadLimites[item.requisicion] = this.detallePedidoCantidadLimite;
         this.isLoadingDetalleExpandido = false;
       },
       error: (error: unknown) => {
@@ -377,6 +368,7 @@ export class RequisicionesPageComponent implements OnInit {
         this.pedidoDetalles[item.requisicion] = [];
         this.pedidoCentrosCosto[item.requisicion] = [];
         this.detallePedidoCantidadLimite = 0;
+        this.pedidoDetalleCantidadLimites[item.requisicion] = 0;
         this.detalleExpandidoError = this.resolveErrorMessage(error, 'No se pudo cargar el detalle del pedido.');
         this.isLoadingDetalleExpandido = false;
       }
@@ -388,7 +380,11 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   getDetallePedidoExpandido(): PedidoDetalleRow[] {
-    return this.mapDetallePedidoMockRows(this.detallePedidoCantidadLimite);
+    if (this.expandedPedidoId === null) {
+      return [];
+    }
+
+    return (this.pedidoDetalles[this.expandedPedidoId] ?? []).map((detail) => this.enrichPedidoDetalle(detail));
   }
 
   getCentroCostoPedidoExpandido(): CentroCostoRow[] {
@@ -412,8 +408,11 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
+    if (!this.canOpenDetallePedidoDialog()) {
+      return;
+    }
+
     this.isEditingPedidoDetalle = false;
-    this.showPedidoDetalleEditor = true;
     this.selectedPedidoDetalleId = null;
     this.detallePedidoErrorMessage = '';
     this.detallePedidoForm.reset({
@@ -422,10 +421,22 @@ export class RequisicionesPageComponent implements OnInit {
       cantidad: 0,
       precioUnitario: 0
     });
+    this.openPedidoDetalleDialog({
+      itemCode: '',
+      itemDescription: '',
+      unitCode: '',
+      unitDescription: '',
+      quantity: 0,
+      unitPrice: 0
+    });
   }
 
   modificarPedidoDetalleSeleccionado(): void {
     if (!this.canModifyPedidoDetalle) {
+      return;
+    }
+
+    if (!this.canOpenDetallePedidoDialog()) {
       return;
     }
 
@@ -460,7 +471,14 @@ export class RequisicionesPageComponent implements OnInit {
           precioUnitario: this.getDecimalValue(detalle, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']) ?? 0
         });
         this.isEditingPedidoDetalle = true;
-        this.showPedidoDetalleEditor = true;
+        this.openPedidoDetalleDialog({
+          itemCode: String(this.detallePedidoForm.controls['codigoItem'].value ?? '').trim(),
+          itemDescription: this.resolveDetalleItemDescription(String(this.detallePedidoForm.controls['codigoItem'].value ?? '').trim()),
+          unitCode: String(this.detallePedidoForm.controls['unidad'].value ?? '').trim(),
+          unitDescription: this.resolveDetalleUnidadDescription(String(this.detallePedidoForm.controls['unidad'].value ?? '').trim()),
+          quantity: Number(this.detallePedidoForm.controls['cantidad'].value ?? 0),
+          unitPrice: Number(this.detallePedidoForm.controls['precioUnitario'].value ?? 0)
+        }, selectedDetail.item);
         this.isSavingPedidoDetalle = false;
       },
       error: (error: unknown) => {
@@ -549,6 +567,35 @@ export class RequisicionesPageComponent implements OnInit {
 
   cancelarEdicionPedidoDetalle(): void {
     this.resetDetallePedidoEditor();
+  }
+
+  editarPedidoDetalle(detail: PedidoDetalleRow): void {
+    this.selectedPedidoDetalleId = detail.id;
+    this.modificarPedidoDetalleSeleccionado();
+  }
+
+  confirmarEliminarPedidoDetalle(detail: PedidoDetalleRow): void {
+    if (detail.persistedId === null || this.isSavingPedidoDetalle) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(PedidoDetalleDeleteDialogComponent, {
+      width: 'min(30rem, 92vw)',
+      disableClose: true,
+      data: {
+        codigoItem: detail.codigoItem,
+        descripcion: detail.descripcion
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean | undefined) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.selectedPedidoDetalleId = detail.id;
+      this.eliminarPedidoDetalleSeleccionado();
+    });
   }
 
   modificarPedidoSeleccionado(): void {
@@ -716,6 +763,13 @@ export class RequisicionesPageComponent implements OnInit {
     this.apiService.postRegistrarPedido(payload).pipe(
       switchMap((response: unknown) => {
         this.assertSuccessfulResponse(response, 'No se pudo registrar el pedido.');
+        return this.apiService.patchActualizarPedidoEstado({
+          Ped_Id: payload.Ped_Id,
+          Flg_Est: 'P'
+        } as ActualizarPedidoEstadoRequest);
+      }),
+      switchMap((response: unknown) => {
+        this.assertSuccessfulResponse(response, 'No se pudo establecer el pedido como pendiente.');
         return this.registrarCentrosCostoPedido(payload.Ped_Id);
       })
     ).subscribe({
@@ -911,6 +965,84 @@ export class RequisicionesPageComponent implements OnInit {
     });
   }
 
+  private cargarCatalogosDetallePedido(): void {
+    forkJoin({
+      itemsResponse: this.apiService.getListarItem({ Flg_Est: 'A' }),
+      unitsResponse: this.apiService.getListarUnidadMedida({ Flg_Est: 'A' })
+    }).subscribe({
+      next: ({ itemsResponse, unitsResponse }) => {
+        this.detalleItemOptions = this.extractRecords(itemsResponse)
+          .map((item) => this.mapDetalleItemOption(item))
+          .filter((item): item is PedidoDetalleItemOption => item !== null)
+          .sort((left, right) => left.description.localeCompare(right.description));
+        this.detalleUnidadOptions = this.extractRecords(unitsResponse)
+          .map((item) => this.mapDetalleUnidadOption(item))
+          .filter((item): item is PedidoDetalleUnidadOption => item !== null)
+          .sort((left, right) => left.description.localeCompare(right.description));
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando catalogos de detalle de pedido:', error);
+        this.detalleItemOptions = [];
+        this.detalleUnidadOptions = [];
+      }
+    });
+  }
+
+  private canOpenDetallePedidoDialog(): boolean {
+    if (!this.detalleItemOptions.length) {
+      this.detallePedidoErrorMessage = 'No hay items activos disponibles para el detalle.';
+      return false;
+    }
+
+    if (!this.detalleUnidadOptions.length) {
+      this.detallePedidoErrorMessage = 'No hay unidades de medida activas disponibles para el detalle.';
+      return false;
+    }
+
+    return true;
+  }
+
+  private openPedidoDetalleDialog(initialValue: PedidoDetalleDialogValue, itemNumber?: string): void {
+    if (this.expandedPedidoId === null || !this.detallePedidoCabecera) {
+      return;
+    }
+
+    const dialogData: PedidoDetalleDialogData = {
+      pedidoCodigo: this.detallePedidoCabecera.codigo,
+      itemNumber: itemNumber || String(this.getDetallePedidoExpandido().length + 1),
+      moneda: this.detallePedidoCabecera.moneda,
+      cantidadDisponible: this.detallePedidoCantidadDisponible,
+      isEditing: this.isEditingPedidoDetalle,
+      items: this.detalleItemOptions,
+      units: this.detalleUnidadOptions,
+      initialValue
+    };
+
+    const dialogRef = this.dialog.open(PedidoDetalleDialogComponent, {
+      width: 'min(44rem, 94vw)',
+      disableClose: true,
+      panelClass: 'animated-dialog-pane',
+      backdropClass: 'animated-dialog-backdrop',
+      autoFocus: false,
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().subscribe((result?: PedidoDetalleDialogValue) => {
+      if (!result) {
+        this.resetDetallePedidoEditor();
+        return;
+      }
+
+      this.detallePedidoForm.patchValue({
+        codigoItem: result.itemCode,
+        unidad: result.unitCode,
+        cantidad: result.quantity,
+        precioUnitario: result.unitPrice
+      });
+      this.guardarPedidoDetalle();
+    });
+  }
+
   private applySelectedCentroCosto(centroCosto: CentroCostoOption): void {
     this.centroCostoForm.patchValue({
       centroCostoId: centroCosto.id,
@@ -918,6 +1050,7 @@ export class RequisicionesPageComponent implements OnInit {
     });
     this.agregarCentroCosto(centroCosto);
   }
+
 
   private buildRegistrarPedidoPayload(): RegistrarPedidoRequest | null {
     const payloadBase = this.buildPedidoPayloadBase();
@@ -976,7 +1109,7 @@ export class RequisicionesPageComponent implements OnInit {
     }
 
     if (!Number.isInteger(requisicionCompra) || requisicionCompra <= 0) {
-      this.saveErrorMessage = 'La requisicion de compra aun no tiene un correlativo valido.';
+      this.saveErrorMessage = 'El pedido aun no tiene un correlativo valido.';
       return null;
     }
 
@@ -1116,29 +1249,6 @@ export class RequisicionesPageComponent implements OnInit {
         return total + this.normalizeCantidadCentroCosto(item.cantidad);
       }, 0)
     );
-  }
-
-  private mapDetallePedidoMockRows(totalPermitido: number): PedidoDetalleRow[] {
-    const normalizedLimit = Math.max(0, Math.floor(this.normalizeCantidadCentroCosto(totalPermitido)));
-
-    if (!this.detallePedidoMockRows.length) {
-      return [];
-    }
-
-    const rowCount = this.detallePedidoMockRows.length;
-    const baseCantidad = Math.floor(normalizedLimit / rowCount);
-    let remainder = normalizedLimit % rowCount;
-
-    return this.detallePedidoMockRows.map((item) => {
-      const cantidad = baseCantidad + (remainder > 0 ? 1 : 0);
-      remainder = Math.max(0, remainder - 1);
-
-      return {
-        ...item,
-        cantidad,
-        subtotal: this.normalizeCantidadCentroCosto(cantidad * item.precioUnitario)
-      };
-    });
   }
 
   private extractTotalCantidadPermitida(response: unknown): number {
@@ -1310,7 +1420,7 @@ export class RequisicionesPageComponent implements OnInit {
 
     return {
       requisicion,
-      codigo: this.getTextValue(item, ['Ped_Cod', 'ped_Cod', 'pedCod', 'codigo', 'Codigo']) || (requisicion > 0 ? `REQ-${requisicion}` : '-'),
+      codigo: this.getTextValue(item, ['Ped_Cod', 'ped_Cod', 'pedCod', 'codigo', 'Codigo']) || (requisicion > 0 ? `PED-${requisicion}` : '-'),
       archivo: this.resolveAttachmentLabel(archivoNombre),
       gerencia: this.getTextValue(item, ['Gerencia', 'gerencia', 'Are_Des', 'are_Des', 'area']) || '-',
       fecha: fechaRegistro || '-',
@@ -1625,6 +1735,11 @@ export class RequisicionesPageComponent implements OnInit {
       address: '',
       contact: '',
       ruc: '',
+      email: '',
+      bankCode: 0,
+      bankName: '',
+      bankAccountNumber: '',
+      bankCci: '',
       paymentCode,
       paymentDescription: '',
       isEventual: false
@@ -1673,30 +1788,99 @@ export class RequisicionesPageComponent implements OnInit {
     };
   }
 
+  private mapDetalleItemOption(item: DataRecord): PedidoDetalleItemOption | null {
+    const id = this.getNumberValue(item, ['Itm_Id', 'itm_Id', 'itmId', 'id', 'Id']);
+    const description = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes', 'descripcion', 'Descripcion']);
+
+    if (!id || !description) {
+      return null;
+    }
+
+    return {
+      id,
+      code: String(id),
+      description,
+      groupDescription: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes', 'grupo', 'Grupo']) || 'Sin grupo'
+    };
+  }
+
+  private mapDetalleUnidadOption(item: DataRecord): PedidoDetalleUnidadOption | null {
+    const id = this.getNumberValue(item, ['Uni_Med_Id', 'uni_Med_Id', 'uniMedId', 'id', 'Id']);
+    const description = this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'descripcion', 'Descripcion']);
+    const abbreviation = this.getTextValue(item, ['Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr', 'abreviatura', 'Abreviatura']);
+
+    if (!id || !description || !abbreviation) {
+      return null;
+    }
+
+    return {
+      id,
+      code: abbreviation,
+      description,
+      abbreviation
+    };
+  }
+
   private mapPedidoDetalle(item: DataRecord, index: number): PedidoDetalleRow | null {
     const persistedId = this.getNumberValue(item, ['Ped_Det_Id', 'ped_Det_Id', 'pedDetId']);
     const id = persistedId ?? index + 1;
     const codigoItem = this.getTextValue(item, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm']);
-    const unidad = this.getTextValue(item, ['Ped_Uni_Med', 'ped_Uni_Med', 'pedUniMed']) || '-';
+    const unidadCodigo = this.getTextValue(item, ['Ped_Uni_Med', 'ped_Uni_Med', 'pedUniMed']);
     const cantidad = this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0;
     const precioUnitario = this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']) ?? 0;
     const subtotal = this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']) ?? 0;
+    const descripcionItem = this.getTextValue(item, ['Ped_Des_Itm', 'ped_Des_Itm', 'pedDesItm', 'Ped_Des', 'ped_Des']);
 
     if (!codigoItem && !cantidad && !precioUnitario && !subtotal) {
       return null;
     }
+
+    const itemDescription = descripcionItem || this.resolveDetalleItemDescription(codigoItem);
+    const unidadDescripcion = this.resolveDetalleUnidadDescription(unidadCodigo);
 
     return {
       id,
       persistedId,
       item: String(index + 1),
       codigoItem: codigoItem || '-',
-      descripcion: this.getTextValue(item, ['Ped_Des_Itm', 'ped_Des_Itm', 'pedDesItm', 'Ped_Des', 'ped_Des']) || '-',
-      unidad,
+      descripcion: itemDescription || '-',
+      unidadCodigo: unidadCodigo || '-',
+      unidad: unidadDescripcion || unidadCodigo || '-',
       cantidad,
       precioUnitario,
       subtotal
     };
+  }
+
+  private enrichPedidoDetalle(detail: PedidoDetalleRow): PedidoDetalleRow {
+    const description = detail.descripcion !== '-' ? detail.descripcion : this.resolveDetalleItemDescription(detail.codigoItem) || '-';
+    const unidad = this.resolveDetalleUnidadDescription(detail.unidadCodigo) || detail.unidad || '-';
+
+    return {
+      ...detail,
+      descripcion: description,
+      unidad
+    };
+  }
+
+  private resolveDetalleItemDescription(itemCode: string): string {
+    const normalizedCode = itemCode.trim();
+
+    if (!normalizedCode) {
+      return '';
+    }
+
+    return this.detalleItemOptions.find((option) => option.code === normalizedCode)?.description || '';
+  }
+
+  private resolveDetalleUnidadDescription(unitCode: string): string {
+    const normalizedCode = unitCode.trim();
+
+    if (!normalizedCode) {
+      return '';
+    }
+
+    return this.detalleUnidadOptions.find((option) => option.code === normalizedCode)?.description || '';
   }
 
   private buildDetallePedidoPayload(): RegistrarDetallePedidoRequest | null {
@@ -1713,12 +1897,12 @@ export class RequisicionesPageComponent implements OnInit {
     const usuarioRegistro = this.authService.getCurrentUser().trim();
 
     if (!codigoItem) {
-      this.detallePedidoErrorMessage = 'Ingresa el codigo del item.';
+      this.detallePedidoErrorMessage = 'Selecciona un item.';
       return null;
     }
 
     if (!unidad) {
-      this.detallePedidoErrorMessage = 'Ingresa la unidad de medida.';
+      this.detallePedidoErrorMessage = 'Selecciona una unidad de medida.';
       return null;
     }
 
@@ -1757,6 +1941,8 @@ export class RequisicionesPageComponent implements OnInit {
         this.pedidoDetalles[pedidoId] = this.extractRecords(response)
           .map((detail, index) => this.mapPedidoDetalle(detail, index))
           .filter((detail): detail is PedidoDetalleRow => detail !== null);
+        this.updatePedidoTotal(pedidoId);
+        this.detallePedidoCantidadLimite = this.pedidoDetalleCantidadLimites[pedidoId] ?? this.detallePedidoCantidadLimite;
         this.isLoadingDetalleExpandido = false;
         return response;
       }),
@@ -1772,10 +1958,24 @@ export class RequisicionesPageComponent implements OnInit {
     return this.getDetallePedidoExpandido().find((detail) => detail.id === this.selectedPedidoDetalleId) ?? null;
   }
 
+  private updatePedidoTotal(pedidoId: number): void {
+    const total = this.normalizeCantidadCentroCosto(
+      (this.pedidoDetalles[pedidoId] ?? []).reduce((sum, detail) => sum + (detail.subtotal || 0), 0)
+    );
+
+    this.requisiciones = this.requisiciones.map((pedido) =>
+      pedido.requisicion === pedidoId
+        ? {
+            ...pedido,
+            total
+          }
+        : pedido
+    );
+  }
+
   private resetDetallePedidoEditor(): void {
     this.selectedPedidoDetalleId = null;
     this.isEditingPedidoDetalle = false;
-    this.showPedidoDetalleEditor = false;
     this.isSavingPedidoDetalle = false;
     this.detallePedidoErrorMessage = '';
     this.detallePedidoForm.reset({
