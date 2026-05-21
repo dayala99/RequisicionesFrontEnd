@@ -71,7 +71,7 @@
       </thead>
 
       <tbody>
-        <tr *ngFor="let moneda of monedas; trackBy: trackByMoneda">
+        <tr *ngFor="let moneda of paginatedMonedas; trackBy: trackByMoneda">
           <td>{{ moneda.monId ?? '-' }}</td>
           <td>{{ moneda.monDes || '-' }}</td>
           <td>{{ moneda.monAbr || '-' }}</td>
@@ -94,4 +94,12 @@
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="monedas.length"
+    [totalItems]="monedas.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>

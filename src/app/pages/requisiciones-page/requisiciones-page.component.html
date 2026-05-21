@@ -80,7 +80,7 @@
           </thead>
 
           <tbody>
-            <ng-container *ngFor="let item of requisiciones; trackBy: trackByRequisicion">
+            <ng-container *ngFor="let item of paginatedRequisiciones; trackBy: trackByRequisicion">
               <tr
                 class="requisiciones-table__row"
                 [class.requisiciones-table__row--selected]="isPedidoSeleccionado(item)"
@@ -123,6 +123,14 @@
           </tbody>
         </table>
       </div>
+
+      <app-grid-pagination
+        *ngIf="requisiciones.length"
+        [totalItems]="requisiciones.length"
+        [currentPage]="currentPedidosPage"
+        [pageSize]="pageSize"
+        (pageChange)="onPedidosPageChange($event)">
+      </app-grid-pagination>
     </section>
   </section>
 
@@ -204,7 +212,7 @@
 
           <tbody>
             <tr
-              *ngFor="let detail of getDetallePedidoExpandido(); trackBy: trackByPedidoDetalle"
+              *ngFor="let detail of paginatedDetallePedidoExpandido; trackBy: trackByPedidoDetalle"
               class="pedido-detalle-table__row"
               [class.pedido-detalle-table__row--selected]="isPedidoDetalleSeleccionado(detail)"
               (click)="seleccionarPedidoDetalle(detail)">
@@ -247,6 +255,14 @@
           </tbody>
         </table>
       </div>
+
+      <app-grid-pagination
+        *ngIf="getDetallePedidoExpandido().length"
+        [totalItems]="getDetallePedidoExpandido().length"
+        [currentPage]="currentDetalleExpandidoPage"
+        [pageSize]="pageSize"
+        (pageChange)="onDetalleExpandidoPageChange($event)">
+      </app-grid-pagination>
     </section>
   </section>
 
@@ -315,7 +331,7 @@
           </thead>
 
           <tbody>
-            <tr *ngFor="let item of centrosCosto; trackBy: trackByCentroCosto">
+            <tr *ngFor="let item of paginatedCentrosCosto; trackBy: trackByCentroCosto">
               <td>{{ item.codigo }}</td>
               <td>{{ item.costo }}</td>
               <td class="cantidad-cell">
@@ -354,6 +370,14 @@
           </tbody>
         </table>
       </div>
+
+      <app-grid-pagination
+        *ngIf="centrosCosto.length"
+        [totalItems]="centrosCosto.length"
+        [currentPage]="currentCentroCostoPage"
+        [pageSize]="pageSize"
+        (pageChange)="onCentroCostoPageChange($event)">
+      </app-grid-pagination>
     </section>
 
     <form class="details-grid" [formGroup]="detalleForm">

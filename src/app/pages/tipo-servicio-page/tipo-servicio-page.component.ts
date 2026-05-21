@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, TipoServicioFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { TipoServicioEditDialogComponent } from './tipo-servicio-edit-dialog.component';
 import { TipoServicioRegisterDialogComponent } from './tipo-servicio-register-dialog.component';
 
@@ -23,7 +24,9 @@ interface TipoServicioRow {
 })
 export class TipoServicioPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   tiposServicio: TipoServicioRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
 
@@ -53,11 +56,13 @@ export class TipoServicioPageComponent implements OnInit {
         this.tiposServicio = this.extractRecords(response)
           .map((item) => this.mapTipoServicio(item))
           .sort((left, right) => (left.tipSerId ?? 0) - (right.tipSerId ?? 0));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.tiposServicio.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando tipos de servicio:', error);
         this.tiposServicio = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de tipos de servicio. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -112,6 +117,14 @@ export class TipoServicioPageComponent implements OnInit {
 
   trackByTipoServicio(_index: number, tipoServicio: TipoServicioRow): string {
     return tipoServicio.tipSerId !== null ? String(tipoServicio.tipSerId) : tipoServicio.tipSerDes;
+  }
+
+  get paginatedTiposServicio(): TipoServicioRow[] {
+    return paginateItems(this.tiposServicio, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.tiposServicio.length, this.pageSize);
   }
 
   sanitizeCodigoInput(event: Event): void {

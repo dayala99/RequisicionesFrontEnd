@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, FormaPagoFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { FormaPagoEditDialogComponent } from './forma-pago-edit-dialog.component';
 import { FormaPagoRegisterDialogComponent } from './forma-pago-register-dialog.component';
 
@@ -23,7 +24,9 @@ interface FormaPagoRow {
 })
 export class FormaPagoPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   formasPago: FormaPagoRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
   private appliedFilters: FormaPagoFiltro = { Flg_Est: 'A' };
@@ -56,11 +59,13 @@ export class FormaPagoPageComponent implements OnInit {
           .map((item) => this.mapFormaPago(item))
           .filter((item) => item.forPagId !== null || !!item.forPagDes)
           .sort((left, right) => (left.forPagId ?? 0) - (right.forPagId ?? 0));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.formasPago.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando formas de pago:', error);
         this.formasPago = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de formas de pago. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -115,6 +120,14 @@ export class FormaPagoPageComponent implements OnInit {
 
   trackByFormaPago(_index: number, formaPago: FormaPagoRow): string {
     return formaPago.forPagId !== null ? String(formaPago.forPagId) : formaPago.forPagDes;
+  }
+
+  get paginatedFormasPago(): FormaPagoRow[] {
+    return paginateItems(this.formasPago, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.formasPago.length, this.pageSize);
   }
 
   get emptyStateMessage(): string {

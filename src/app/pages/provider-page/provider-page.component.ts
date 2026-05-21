@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, ProveedoresFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { ProviderEditDialogComponent } from './provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './provider-register-dialog.component';
 
@@ -35,7 +36,9 @@ type DataRecord = Record<string, unknown>;
 })
 export class ProviderPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   proveedores: ProviderRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
 
@@ -66,11 +69,13 @@ export class ProviderPageComponent implements OnInit {
         this.proveedores = this.extractRecords(response)
           .map((item) => this.mapProveedor(item))
           .sort((left, right) => this.compareProviderById(left, right));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.proveedores.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando proveedores:', error);
         this.proveedores = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de proveedores. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -136,6 +141,14 @@ export class ProviderPageComponent implements OnInit {
 
   trackByProveedor(_index: number, proveedor: ProviderRow): string {
     return proveedor.prvId !== null ? String(proveedor.prvId) : proveedor.prvRuc;
+  }
+
+  get paginatedProveedores(): ProviderRow[] {
+    return paginateItems(this.proveedores, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.proveedores.length, this.pageSize);
   }
 
   private compareProviderById(left: ProviderRow, right: ProviderRow): number {

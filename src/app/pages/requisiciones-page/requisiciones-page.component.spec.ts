@@ -372,14 +372,6 @@ describe('RequisicionesPageComponent', () => {
     ]);
   });
 
-  it('should hide the editor when Cerrar is clicked', () => {
-    component.iniciarNuevoPedido();
-
-    component.ejecutarAccion('Cerrar');
-
-    expect(component.mostrarEditorPedido).toBeFalse();
-  });
-
   it('should open a dedicated detail view with linked center costs and registered detail items', () => {
     const pedido = component.requisiciones[0];
 
@@ -712,6 +704,7 @@ describe('RequisicionesPageComponent', () => {
       Ped_Can_Tot: 12,
       Usr_Mod: 'admin@demo.com'
     }));
+    expect(apiServiceMock.deleteEliminarCentroCostoPedidoRegistrado).toHaveBeenCalledWith({ Ped_Cen_Cos_Id: 2 });
     expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado).toHaveBeenCalledTimes(2);
     expect(apiServiceMock.postRegistrarCentroCostoPedidoRegistrado.calls.argsFor(0)[0]).toEqual({
       Ped_Id: 1042,

@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, GrupoItemFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { GrupoItemEditDialogComponent } from './grupo-item-edit-dialog.component';
 import { GrupoItemRegisterDialogComponent } from './grupo-item-register-dialog.component';
 
@@ -23,7 +24,9 @@ interface GrupoItemRow {
 })
 export class GrupoItemPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   gruposItem: GrupoItemRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
   private appliedFilters: GrupoItemFiltro = { Flg_Est: 'A' };
@@ -55,11 +58,13 @@ export class GrupoItemPageComponent implements OnInit {
         this.gruposItem = this.extractRecords(response)
           .map((item) => this.mapGrupoItem(item))
           .sort((left, right) => (left.grpId ?? 0) - (right.grpId ?? 0));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.gruposItem.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando grupos de item:', error);
         this.gruposItem = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de grupos de item. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -114,6 +119,14 @@ export class GrupoItemPageComponent implements OnInit {
 
   trackByGrupoItem(_index: number, grupoItem: GrupoItemRow): string {
     return grupoItem.grpId !== null ? String(grupoItem.grpId) : grupoItem.grpDes;
+  }
+
+  get paginatedGruposItem(): GrupoItemRow[] {
+    return paginateItems(this.gruposItem, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.gruposItem.length, this.pageSize);
   }
 
   get emptyStateMessage(): string {

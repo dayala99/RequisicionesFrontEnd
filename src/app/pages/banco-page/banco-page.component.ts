@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, BancoFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { BancoEditDialogComponent } from './banco-edit-dialog.component';
 import { BancoRegisterDialogComponent } from './banco-register-dialog.component';
 
@@ -24,7 +25,9 @@ interface BancoRow {
 })
 export class BancoPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   bancos: BancoRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
   private appliedFilters: BancoFiltro = { Flg_Est: 'A' };
@@ -57,11 +60,13 @@ export class BancoPageComponent implements OnInit {
           .map((item) => this.mapBanco(item))
           .filter((item) => item.banId !== null || !!item.banDes || !!item.banAbr)
           .sort((left, right) => (left.banId ?? 0) - (right.banId ?? 0));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.bancos.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando bancos:', error);
         this.bancos = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de bancos. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -116,6 +121,14 @@ export class BancoPageComponent implements OnInit {
 
   trackByBanco(_index: number, banco: BancoRow): string {
     return banco.banId !== null ? String(banco.banId) : `${banco.banDes}-${banco.banAbr}`;
+  }
+
+  get paginatedBancos(): BancoRow[] {
+    return paginateItems(this.bancos, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.bancos.length, this.pageSize);
   }
 
   get emptyStateMessage(): string {

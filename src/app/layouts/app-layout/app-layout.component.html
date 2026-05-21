@@ -31,7 +31,7 @@
 
     <nav class="sidebar_menu">
       <a
-        *ngFor="let item of menuItems | slice:0:1"
+        *ngFor="let item of menuItems"
         [routerLink]="item.route"
         [routerLinkActiveOptions]="{ exact: item.route === '/' }"
         routerLinkActive="active"
@@ -39,6 +39,31 @@
         (click)="closeSidebar()">
         {{ item.label }}
       </a>
+
+      <div class="sidebar_group" [class.sidebar_group--open]="processOpen">
+        <button
+          type="button"
+          class="sidebar_group_toggle"
+          [class.active]="isProcessRouteActive()"
+          [attr.aria-expanded]="processOpen"
+          (click)="toggleProcessMenu()">
+          <span>Procesos</span>
+          <span class="sidebar_group_arrow" [class.sidebar_group_arrow--open]="processOpen" aria-hidden="true"></span>
+        </button>
+
+        <div class="sidebar_group_links" [class.sidebar_group_links--open]="processOpen">
+          <div class="sidebar_group_links_inner">
+            <a
+              *ngFor="let item of processItems"
+              [routerLink]="item.route"
+              routerLinkActive="active"
+              class="sidebar_link sidebar_link--nested"
+              (click)="closeSidebar()">
+              {{ item.label }}
+            </a>
+          </div>
+        </div>
+      </div>
 
       <div class="sidebar_group" [class.sidebar_group--open]="maintenanceOpen">
         <button
@@ -64,16 +89,6 @@
           </div>
         </div>
       </div>
-
-      <a
-        *ngFor="let item of menuItems | slice:1"
-        [routerLink]="item.route"
-        [routerLinkActiveOptions]="{ exact: item.route === '/' }"
-        routerLinkActive="active"
-        class="sidebar_link"
-        (click)="closeSidebar()">
-        {{ item.label }}
-      </a>
     </nav>
 
     <button type="button" class="sidebar_logout" (click)="logout()">

@@ -5,11 +5,13 @@ import { LoginPageComponent } from './features/auth/pages/login-page/login-page.
 import { LoginRedirectGuard } from './features/auth/guards/login-redirect.guard';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
 import { BancoPageComponent } from './pages/banco-page/banco-page.component';
+import { CentroCostosPageComponent } from './pages/centro-costos-page/centro-costos-page.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { GrupoItemPageComponent } from './pages/grupo-item-page/grupo-item-page.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ItemPageComponent } from './pages/item-page/item-page.component';
 import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
+import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
@@ -45,6 +47,10 @@ const routes: Routes = [
         component: BancoPageComponent
       },
       {
+        path: 'centro-costos',
+        component: CentroCostosPageComponent
+      },
+      {
         path: 'moneda',
         component: MonedaPageComponent
       },
@@ -67,6 +73,10 @@ const routes: Routes = [
       {
         path: 'pedidos',
         component: RequisicionesPageComponent
+      },
+      {
+        path: 'orden-compra',
+        component: OrdenCompraPageComponent
       },
       {
         path: 'requisicion',

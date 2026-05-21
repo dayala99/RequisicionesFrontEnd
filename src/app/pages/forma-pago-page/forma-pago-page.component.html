@@ -70,7 +70,7 @@
       </thead>
 
       <tbody>
-        <tr *ngFor="let formaPago of formasPago; trackBy: trackByFormaPago">
+        <tr *ngFor="let formaPago of paginatedFormasPago; trackBy: trackByFormaPago">
           <td>{{ formaPago.forPagId ?? '-' }}</td>
           <td>{{ formaPago.forPagDes || '-' }}</td>
           <td>
@@ -92,4 +92,12 @@
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="formasPago.length"
+    [totalItems]="formasPago.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>

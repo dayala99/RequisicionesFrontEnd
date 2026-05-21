@@ -75,6 +75,18 @@ export interface ActualizarFormaPagoRequest {
     Usr_Mod: string;
 }
 
+export interface RegistrarCentroCostoRequest {
+    Cen_Cos_Des: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarCentroCostoRequest {
+    Cen_Cos_Id: number;
+    Cen_Cos_Des: string;
+    Flg_Est: string;
+    Usr_Mod: string;
+}
+
 export interface RegistrarGrupoItemRequest {
     Grp_Des: string;
     Usr_Reg: string;
@@ -166,6 +178,12 @@ export interface PedidosFiltro {
     Prv_Nom?: string;
     Flg_Est?: string;
     Ped_Tip_Com?: string;
+}
+
+export interface OrdenCompraFiltro {
+    Ord_Com_Id?: number;
+    Ord_Com_Prv?: string;
+    Flg_Est?: string;
 }
 
 export interface CatalogoTextoOption {
@@ -265,6 +283,34 @@ export interface ActualizarPedidoRequest {
 export interface ActualizarPedidoEstadoRequest {
     Ped_Id: number;
     Flg_Est: string;
+}
+
+export interface RegistrarOrdenCompraRequest {
+    Ord_Com_Prv: number;
+    Ord_Com_For_Pag: number;
+    Ord_Com_Ref_Obr: string;
+    Ord_Com_Obs: string;
+    Ord_Com_Ref: string;
+    Ord_Com_Sub_Tot: number;
+    Ord_Com_Igv: number;
+    Ord_Com_Tot: number;
+    Ord_Com_Ped_Id: number;
+    Usr_Reg: string;
+}
+
+export interface ActualizarOrdenCompraRequest {
+    Ord_Com_Id: number;
+    Ord_Com_Prv: number;
+    Ord_Com_For_Pag: number;
+    Ord_Com_Ref_Obr: string;
+    Ord_Com_Obs: string;
+    Ord_Com_Ref: string;
+    Ord_Com_Sub_Tot: number;
+    Ord_Com_Igv: number;
+    Ord_Com_Tot: number;
+    Ord_Com_Ped_Id: number;
+    Flg_Est: string;
+    Usr_Mod: string;
 }
 
 export interface RegistrarCentroCostoPedidoRequest {
@@ -614,6 +660,16 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'CentroCosto/getListarCentroCostoActivo', { headers, params });
     }
 
+    registrarCentroCosto(centroCosto: RegistrarCentroCostoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'CentroCosto/postRegistrarCentroCosto', centroCosto, { headers });
+    }
+
+    actualizarCentroCosto(centroCosto: ActualizarCentroCostoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'CentroCosto/patchActualizarCentroCosto', centroCosto, { headers });
+    }
+
     getListarPedido(filtros: PedidosFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -635,6 +691,25 @@ export class ApiService {
         }
 
         return this.http.get(this.baseUrl + 'Pedido/getListarPedido', { headers, params });
+    }
+
+    getListarOrdenCompraActivo(filtros: OrdenCompraFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Ord_Com_Id !== undefined) {
+            params = params.append('Ord_Com_Id', filtros.Ord_Com_Id);
+        }
+
+        if (filtros.Ord_Com_Prv) {
+            params = params.append('Ord_Com_Prv', filtros.Ord_Com_Prv);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'OrdenCompra/getListarOrdenCompraActivo', { headers, params });
     }
 
     getListarPedidoCorrelativoNuevo(): Observable<any> {
@@ -678,6 +753,20 @@ export class ApiService {
     patchActualizarPedido(pedido: ActualizarPedidoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedido', pedido, { headers });
+    }
+
+    postRegistrarOrdenCompra(ordenCompra: RegistrarOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'OrdenCompra/postRegistrarOrdenCompra', ordenCompra, { headers });
+    }
+
+    patchActualizarOrdenCompra(ordenCompra: ActualizarOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'OrdenCompra/patchActualizarOdenCompra', ordenCompra, { headers });
+    }
+
+    simularPatchOrdenCompraCentroCosto(): Observable<any> {
+        return this.getListarCentroCostoActivo({ Flg_Est: 'A' });
     }
 
     patchActualizarPedidoEstado(pedido: ActualizarPedidoEstadoRequest): Observable<any> {

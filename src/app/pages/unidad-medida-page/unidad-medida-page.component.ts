@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, UnidadMedidaFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { UnidadMedidaEditDialogComponent } from './unidad-medida-edit-dialog.component';
 import { UnidadMedidaRegisterDialogComponent } from './unidad-medida-register-dialog.component';
 
@@ -24,7 +25,9 @@ interface UnidadMedidaRow {
 })
 export class UnidadMedidaPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   unidadesMedida: UnidadMedidaRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
 
@@ -53,11 +56,13 @@ export class UnidadMedidaPageComponent implements OnInit {
         this.unidadesMedida = this.extractRecords(response)
           .map((item) => this.mapUnidadMedida(item))
           .sort((left, right) => (left.uniMedId ?? 0) - (right.uniMedId ?? 0));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.unidadesMedida.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando unidades de medida:', error);
         this.unidadesMedida = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de unidades de medida. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -112,6 +117,14 @@ export class UnidadMedidaPageComponent implements OnInit {
 
   trackByUnidadMedida(_index: number, unidadMedida: UnidadMedidaRow): string {
     return unidadMedida.uniMedId !== null ? String(unidadMedida.uniMedId) : `${unidadMedida.uniMedDes}-${unidadMedida.uniMedAbr}`;
+  }
+
+  get paginatedUnidadesMedida(): UnidadMedidaRow[] {
+    return paginateItems(this.unidadesMedida, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.unidadesMedida.length, this.pageSize);
   }
 
   sanitizeCodigoInput(event: Event): void {

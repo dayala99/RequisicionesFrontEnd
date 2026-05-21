@@ -13,6 +13,7 @@ import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
 import { PedidoDetalleDialogValue, PedidoDetalleItemOption, PedidoDetalleUnidadOption } from './pedido-detalle-dialog.models';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 type DataRecord = Record<string, unknown>;
@@ -66,12 +67,13 @@ export class RequisicionesPageComponent implements OnInit {
   readonly centroCostoForm: FormGroup;
   readonly detalleForm: FormGroup;
   readonly detallePedidoForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   readonly estadoOptions = ['Pendiente', 'Aprobado', 'Cancelado'];
   readonly gnOptions = ['Todos', 'GN', 'GA', 'GC'];
   tipoOptions: CatalogoTextoOption[] = [
     { codigo: '', descripcion: 'Todos' }
   ];
-  readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Duplicar', 'Imprimir', 'Cerrar'];
+  readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Duplicar', 'Imprimir'];
   readonly tipoCompraOptions = ['Sin enlazar', 'Local', 'Importacion'];
   tipoServicioOptions: CatalogoTextoOption[] = [];
   tipoMoneda: CatalogoNumeroOption[] = [];
@@ -107,6 +109,9 @@ export class RequisicionesPageComponent implements OnInit {
   isSavingPedidoDetalle = false;
   detallePedidoErrorMessage = '';
   detallePedidoCantidadLimite = 0;
+  currentPedidosPage = 1;
+  currentDetalleExpandidoPage = 1;
+  currentCentroCostoPage = 1;
 
   private nextCentroCostoId = 1;
   private deletedCentroCostoIds: number[] = [];
@@ -210,6 +215,18 @@ export class RequisicionesPageComponent implements OnInit {
     );
   }
 
+  get paginatedRequisiciones(): RequisitionRow[] {
+    return paginateItems(this.requisiciones, this.currentPedidosPage, this.pageSize);
+  }
+
+  get paginatedDetallePedidoExpandido(): PedidoDetalleRow[] {
+    return paginateItems(this.getDetallePedidoExpandido(), this.currentDetalleExpandidoPage, this.pageSize);
+  }
+
+  get paginatedCentrosCosto(): CentroCostoRow[] {
+    return paginateItems(this.centrosCosto, this.currentCentroCostoPage, this.pageSize);
+  }
+
   get pedidoFechaEntregaMinima(): string {
     return this.getPedidoFechaEntregaMinima();
   }
@@ -263,9 +280,6 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
-    if (action === 'Cerrar') {
-      this.cerrarEditorPedido();
-    }
   }
 
   isActionDisabled(action: string): boolean {
@@ -297,6 +311,7 @@ export class RequisicionesPageComponent implements OnInit {
     this.mostrarEditorPedido = false;
     this.detallePedidoCabecera = item;
     this.expandedPedidoId = item.requisicion;
+    this.currentDetalleExpandidoPage = 1;
     this.detalleExpandidoError = '';
     this.seleccionarPedido(item);
     this.resetDetallePedidoEditor();
@@ -317,6 +332,7 @@ export class RequisicionesPageComponent implements OnInit {
         this.pedidoDetalles[item.requisicion] = this.extractRecords(detalleResponse)
           .map((detail, index) => this.mapPedidoDetalle(detail, index))
           .filter((detail): detail is PedidoDetalleRow => detail !== null);
+        this.currentDetalleExpandidoPage = normalizePaginationPage(this.currentDetalleExpandidoPage, this.getDetallePedidoExpandido().length, this.pageSize);
         this.updatePedidoTotal(item.requisicion);
         this.pedidoCentrosCosto[item.requisicion] = this.mapCentroCostoRegistrados(centroCostoResponse);
         this.detallePedidoCantidadLimite = this.extractTotalCantidadPermitida(centroCostoResponse);
@@ -327,6 +343,7 @@ export class RequisicionesPageComponent implements OnInit {
         console.error('Error cargando detalle de pedido:', error);
         this.pedidoDetalles[item.requisicion] = [];
         this.pedidoCentrosCosto[item.requisicion] = [];
+        this.currentDetalleExpandidoPage = 1;
         this.detallePedidoCantidadLimite = 0;
         this.pedidoDetalleCantidadLimites[item.requisicion] = 0;
         this.detalleExpandidoError = this.resolveErrorMessage(error, 'No se pudo cargar el detalle del pedido.');
@@ -353,6 +370,18 @@ export class RequisicionesPageComponent implements OnInit {
     }
 
     return this.pedidoCentrosCosto[this.expandedPedidoId] ?? [];
+  }
+
+  onPedidosPageChange(page: number): void {
+    this.currentPedidosPage = normalizePaginationPage(page, this.requisiciones.length, this.pageSize);
+  }
+
+  onDetalleExpandidoPageChange(page: number): void {
+    this.currentDetalleExpandidoPage = normalizePaginationPage(page, this.getDetallePedidoExpandido().length, this.pageSize);
+  }
+
+  onCentroCostoPageChange(page: number): void {
+    this.currentCentroCostoPage = normalizePaginationPage(page, this.centrosCosto.length, this.pageSize);
   }
 
   seleccionarPedidoDetalle(item: PedidoDetalleRow): void {
@@ -773,6 +802,7 @@ export class RequisicionesPageComponent implements OnInit {
       },
       ...this.centrosCosto
     ];
+    this.currentCentroCostoPage = 1;
     this.centroCostoForm.patchValue({
       centroCostoId: 0,
       centroCosto: ''
@@ -807,6 +837,7 @@ export class RequisicionesPageComponent implements OnInit {
           }
         : item
     );
+    this.currentCentroCostoPage = normalizePaginationPage(this.currentCentroCostoPage, this.centrosCosto.length, this.pageSize);
 
     this.saveErrorMessage = '';
     this.cancelarEdicionCentroCosto();
@@ -816,6 +847,7 @@ export class RequisicionesPageComponent implements OnInit {
   eliminarCentroCosto(id: number): void {
     const persistedId = this.centrosCosto.find((item) => item.id === id)?.persistedId;
     this.centrosCosto = this.centrosCosto.filter((item) => item.id !== id);
+    this.currentCentroCostoPage = normalizePaginationPage(this.currentCentroCostoPage, this.centrosCosto.length, this.pageSize);
 
     if (persistedId) {
       this.deletedCentroCostoIds = [...this.deletedCentroCostoIds, persistedId];
@@ -865,6 +897,7 @@ export class RequisicionesPageComponent implements OnInit {
     this.isLoadingPedidos = true;
     this.errorMessage = '';
     this.requisiciones = [];
+    this.currentPedidosPage = 1;
 
     this.buildPedidosRequest(this.getFiltros()).subscribe({
       next: (response: unknown) => {
@@ -872,6 +905,7 @@ export class RequisicionesPageComponent implements OnInit {
           .map((item) => this.mapPedido(item))
           .filter((item) => item.requisicion > 0)
           .sort((left, right) => right.requisicion - left.requisicion);
+        this.currentPedidosPage = normalizePaginationPage(this.currentPedidosPage, this.requisiciones.length, this.pageSize);
         this.selectedPedidoId = this.requisiciones.some((item) => item.requisicion === this.selectedPedidoId)
           ? this.selectedPedidoId
           : null;
@@ -883,6 +917,7 @@ export class RequisicionesPageComponent implements OnInit {
       error: (error: unknown) => {
         console.error('Error cargando pedidos:', error);
         this.requisiciones = [];
+        this.currentPedidosPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de pedidos. Intenta nuevamente.';
         this.isLoadingPedidos = false;
       }
@@ -968,6 +1003,7 @@ export class RequisicionesPageComponent implements OnInit {
       }
     });
   }
+
 
   private canOpenDetallePedidoDialog(): boolean {
     if (!this.detalleItemOptions.length) {
@@ -1187,17 +1223,20 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private sincronizarCentrosCostoPedido(pedId: number): Observable<unknown> {
-    return this.eliminarCentrosCostoPendientes().pipe(
+    return this.eliminarCentrosCostoSincronizacion().pipe(
       switchMap(() => this.registrarCentrosCostoPedido(pedId))
     );
   }
 
-  private eliminarCentrosCostoPendientes(): Observable<unknown> {
-    if (!this.deletedCentroCostoIds.length) {
+  private eliminarCentrosCostoSincronizacion(): Observable<unknown> {
+    const ids = this.isEditingPedido
+      ? this.obtenerIdsPersistidosCentroCosto()
+      : [...this.deletedCentroCostoIds];
+
+    if (!ids.length) {
       return of(null);
     }
 
-    const ids = [...this.deletedCentroCostoIds];
     this.deletedCentroCostoIds = [];
 
     return from(ids).pipe(
@@ -1209,6 +1248,14 @@ export class RequisicionesPageComponent implements OnInit {
       )),
       toArray()
     );
+  }
+
+  private obtenerIdsPersistidosCentroCosto(): number[] {
+    const idsPersistidos = this.centrosCosto
+      .map((item) => item.persistedId)
+      .filter((id): id is number => id !== null);
+
+    return [...new Set([...idsPersistidos, ...this.deletedCentroCostoIds])];
   }
 
   private normalizeCantidadCentroCosto(cantidad: number): number {
@@ -1415,6 +1462,7 @@ export class RequisicionesPageComponent implements OnInit {
       tipo
     };
   }
+
 
   private resolveAttachmentLabel(archivoNombre: string): string {
     if (!archivoNombre) {
@@ -1682,6 +1730,7 @@ export class RequisicionesPageComponent implements OnInit {
       archivo: 'Sin archivo adjunto'
     });
     this.centrosCosto = [];
+    this.currentCentroCostoPage = 1;
     this.editandoCentroCostoCantidad = 0;
     this.archivoAdjunto = 'Sin archivo adjunto';
     this.saveErrorMessage = '';
@@ -1718,6 +1767,7 @@ export class RequisicionesPageComponent implements OnInit {
   private populateCentroCostoEditor(response: unknown): void {
     const centros = this.mapCentroCostoRegistrados(response);
     this.centrosCosto = centros;
+    this.currentCentroCostoPage = normalizePaginationPage(this.currentCentroCostoPage, this.centrosCosto.length, this.pageSize);
     this.nextCentroCostoId = centros.reduce((maxId, item) => Math.max(maxId, item.id), 0) + 1;
   }
 

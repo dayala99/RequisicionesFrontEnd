@@ -41,8 +41,34 @@ describe('AppLayoutComponent', () => {
     const groupToggle = compiled.querySelector('.sidebar_group_toggle')?.textContent ?? '';
 
     expect(links).toContain('Inicio');
-    expect(links).toContain('Pedidos');
+    expect(groupToggle).toContain('Procesos');
     expect(groupToggle).toContain('Mantenimiento');
+  });
+
+  it('should toggle the procesos group', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+
+    expect(component.processOpen).toBeFalse();
+
+    component.toggleProcessMenu();
+    expect(component.processOpen).toBeTrue();
+
+    component.toggleProcessMenu();
+    expect(component.processOpen).toBeFalse();
+  });
+
+  it('should render pedidos and orden de compra inside procesos when it is open', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+    component.processOpen = true;
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const links = Array.from(compiled.querySelectorAll('.sidebar_link--nested')).map((element) => element.textContent?.trim());
+
+    expect(links).toContain('Pedidos');
+    expect(links).toContain('Orden de Compra');
   });
 
   it('should toggle the mantenimiento group', () => {

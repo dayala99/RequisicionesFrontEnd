@@ -18,6 +18,9 @@ import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
 import { BancoEditDialogComponent } from './pages/banco-page/banco-edit-dialog.component';
 import { BancoPageComponent } from './pages/banco-page/banco-page.component';
 import { BancoRegisterDialogComponent } from './pages/banco-page/banco-register-dialog.component';
+import { CentroCostoEditDialogComponent } from './pages/centro-costos-page/centro-costo-edit-dialog.component';
+import { CentroCostoRegisterDialogComponent } from './pages/centro-costos-page/centro-costo-register-dialog.component';
+import { CentroCostosPageComponent } from './pages/centro-costos-page/centro-costos-page.component';
 import { FormaPagoEditDialogComponent } from './pages/forma-pago-page/forma-pago-edit-dialog.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { FormaPagoRegisterDialogComponent } from './pages/forma-pago-page/forma-pago-register-dialog.component';
@@ -31,6 +34,8 @@ import { ItemRegisterDialogComponent } from './pages/item-page/item-register-dia
 import { MonedaEditDialogComponent } from './pages/moneda-page/moneda-edit-dialog.component';
 import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
 import { MonedaRegisterDialogComponent } from './pages/moneda-page/moneda-register-dialog.component';
+import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra-page.component';
+import { OrdenCompraParcialDialogComponent } from './pages/orden-compra-page/orden-compra-parcial-dialog.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
@@ -50,6 +55,7 @@ import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-med
 import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/unidad-medida-register-dialog.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
+import { GridPaginationComponent } from './shared/components/grid-pagination/grid-pagination.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -63,9 +69,14 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     BancoPageComponent,
     BancoRegisterDialogComponent,
     BancoEditDialogComponent,
+    CentroCostosPageComponent,
+    CentroCostoRegisterDialogComponent,
+    CentroCostoEditDialogComponent,
     MonedaPageComponent,
     MonedaRegisterDialogComponent,
     MonedaEditDialogComponent,
+    OrdenCompraPageComponent,
+    OrdenCompraParcialDialogComponent,
     FormaPagoPageComponent,
     FormaPagoRegisterDialogComponent,
     FormaPagoEditDialogComponent,
@@ -99,7 +110,8 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     LoginPageComponent,
     UsuariosPageComponent,
     UsuarioEditDialogComponent,
-    UsuarioRegisterDialogComponent
+    UsuarioRegisterDialogComponent,
+    GridPaginationComponent
   ],
   imports: [
     BrowserModule,

@@ -1,0 +1,325 @@
+<section class="orden-compra-page">
+  <section class="orden-compra-card">
+    <header class="orden-compra-card__header">
+      <div>
+        <p class="orden-compra-card__eyebrow">Operacion</p>
+        <h2>Orden de Compra</h2>
+        <p class="orden-compra-card__description">
+          Registra y actualiza ordenes de compra con un flujo de trabajo unico y una grilla de centros de costo
+          habilitable para casos parciales.
+        </p>
+      </div>
+
+      <div class="orden-compra-card__actions" *ngIf="!mostrarEditor">
+        <button
+          *ngFor="let action of actionButtons"
+          type="button"
+          class="button"
+          [class.button--primary]="action !== 'Cerrar'"
+          [class.button--secondary]="action === 'Cerrar'"
+          [disabled]="action === 'Modificar' && !canModifySelectedOrdenCompra"
+          (click)="ejecutarAccion(action)">
+          {{ action }}
+        </button>
+      </div>
+    </header>
+
+    <section *ngIf="!mostrarEditor" class="panel panel--listing">
+      <form class="filters-panel" [formGroup]="filtersForm" (ngSubmit)="aplicarFiltros()">
+        <label class="field">
+          <span>Nro. O/C</span>
+          <input type="number" formControlName="ordenCompraId" min="1" step="1">
+        </label>
+
+        <label class="field">
+          <span>Proveedor</span>
+          <input type="text" formControlName="proveedor">
+        </label>
+
+        <label class="field">
+          <span>Estado</span>
+          <select formControlName="estado">
+            <option value="A">Activo</option>
+            <option value="I">Inactivo</option>
+          </select>
+        </label>
+
+        <div class="filters-panel__actions">
+          <button type="submit" class="button button--primary" [disabled]="isLoadingOrdenesCompra">
+            {{ isLoadingOrdenesCompra ? 'Buscando...' : 'Buscar' }}
+          </button>
+          <button type="button" class="button button--secondary" (click)="limpiarFiltros()">
+            Limpiar
+          </button>
+        </div>
+      </form>
+
+      <p *ngIf="errorMessage" class="editor-feedback editor-feedback--error">{{ errorMessage }}</p>
+
+      <div class="table-shell">
+        <table class="orden-compra-table">
+          <thead>
+            <tr>
+              <th>Nro. O/C</th>
+              <th>Proveedor</th>
+              <th>Forma de Pago</th>
+              <th>Ref. Obra</th>
+              <th>Referencia</th>
+              <th>Total</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngIf="isLoadingOrdenesCompra">
+              <td colspan="7" class="empty-row">Cargando ordenes de compra registradas...</td>
+            </tr>
+
+            <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !ordenesCompra.length">
+              <td colspan="7" class="empty-row">No se encontraron ordenes de compra.</td>
+            </tr>
+
+            <tr
+              *ngFor="let item of paginatedOrdenesCompra; trackBy: trackByOrdenCompra"
+              class="orden-compra-table__row"
+              [class.orden-compra-table__row--selected]="isOrdenCompraSeleccionada(item)"
+              (click)="seleccionarOrdenCompra(item)">
+              <td>{{ item.ordenCompraId ?? '-' }}</td>
+              <td>{{ item.proveedor }}</td>
+              <td>{{ item.formaPago }}</td>
+              <td>{{ item.referenciaObra || '-' }}</td>
+              <td>{{ item.referencia || '-' }}</td>
+              <td>{{ formatCurrency(item.total) }}</td>
+              <td>{{ item.estado }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <app-grid-pagination
+        *ngIf="ordenesCompra.length"
+        [totalItems]="ordenesCompra.length"
+        [currentPage]="currentOrdenesCompraPage"
+        [pageSize]="pageSize"
+        (pageChange)="onOrdenesCompraPageChange($event)">
+      </app-grid-pagination>
+    </section>
+
+    <section *ngIf="mostrarEditor" class="orden-compra-editor">
+      <header class="editor-header">
+        <div>
+          <p class="orden-compra-card__eyebrow">Edicion</p>
+          <h3>{{ isEditingOrdenCompra ? 'Actualizar orden de compra' : 'Nueva orden de compra' }}</h3>
+          <p class="orden-compra-card__description">
+            {{ esParcial ? 'Modo parcial activo: selecciona solo los centros de costo que deben actualizarse.' : 'Modo completo activo: la orden aplicara a todos los centros de costo mostrados.' }}
+          </p>
+        </div>
+
+        <div class="mode-chip" [class.mode-chip--partial]="esParcial">
+          {{ esParcial ? 'Parcial' : 'Completa' }}
+        </div>
+      </header>
+
+      <form class="editor-grid" [formGroup]="form">
+        <label class="field">
+          <span>Nro. O/C</span>
+          <input type="number" formControlName="ordenCompraId" class="input--readonly" readonly placeholder="Auto">
+        </label>
+
+        <label class="field">
+          <span>Estado</span>
+          <ng-container *ngIf="isEditingOrdenCompra; else estadoInicialFijo">
+            <select formControlName="estado">
+              <option *ngFor="let option of estadoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
+            </select>
+          </ng-container>
+          <ng-template #estadoInicialFijo>
+            <input type="text" class="input--readonly" value="Activo" readonly>
+          </ng-template>
+        </label>
+
+        <label class="field">
+          <span>Ref. Obra</span>
+          <input type="text" formControlName="referenciaObra">
+        </label>
+
+        <label class="field">
+          <span>Referencia</span>
+          <input type="text" formControlName="referencia">
+        </label>
+
+        <label class="field field--full">
+          <span>Observacion</span>
+          <textarea formControlName="observacion"></textarea>
+        </label>
+
+        <label class="field">
+          <span>Subtotal</span>
+          <input type="text" formControlName="subtotal" class="input--readonly" readonly>
+        </label>
+
+        <label class="field">
+          <span>IGV</span>
+          <input type="text" formControlName="igv" class="input--readonly" readonly>
+        </label>
+
+        <label class="field">
+          <span>Total</span>
+          <input type="text" class="input--readonly" [value]="formatCurrency(totalCalculado)" readonly>
+        </label>
+      </form>
+
+      <section class="editor-section">
+        <div class="section-copy">
+          <p class="orden-compra-card__eyebrow">Formulario</p>
+          <h3>Datos de Proveedor</h3>
+        </div>
+
+        <form class="editor-grid editor-grid--provider" [formGroup]="form">
+          <div class="field field--provider-selector">
+            <span>Proveedor</span>
+            <button
+              type="button"
+              class="selector-code-button selector-code-button--wide selector-code-button--selector selector-code-button--accent"
+              [disabled]="isLoadingProveedores || !proveedores.length"
+              (click)="openProveedorDialog()">
+              {{ isLoadingProveedores ? 'Cargando proveedores...' : proveedorButtonLabel }}
+            </button>
+          </div>
+
+          <label class="field">
+            <span>Telefono</span>
+            <input type="text" formControlName="telefono" class="input--readonly" readonly>
+          </label>
+
+          <label class="field field--provider-wide">
+            <span>Direccion</span>
+            <input type="text" formControlName="direccion" class="input--readonly" readonly>
+          </label>
+
+          <label class="field">
+            <span>Contacto</span>
+            <input type="text" formControlName="contacto" class="input--readonly" readonly>
+          </label>
+
+          <label class="field field--provider-wide">
+            <span>RUC</span>
+            <input type="text" formControlName="ruc" class="input--readonly" readonly>
+          </label>
+
+          <div class="field">
+            <span>Forma de Pago</span>
+            <button
+              type="button"
+              class="selector-code-button selector-code-button--wide selector-code-button--selector"
+              [disabled]="isLoadingFormasPago || !formasPago.length"
+              (click)="openFormaPagoDialog()">
+              {{ isLoadingFormasPago ? 'Cargando formas de pago...' : formaPagoButtonLabel }}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="editor-section">
+        <div class="section-copy">
+          <h3>Detalle del Pedido</h3>
+          <p>Se lista el detalle registrado del pedido ingresado para revisar los items que se estan atendiendo.</p>
+        </div>
+
+        <div class="pedido-centro-costo-toolbar" [formGroup]="form">
+          <label class="field">
+            <span>Nro. Pedido</span>
+            <input
+              type="number"
+              formControlName="pedidoIdAtencion"
+              min="1"
+              step="1"
+              placeholder="Ingresa el pedido atendido">
+          </label>
+
+          <div class="pedido-centro-costo-toolbar__actions">
+            <button
+              type="button"
+              class="button button--primary"
+              [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle"
+              (click)="cargarCentrosCostoDesdePedido()">
+              {{ isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle ? 'Cargando...' : 'Cargar pedido' }}
+            </button>
+          </div>
+        </div>
+
+        <p *ngIf="detallePedidoErrorMessage" class="editor-feedback editor-feedback--error">
+          {{ detallePedidoErrorMessage }}
+        </p>
+
+        <div class="table-shell">
+          <table class="detalle-pedido-table">
+            <thead>
+              <tr>
+                <th class="detalle-pedido-table__select-head">
+                  <div class="centros-costo-table__select-label">
+                    <input
+                      type="checkbox"
+                      [checked]="estanTodosLosDetallesSeleccionados"
+                      [disabled]="!esParcial || !pedidoDetalles.length"
+                      (change)="toggleTodosLosDetallesPedido()">
+                  </div>
+                </th>
+                <th>Item</th>
+                <th>Unidad</th>
+                <th>Cantidad</th>
+                <th>Costo Unit.</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngIf="isLoadingPedidoDetalle">
+                <td colspan="6" class="empty-row">Cargando detalle del pedido...</td>
+              </tr>
+
+              <tr *ngIf="!isLoadingPedidoDetalle && !pedidoDetalles.length">
+                <td colspan="6" class="empty-row">Ingresa un numero de pedido para listar su detalle.</td>
+              </tr>
+
+              <tr
+                *ngFor="let item of paginatedPedidoDetalles; trackBy: trackByDetallePedido"
+                [class.detalle-pedido-table__row--checked]="item.selected">
+                <td>
+                  <input
+                    type="checkbox"
+                    [checked]="item.selected"
+                    [disabled]="!esParcial"
+                    (change)="toggleDetallePedido(item)">
+                </td>
+                <td>{{ item.itemCodigo }}</td>
+                <td>{{ item.unidadCodigo }}</td>
+                <td>{{ formatCurrency(item.cantidad) }}</td>
+                <td>{{ formatCurrency(item.costoUnitario) }}</td>
+                <td>{{ formatCurrency(item.subtotal) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <app-grid-pagination
+          *ngIf="pedidoDetalles.length"
+          [totalItems]="pedidoDetalles.length"
+          [currentPage]="currentDetallePedidoPage"
+          [pageSize]="pageSize"
+          (pageChange)="onDetallePedidoPageChange($event)">
+        </app-grid-pagination>
+      </section>
+
+      <div class="editor-actions">
+        <p *ngIf="saveErrorMessage" class="editor-feedback editor-feedback--error">{{ saveErrorMessage }}</p>
+        <button type="button" class="button button--primary" [disabled]="isSavingOrdenCompra" (click)="guardarOrdenCompra()">
+          {{ isSavingOrdenCompra ? 'Guardando...' : isEditingOrdenCompra ? 'Actualizar' : 'Guardar' }}
+        </button>
+        <button type="button" class="button button--secondary" [disabled]="isSavingOrdenCompra" (click)="cancelarEdicion()">
+          Cancelar
+        </button>
+      </div>
+    </section>
+  </section>
+</section>

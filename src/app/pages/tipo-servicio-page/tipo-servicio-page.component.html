@@ -70,7 +70,7 @@
       </thead>
 
       <tbody>
-        <tr *ngFor="let tipoServicio of tiposServicio; trackBy: trackByTipoServicio">
+        <tr *ngFor="let tipoServicio of paginatedTiposServicio; trackBy: trackByTipoServicio">
           <td>{{ tipoServicio.tipSerId ?? '-' }}</td>
           <td>{{ tipoServicio.tipSerDes || '-' }}</td>
           <td>
@@ -92,4 +92,12 @@
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="tiposServicio.length"
+    [totalItems]="tiposServicio.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>

@@ -2,35 +2,34 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
-import { ApiService, MonedaFiltro } from 'src/app/Services/api.services';
+import { ApiService, CentroCostoFiltro } from 'src/app/Services/api.services';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
-import { MonedaEditDialogComponent } from './moneda-edit-dialog.component';
-import { MonedaRegisterDialogComponent } from './moneda-register-dialog.component';
+import { CentroCostoEditDialogComponent } from './centro-costo-edit-dialog.component';
+import { CentroCostoRegisterDialogComponent } from './centro-costo-register-dialog.component';
 
 type DataRecord = Record<string, unknown>;
 
-interface MonedaRow {
-  monId: number | null;
-  monDes: string;
-  monAbr: string;
+interface CentroCostoRow {
+  cenCosId: number | null;
+  cenCosDes: string;
   flgEst: string;
   estado: string;
   activo: boolean;
 }
 
 @Component({
-  selector: 'app-moneda-page',
-  templateUrl: './moneda-page.component.html',
-  styleUrls: ['./moneda-page.component.scss']
+  selector: 'app-centro-costos-page',
+  templateUrl: './centro-costos-page.component.html',
+  styleUrls: ['./centro-costos-page.component.scss']
 })
-export class MonedaPageComponent implements OnInit {
+export class CentroCostosPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
-  monedas: MonedaRow[] = [];
+  centrosCosto: CentroCostoRow[] = [];
   currentPage = 1;
   isLoading = false;
   errorMessage = '';
-  private appliedFilters: MonedaFiltro = { Flg_Est: 'A' };
+  private appliedFilters: CentroCostoFiltro = { Flg_Est: 'A' };
 
   constructor(
     private readonly apiService: ApiService,
@@ -45,29 +44,29 @@ export class MonedaPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarMonedas();
+    this.cargarCentrosCosto();
   }
 
-  cargarMonedas(): void {
+  cargarCentrosCosto(): void {
     this.isLoading = true;
     this.errorMessage = '';
     const filtros = this.getFiltros();
     this.appliedFilters = { ...filtros };
 
-    this.apiService.getListarMoneda(filtros).subscribe({
+    this.apiService.getListarCentroCostoActivo(filtros).subscribe({
       next: (response: unknown) => {
-        this.monedas = this.extractRecords(response)
-          .map((item) => this.mapMoneda(item))
-          .filter((item) => item.monId !== null || !!item.monDes || !!item.monAbr)
-          .sort((left, right) => (left.monId ?? 0) - (right.monId ?? 0));
-        this.currentPage = normalizePaginationPage(this.currentPage, this.monedas.length, this.pageSize);
+        this.centrosCosto = this.extractRecords(response)
+          .map((item) => this.mapCentroCosto(item))
+          .filter((item) => item.cenCosId !== null || !!item.cenCosDes)
+          .sort((left, right) => (left.cenCosId ?? 0) - (right.cenCosId ?? 0));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.centrosCosto.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
-        console.error('Error cargando monedas:', error);
-        this.monedas = [];
+        console.error('Error cargando centros de costo:', error);
+        this.centrosCosto = [];
         this.currentPage = 1;
-        this.errorMessage = 'No se pudo cargar la informacion de monedas. Intenta nuevamente.';
+        this.errorMessage = 'No se pudo cargar la informacion de centros de costo. Intenta nuevamente.';
         this.isLoading = false;
       }
     });
@@ -79,11 +78,11 @@ export class MonedaPageComponent implements OnInit {
       descripcion: '',
       estado: 'A'
     });
-    this.cargarMonedas();
+    this.cargarCentrosCosto();
   }
 
-  registrarMoneda(): void {
-    const dialogRef = this.dialog.open(MonedaRegisterDialogComponent, {
+  registrarCentroCosto(): void {
+    const dialogRef = this.dialog.open(CentroCostoRegisterDialogComponent, {
       width: 'min(32rem, 92vw)',
       disableClose: true,
       panelClass: 'animated-dialog-pane',
@@ -93,55 +92,55 @@ export class MonedaPageComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((created: boolean | undefined) => {
       if (created) {
-        this.cargarMonedas();
+        this.cargarCentrosCosto();
       }
     });
   }
 
-  editarMoneda(moneda: MonedaRow): void {
-    if (moneda.monId === null) {
+  editarCentroCosto(centroCosto: CentroCostoRow): void {
+    if (centroCosto.cenCosId === null) {
       return;
     }
 
-    const dialogRef = this.dialog.open(MonedaEditDialogComponent, {
+    const dialogRef = this.dialog.open(CentroCostoEditDialogComponent, {
       width: 'min(32rem, 92vw)',
       disableClose: true,
       panelClass: 'animated-dialog-pane',
       backdropClass: 'animated-dialog-backdrop',
       autoFocus: false,
-      data: { moneda }
+      data: { centroCosto }
     });
 
     dialogRef.afterClosed().subscribe((updated: boolean | undefined) => {
       if (updated) {
-        this.cargarMonedas();
+        this.cargarCentrosCosto();
       }
     });
   }
 
-  trackByMoneda(_index: number, moneda: MonedaRow): string {
-    return moneda.monId !== null ? String(moneda.monId) : `${moneda.monDes}-${moneda.monAbr}`;
+  trackByCentroCosto(_index: number, centroCosto: CentroCostoRow): string {
+    return centroCosto.cenCosId !== null ? String(centroCosto.cenCosId) : centroCosto.cenCosDes;
   }
 
-  get paginatedMonedas(): MonedaRow[] {
-    return paginateItems(this.monedas, this.currentPage, this.pageSize);
+  get paginatedCentrosCosto(): CentroCostoRow[] {
+    return paginateItems(this.centrosCosto, this.currentPage, this.pageSize);
   }
 
   onPageChange(page: number): void {
-    this.currentPage = normalizePaginationPage(page, this.monedas.length, this.pageSize);
+    this.currentPage = normalizePaginationPage(page, this.centrosCosto.length, this.pageSize);
   }
 
   get emptyStateMessage(): string {
-    const descripcion = String(this.appliedFilters.Mon_Des ?? '').trim();
-    const codigo = String(this.appliedFilters.Mon_Id ?? '').trim();
+    const descripcion = String(this.appliedFilters.Cen_Cos_Des ?? '').trim();
+    const codigo = String(this.appliedFilters.Cen_Cos_Id ?? '').trim();
     const estado = this.getEstadoTexto(this.appliedFilters.Flg_Est);
     const hasSpecificFilters = Boolean(codigo || descripcion);
 
     if (hasSpecificFilters) {
-      return `No se han encontrado monedas ${estado} con los filtros aplicados.`;
+      return `No se han encontrado ${estado.toLowerCase()} con los filtros aplicados.`;
     }
 
-    return `No se han encontrado monedas ${estado}.`;
+    return `No se han encontrado ${estado.toLowerCase()}.`;
   }
 
   sanitizeCodigoInput(event: Event): void {
@@ -159,11 +158,11 @@ export class MonedaPageComponent implements OnInit {
     }
   }
 
-  private getFiltros(): MonedaFiltro {
+  private getFiltros(): CentroCostoFiltro {
     const codigoRaw = this.getCodigoBuscado();
     const descripcion = String(this.filtersForm.controls['descripcion'].value ?? '').trim();
     const estado = String(this.filtersForm.controls['estado'].value ?? '').trim() || 'A';
-    const filtros: MonedaFiltro = {
+    const filtros: CentroCostoFiltro = {
       Flg_Est: estado
     };
 
@@ -171,12 +170,12 @@ export class MonedaPageComponent implements OnInit {
       const codigo = Number(codigoRaw);
 
       if (Number.isInteger(codigo) && codigo > 0) {
-        filtros.Mon_Id = codigo;
+        filtros.Cen_Cos_Id = codigo;
       }
     }
 
     if (descripcion) {
-      filtros.Mon_Des = descripcion;
+      filtros.Cen_Cos_Des = descripcion;
     }
 
     return filtros;
@@ -199,7 +198,7 @@ export class MonedaPageComponent implements OnInit {
       return [];
     }
 
-    const possibleArrayKeys = ['monedas', 'Monedas', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
+    const possibleArrayKeys = ['centrosCosto', 'CentrosCosto', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
 
     for (const key of possibleArrayKeys) {
       const value = response[key];
@@ -209,17 +208,16 @@ export class MonedaPageComponent implements OnInit {
       }
     }
 
-    return this.hasMonedaFields(response) ? [response] : [];
+    return this.hasCentroCostoFields(response) ? [response] : [];
   }
 
-  private mapMoneda(item: DataRecord): MonedaRow {
+  private mapCentroCosto(item: DataRecord): CentroCostoRow {
     const flgEst = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']) || 'A';
     const activo = flgEst.toUpperCase() === 'A';
 
     return {
-      monId: this.getNumberValue(item, ['Mon_Id', 'mon_Id', 'monId', 'id', 'Id']),
-      monDes: this.getTextValue(item, ['Mon_Des', 'mon_Des', 'monDes', 'descripcion', 'Descripcion']),
-      monAbr: this.getTextValue(item, ['Mon_Abr', 'mon_Abr', 'monAbr', 'abreviatura', 'Abreviatura']),
+      cenCosId: this.getNumberValue(item, ['Cen_Cos_Id', 'cen_Cos_Id', 'cenCosId', 'id', 'Id']),
+      cenCosDes: this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes', 'descripcion', 'Descripcion']),
       flgEst,
       estado: activo ? 'Activo' : 'Inactivo',
       activo
@@ -254,12 +252,12 @@ export class MonedaPageComponent implements OnInit {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
-  private hasMonedaFields(item: DataRecord): boolean {
-    const recordKeys = ['Mon_Id', 'mon_Id', 'monId', 'Mon_Des', 'mon_Des', 'monDes', 'Mon_Abr', 'mon_Abr', 'monAbr', 'Flg_Est', 'flg_Est', 'flgEst'];
+  private hasCentroCostoFields(item: DataRecord): boolean {
+    const recordKeys = ['Cen_Cos_Id', 'cen_Cos_Id', 'cenCosId', 'Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes', 'Flg_Est', 'flg_Est', 'flgEst'];
     return recordKeys.some((key) => item[key] !== undefined && item[key] !== null);
   }
 
   private getEstadoTexto(flgEst?: string): string {
-    return String(flgEst || '').toUpperCase() === 'I' ? 'inactivas' : 'activas';
+    return String(flgEst || '').toUpperCase() === 'I' ? 'Inactivos' : 'Activos';
   }
 }

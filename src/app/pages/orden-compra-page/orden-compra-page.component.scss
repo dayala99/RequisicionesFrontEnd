@@ -1,0 +1,371 @@
+:host {
+  display: block;
+}
+
+.orden-compra-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.orden-compra-card,
+.orden-compra-editor,
+.panel {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.4rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: var(--shadow-lg);
+}
+
+.orden-compra-card__header,
+.editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.orden-compra-card__eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.orden-compra-card__header h2,
+.editor-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.orden-compra-card__header h2 {
+  font-size: 1.8rem;
+}
+
+.editor-header h3 {
+  font-size: 1.35rem;
+}
+
+.orden-compra-card__description,
+.section-copy p {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.orden-compra-card__actions,
+.filters-panel__actions,
+.editor-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.filters-panel,
+.editor-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.filters-panel {
+  grid-template-columns: minmax(10rem, 0.8fr) minmax(16rem, 1.5fr) minmax(10rem, 0.8fr) auto;
+  align-items: end;
+}
+
+.editor-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.editor-grid--provider {
+  grid-template-columns: minmax(18rem, 1.35fr) minmax(12rem, 0.65fr);
+  align-items: start;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.field--full {
+  grid-column: 1 / -1;
+}
+
+.field--provider-wide {
+  grid-column: 1 / 2;
+}
+
+.field--provider-selector {
+  grid-column: 1 / 2;
+}
+
+.field span {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: 3rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 10rem;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.selector-code-button:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.input--readonly {
+  background: #eef1f4;
+  color: var(--text-secondary);
+  cursor: default;
+  pointer-events: none;
+}
+
+.input--readonly:disabled {
+  border-color: var(--line-soft);
+  opacity: 1;
+  -webkit-text-fill-color: var(--text-secondary);
+}
+
+.selector-code-button {
+  min-height: 3rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--text-primary);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+}
+
+.selector-code-button--wide {
+  min-width: 9.5rem;
+}
+
+.selector-code-button--selector {
+  min-width: min(22rem, 100%);
+}
+
+.selector-code-button--accent {
+  background: var(--accent);
+}
+
+.selector-code-button:disabled {
+  border-color: var(--line-soft);
+  background: var(--surface-disabled);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.button {
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button--primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.button--secondary {
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
+  color: var(--text-primary);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.orden-compra-table,
+.centros-costo-table,
+.detalle-pedido-table {
+  width: 100%;
+  min-width: 52rem;
+  border-collapse: collapse;
+}
+
+.orden-compra-table th,
+.orden-compra-table td,
+.centros-costo-table th,
+.centros-costo-table td,
+.detalle-pedido-table th,
+.detalle-pedido-table td {
+  padding: 1rem;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.orden-compra-table th:last-child,
+.orden-compra-table td:last-child,
+.centros-costo-table th:last-child,
+.centros-costo-table td:last-child,
+.detalle-pedido-table th:last-child,
+.detalle-pedido-table td:last-child {
+  border-right: 0;
+}
+
+.orden-compra-table tbody tr:last-child td,
+.centros-costo-table tbody tr:last-child td,
+.detalle-pedido-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.orden-compra-table th,
+.centros-costo-table th,
+.detalle-pedido-table th {
+  background: var(--text-primary);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.orden-compra-table__row {
+  cursor: pointer;
+  transition: background-color 0.18s ease;
+}
+
+.orden-compra-table__row:hover {
+  background: #f7fafc;
+}
+
+.orden-compra-table__row--selected {
+  background: #fff4e8;
+}
+
+.centros-costo-table__row--checked {
+  background: #fff8ef;
+}
+
+.centros-costo-table__select-head {
+  width: 5rem;
+}
+
+.detalle-pedido-table__select-head {
+  width: 5rem;
+}
+
+.centros-costo-table__select-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.detalle-pedido-table__row--checked {
+  background: #fff8ef;
+}
+
+.empty-row {
+  color: var(--text-secondary);
+}
+
+.editor-section {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.pedido-centro-costo-toolbar {
+  display: grid;
+  grid-template-columns: minmax(14rem, 20rem) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.pedido-centro-costo-toolbar__actions {
+  display: flex;
+  align-items: end;
+}
+
+.section-copy h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.mode-chip {
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.mode-chip--partial {
+  border-color: #f59e0b;
+  background: #fff4df;
+  color: #b45309;
+}
+
+.editor-feedback {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.editor-feedback--error {
+  color: #c14d00;
+}
+
+@media (max-width: 960px) {
+  .orden-compra-card__header,
+  .editor-header,
+  .orden-compra-card__actions,
+  .filters-panel__actions,
+  .editor-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filters-panel,
+  .editor-grid,
+  .pedido-centro-costo-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .button,
+  .selector-code-button {
+    width: 100%;
+  }
+}

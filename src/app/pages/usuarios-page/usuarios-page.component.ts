@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, UsuariosFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { UsuarioEditDialogComponent } from './usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './usuario-register-dialog.component';
 
@@ -25,7 +26,9 @@ type DataRecord = Record<string, unknown>;
 })
 export class UsuariosPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   usuarios: UsuarioRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
 
@@ -54,11 +57,13 @@ export class UsuariosPageComponent implements OnInit {
     this.apiService.getListarUsuarioActivo(filtros).subscribe({
       next: (response: unknown) => {
         this.usuarios = this.extractRecords(response).map((item) => this.mapUsuario(item));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.usuarios.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando usuarios:', error);
         this.usuarios = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de usuarios. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -77,6 +82,14 @@ export class UsuariosPageComponent implements OnInit {
 
   trackByUsuario(_index: number, usuario: UsuarioRow): string {
     return usuario.usrId !== null ? String(usuario.usrId) : usuario.usrCod;
+  }
+
+  get paginatedUsuarios(): UsuarioRow[] {
+    return paginateItems(this.usuarios, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.usuarios.length, this.pageSize);
   }
 
   editarUsuario(usuario: UsuarioRow): void {

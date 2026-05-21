@@ -70,7 +70,7 @@
       </thead>
 
       <tbody>
-        <tr *ngFor="let grupoItem of gruposItem; trackBy: trackByGrupoItem">
+        <tr *ngFor="let grupoItem of paginatedGruposItem; trackBy: trackByGrupoItem">
           <td>{{ grupoItem.grpId ?? '-' }}</td>
           <td>{{ grupoItem.grpDes || '-' }}</td>
           <td>
@@ -92,4 +92,12 @@
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="gruposItem.length"
+    [totalItems]="gruposItem.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>
