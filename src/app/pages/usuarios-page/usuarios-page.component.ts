@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, UsuariosFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { UsuarioEditDialogComponent } from './usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './usuario-register-dialog.component';
 
@@ -25,7 +26,9 @@ type DataRecord = Record<string, unknown>;
 })
 export class UsuariosPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   usuarios: UsuarioRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
 
@@ -50,23 +53,17 @@ export class UsuariosPageComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
     const filtros = this.getFiltros();
-    const codigoBuscado = this.getCodigoBuscado();
 
     this.apiService.getListarUsuarioActivo(filtros).subscribe({
       next: (response: unknown) => {
-        const usuarios = this.extractRecords(response).map((item) => this.mapUsuario(item));
-
-        if (usuarios.length || !codigoBuscado || codigoBuscado.length === 1) {
-          this.usuarios = usuarios;
-          this.isLoading = false;
-          return;
-        }
-
-        this.buscarUsuariosPorPrefijo(codigoBuscado);
+        this.usuarios = this.extractRecords(response).map((item) => this.mapUsuario(item));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.usuarios.length, this.pageSize);
+        this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando usuarios:', error);
         this.usuarios = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de usuarios. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -85,6 +82,14 @@ export class UsuariosPageComponent implements OnInit {
 
   trackByUsuario(_index: number, usuario: UsuarioRow): string {
     return usuario.usrId !== null ? String(usuario.usrId) : usuario.usrCod;
+  }
+
+  get paginatedUsuarios(): UsuarioRow[] {
+    return paginateItems(this.usuarios, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.usuarios.length, this.pageSize);
   }
 
   editarUsuario(usuario: UsuarioRow): void {
@@ -133,27 +138,7 @@ export class UsuariosPageComponent implements OnInit {
     }
   }
 
-  private buscarUsuariosPorPrefijo(codigoBuscado: string): void {
-    this.apiService.getListarUsuarioActivo(this.buildFiltros(true)).subscribe({
-      next: (response: unknown) => {
-        const usuarios = this.extractRecords(response).map((item) => this.mapUsuario(item));
-        this.usuarios = this.findUsuariosByCodigoPrefix(usuarios, codigoBuscado);
-        this.isLoading = false;
-      },
-      error: (error: unknown) => {
-        console.error('Error cargando usuarios por prefijo:', error);
-        this.usuarios = [];
-        this.errorMessage = 'No se pudo cargar la informacion de usuarios. Intenta nuevamente.';
-        this.isLoading = false;
-      }
-    });
-  }
-
   private getFiltros(): UsuariosFiltro {
-    return this.buildFiltros(false);
-  }
-
-  private buildFiltros(omitCodigo: boolean): UsuariosFiltro {
     const filters = this.filtersForm.value as {
       codigo: string;
       codigoUsuario: string;
@@ -163,7 +148,7 @@ export class UsuariosPageComponent implements OnInit {
     const usrId = Number(filters.codigo);
     const filtros: UsuariosFiltro = {};
 
-    if (!omitCodigo && filters.codigo && Number.isInteger(usrId) && usrId > 0) {
+    if (filters.codigo && Number.isInteger(usrId) && usrId > 0) {
       filtros.Usr_Id = usrId;
     }
 
@@ -178,24 +163,6 @@ export class UsuariosPageComponent implements OnInit {
     filtros.Flg_Est = filters.estado;
 
     return filtros;
-  }
-
-  private getCodigoBuscado(): string {
-    const codigo = String(this.filtersForm.controls['codigo'].value ?? '').trim();
-    return /^[1-9]\d*$/.test(codigo) ? codigo : '';
-  }
-
-  private findUsuariosByCodigoPrefix(usuarios: UsuarioRow[], codigoBuscado: string): UsuarioRow[] {
-    for (let length = codigoBuscado.length; length > 0; length -= 1) {
-      const prefix = codigoBuscado.slice(0, length);
-      const matches = usuarios.filter((usuario) => String(usuario.usrId ?? '').startsWith(prefix));
-
-      if (matches.length) {
-        return matches;
-      }
-    }
-
-    return [];
   }
 
   private extractRecords(response: unknown): DataRecord[] {

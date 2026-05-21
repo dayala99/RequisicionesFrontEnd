@@ -12,12 +12,15 @@
     <form class="login-form" [formGroup]="loginForm" (ngSubmit)="submit()">
       <label class="login-field">
         <span>Correo</span>
-        <input type="email" formControlName="email" placeholder="correo@empresa.com" />
+          <input type="email" formControlName="email" />
+          <small class="login-error" *ngIf="loginForm.controls.email.touched && loginForm.controls.email.hasError('required')">Campo Correo obligatorio.</small>
+          <small class="login-error" *ngIf="loginForm.controls.email.touched && !loginForm.controls.email.hasError('required') && loginForm.controls.email.hasError('email')">Correo invalido.</small>
       </label>
 
       <label class="login-field">
         <span>Contrasena</span>
-        <input type="password" formControlName="password" placeholder="Ingresa tu contrasena" />
+          <input type="password" formControlName="password" />
+          <small class="login-error" *ngIf="loginForm.controls.password.touched && (loginForm.controls.password.hasError('required') || loginForm.controls.password.hasError('whitespace'))">Campo Contrasena obligatorio.</small>
       </label>
 
       <p class="login-hint">Demo: admin@demo.com / 123456</p>

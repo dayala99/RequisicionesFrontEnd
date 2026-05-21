@@ -38,11 +38,68 @@ describe('AppLayoutComponent', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const links = Array.from(compiled.querySelectorAll('.sidebar_link')).map((element) => element.textContent?.trim());
+    const groupToggle = compiled.querySelector('.sidebar_group_toggle')?.textContent ?? '';
 
     expect(links).toContain('Inicio');
-    expect(links).toContain('Proveedor');
+    expect(groupToggle).toContain('Procesos');
+    expect(groupToggle).toContain('Mantenimiento');
+  });
+
+  it('should toggle the procesos group', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+
+    expect(component.processOpen).toBeFalse();
+
+    component.toggleProcessMenu();
+    expect(component.processOpen).toBeTrue();
+
+    component.toggleProcessMenu();
+    expect(component.processOpen).toBeFalse();
+  });
+
+  it('should render pedidos and orden de compra inside procesos when it is open', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+    component.processOpen = true;
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const links = Array.from(compiled.querySelectorAll('.sidebar_link--nested')).map((element) => element.textContent?.trim());
+
     expect(links).toContain('Pedidos');
+    expect(links).toContain('Orden de Compra');
+  });
+
+  it('should toggle the mantenimiento group', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+
+    expect(component.maintenanceOpen).toBeFalse();
+
+    component.toggleMaintenanceMenu();
+    expect(component.maintenanceOpen).toBeTrue();
+
+    component.toggleMaintenanceMenu();
+    expect(component.maintenanceOpen).toBeFalse();
+  });
+
+  it('should render usuario and proveedor inside mantenimiento when it is open', () => {
+    const fixture = TestBed.createComponent(AppLayoutComponent);
+    const component = fixture.componentInstance;
+    component.maintenanceOpen = true;
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const links = Array.from(compiled.querySelectorAll('.sidebar_link--nested')).map((element) => element.textContent?.trim());
+
+    expect(links).toContain('Forma de Pagos');
+    expect(links).toContain('Banco');
+    expect(links).toContain('Moneda');
+    expect(links).toContain('Tipo de Servicio');
+    expect(links).toContain('Unidad de Medida');
     expect(links).toContain('Usuario');
+    expect(links).toContain('Proveedor');
   });
 
   it('should show the current user from the auth session', () => {

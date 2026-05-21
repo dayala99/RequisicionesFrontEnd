@@ -4,17 +4,18 @@
       <p class="pedidos-card__eyebrow">Administracion</p>
       <h2>Pedidos</h2>
       <p class="pedidos-card__description">
-        Formulario unificado para proveedor y centros de costo dentro del flujo del pedido.
+        Formulario de pedidos y centros de costo dentro del flujo del pedido.
       </p>
     </div>
   </header>
 
-  <section *ngIf="!mostrarEditorPedido" class="listado-shell">
+  <section *ngIf="!mostrarEditorPedido && !mostrarDetallePedido" class="listado-shell">
     <footer class="actions-bar">
       <button
         *ngFor="let action of actionButtons"
         type="button"
         class="action-button"
+        [disabled]="isActionDisabled(action)"
         (click)="ejecutarAccion(action)">
         {{ action }}
       </button>
@@ -23,13 +24,13 @@
     <section class="panel panel--listing">
       <form class="filters-panel" [formGroup]="filtersForm" (ngSubmit)="aplicarFiltros()">
         <label class="field">
-          <span>Nro. Requisicion</span>
-          <input type="number" formControlName="nroRequisicion" min="0" placeholder="0">
+          <span>Nro. Pedido</span>
+          <input type="number" formControlName="nroRequisicion" min="0">
         </label>
 
         <label class="field">
           <span>Proveedor</span>
-          <input type="text" formControlName="proveedor" placeholder="Buscar proveedor">
+          <input type="text" formControlName="proveedor">
         </label>
 
         <label class="field">
@@ -49,7 +50,7 @@
         <label class="field field--compact">
           <span>Tipo</span>
           <select formControlName="tipo">
-            <option *ngFor="let option of tipoOptions" [value]="option">{{ option }}</option>
+            <option *ngFor="let option of tipoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
           </select>
         </label>
 
@@ -79,24 +80,34 @@
           </thead>
 
           <tbody>
-            <tr *ngFor="let item of requisiciones; trackBy: trackByRequisicion">
-              <td>{{ item.codigo }}</td>
-              <td><span class="file-badge">{{ item.archivo }}</span></td>
-              <td>{{ item.gerencia }}</td>
-              <td>{{ item.fecha }}</td>
-              <td>{{ item.proveedor }}</td>
-              <td>{{ item.moneda }}</td>
-              <td>{{ formatTotal(item.total, item.moneda) }}</td>
-              <td>
-                <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
-              </td>
-              <td>{{ item.codigoUsr }}</td>
-              <td>{{ item.usrAprobacion }}</td>
-              <td>{{ item.fechaUsrGa }}</td>
-              <td>
-                <button type="button" class="row-detail-button">Detalle</button>
-              </td>
-            </tr>
+            <ng-container *ngFor="let item of paginatedRequisiciones; trackBy: trackByRequisicion">
+              <tr
+                class="requisiciones-table__row"
+                [class.requisiciones-table__row--selected]="isPedidoSeleccionado(item)"
+                (click)="seleccionarPedido(item)">
+                <td>{{ item.codigo }}</td>
+                <td><span class="file-badge">{{ item.archivo }}</span></td>
+                <td>{{ item.gerencia }}</td>
+                <td>{{ item.fecha }}</td>
+                <td>{{ item.proveedor }}</td>
+                <td>{{ item.moneda }}</td>
+                <td>{{ formatTotal(item.total, item.moneda) }}</td>
+                <td>
+                  <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
+                </td>
+                <td>{{ item.codigoUsr }}</td>
+                <td>{{ item.usrAprobacion }}</td>
+                <td>{{ item.fechaUsrGa }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="row-detail-button"
+                    (click)="toggleDetallePedido(item); $event.stopPropagation()">
+                    Detalle
+                  </button>
+                </td>
+              </tr>
+            </ng-container>
 
             <tr *ngIf="isLoadingPedidos">
               <td colspan="12" class="empty-row">Cargando pedidos registrados...</td>
@@ -112,13 +123,153 @@
           </tbody>
         </table>
       </div>
+
+      <app-grid-pagination
+        *ngIf="requisiciones.length"
+        [totalItems]="requisiciones.length"
+        [currentPage]="currentPedidosPage"
+        [pageSize]="pageSize"
+        (pageChange)="onPedidosPageChange($event)">
+      </app-grid-pagination>
+    </section>
+  </section>
+
+  <section *ngIf="mostrarDetallePedido && detallePedidoSeleccionado" class="pedido-editor pedido-editor--detalle">
+    <header class="pedidos-card__header">
+      <div>
+        <p class="pedidos-card__eyebrow">Detalle</p>
+        <h2>{{ detallePedidoSeleccionado.codigo }}</h2>
+        <p class="pedidos-card__description">
+          Vista de detalle del pedido seleccionado.
+        </p>
+      </div>
+    </header>
+
+    <section class="editor-section">
+      <div class="section-copy">
+        <h3>Items del detalle</h3>
+        <p class="pedidos-card__description">
+          Registra y actualiza los items reales asociados al pedido seleccionado.
+        </p>
+      </div>
+
+      <div class="editor-grid editor-grid--detalle-meta">
+        <label class="field">
+          <span>Cantidad total permitida</span>
+          <input
+            type="text"
+            class="input--readonly"
+            [value]="formatDetalleNumero(detallePedidoCantidadLimite)"
+            readonly
+            disabled
+            tabindex="-1">
+        </label>
+      </div>
+
+      <div class="pedido-detalle-panel__toolbar">
+        <button
+          type="button"
+          class="button button--primary"
+          [disabled]="!canManagePedidoDetalle"
+          (click)="iniciarNuevoPedidoDetalle()">
+          Nuevo
+        </button>
+        <button
+          type="button"
+          class="button button--secondary"
+          (click)="cerrarDetallePedido()">
+          Cerrar
+        </button>
+      </div>
+
+      <p *ngIf="detallePedidoErrorMessage" class="editor-feedback editor-feedback--error">
+        {{ detallePedidoErrorMessage }}
+      </p>
+
+      <div *ngIf="isLoadingDetalleExpandido" class="editor-feedback">
+        Cargando detalle del pedido...
+      </div>
+
+      <div *ngIf="!isLoadingDetalleExpandido && detalleExpandidoError" class="editor-feedback editor-feedback--error">
+        {{ detalleExpandidoError }}
+      </div>
+
+      <div *ngIf="!isLoadingDetalleExpandido && !detalleExpandidoError" class="table-shell">
+        <table class="pedido-detalle-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Codigo Item</th>
+              <th>Descripcion</th>
+              <th>Unidad Medida</th>
+              <th>Cantidad</th>
+              <th>Precio Unitario</th>
+              <th>Subtotal</th>
+              <th class="pedido-detalle-table__action-head"></th>
+              <th class="pedido-detalle-table__action-head"></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr
+              *ngFor="let detail of paginatedDetallePedidoExpandido; trackBy: trackByPedidoDetalle"
+              class="pedido-detalle-table__row"
+              [class.pedido-detalle-table__row--selected]="isPedidoDetalleSeleccionado(detail)"
+              (click)="seleccionarPedidoDetalle(detail)">
+              <td>{{ detail.item }}</td>
+              <td>{{ detail.codigoItem }}</td>
+              <td>{{ detail.descripcion }}</td>
+              <td>{{ detail.unidad }}</td>
+              <td>{{ formatDetalleNumero(detail.cantidad) }}</td>
+              <td>{{ formatDetalleNumero(detail.precioUnitario) }}</td>
+              <td>{{ formatDetalleNumero(detail.subtotal) }}</td>
+              <td class="pedido-detalle-table__action-cell">
+                <button
+                  type="button"
+                  class="icon-button"
+                  aria-label="Editar item del detalle"
+                  [disabled]="detail.persistedId === null || isSavingPedidoDetalle"
+                  (click)="editarPedidoDetalle(detail); $event.stopPropagation()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
+                  </svg>
+                </button>
+              </td>
+              <td class="pedido-detalle-table__action-cell">
+                <button
+                  type="button"
+                  class="icon-button icon-button--danger"
+                  aria-label="Eliminar item del detalle"
+                  [disabled]="detail.persistedId === null || isSavingPedidoDetalle"
+                  (click)="confirmarEliminarPedidoDetalle(detail); $event.stopPropagation()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2h4v2H4V6h4l1-2z"/>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+
+            <tr *ngIf="!getDetallePedidoExpandido().length">
+              <td colspan="9" class="empty-row">No hay items registrados para este pedido.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <app-grid-pagination
+        *ngIf="getDetallePedidoExpandido().length"
+        [totalItems]="getDetallePedidoExpandido().length"
+        [currentPage]="currentDetalleExpandidoPage"
+        [pageSize]="pageSize"
+        (pageChange)="onDetalleExpandidoPageChange($event)">
+      </app-grid-pagination>
     </section>
   </section>
 
   <section *ngIf="mostrarEditorPedido" class="pedido-editor">
     <form class="editor-grid editor-grid--header" [formGroup]="cabeceraForm">
       <label class="field">
-        <span>Requisicion de Compra</span>
+        <span>Nro. Pedido</span>
         <input type="number" formControlName="requisicionCompra" min="0" readonly [attr.placeholder]="isLoadingCorrelativo ? 'Cargando...' : 'Auto'">
       </label>
 
@@ -131,6 +282,7 @@
           (click)="openApprovalUserDialog()">
           {{ isLoadingApprovalUsers ? 'Cargando usuarios...' : approvalUserButtonLabel }}
         </button>
+        <small class="editor-feedback editor-feedback--error" *ngIf="cabeceraForm.controls['usuarioAprobacion'].touched && (cabeceraForm.controls['usuarioAprobacion'].hasError('required') || cabeceraForm.controls['usuarioAprobacion'].hasError('whitespace'))">Campo Usuario de Aprobacion obligatorio.</small>
       </div>
     </form>
 
@@ -179,7 +331,7 @@
           </thead>
 
           <tbody>
-            <tr *ngFor="let item of centrosCosto; trackBy: trackByCentroCosto">
+            <tr *ngFor="let item of paginatedCentrosCosto; trackBy: trackByCentroCosto">
               <td>{{ item.codigo }}</td>
               <td>{{ item.costo }}</td>
               <td class="cantidad-cell">
@@ -218,6 +370,14 @@
           </tbody>
         </table>
       </div>
+
+      <app-grid-pagination
+        *ngIf="centrosCosto.length"
+        [totalItems]="centrosCosto.length"
+        [currentPage]="currentCentroCostoPage"
+        [pageSize]="pageSize"
+        (pageChange)="onCentroCostoPageChange($event)">
+      </app-grid-pagination>
     </section>
 
     <form class="details-grid" [formGroup]="detalleForm">
@@ -227,24 +387,10 @@
         </div>
 
         <div class="group-row group-row--gasto">
-          <label class="field field--small">
-            <span>Cta. Gasto</span>
-            <input type="text" formControlName="ctaGastoCodigo">
-          </label>
-
-          <label class="field">
-            <span>Descripcion</span>
-            <input type="text" formControlName="ctaGastoDescripcion">
-          </label>
-
           <label class="field field--wide">
             <span>Lugar de Entrega</span>
             <input type="text" formControlName="lugarEntrega">
-          </label>
-
-          <label class="field field--small">
-            <span>Almacen</span>
-            <input type="text" formControlName="almacen">
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['lugarEntrega'].touched && (detalleForm.controls['lugarEntrega'].hasError('required') || detalleForm.controls['lugarEntrega'].hasError('whitespace'))">Campo Lugar de Entrega obligatorio.</small>
           </label>
         </div>
       </section>
@@ -254,18 +400,14 @@
           <label class="field field--wide">
             <span>Referencia</span>
             <input type="text" formControlName="referencia">
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['referencia'].touched && (detalleForm.controls['referencia'].hasError('required') || detalleForm.controls['referencia'].hasError('whitespace'))">Campo Referencia obligatorio.</small>
           </label>
 
-          <label class="field">
+          <label class="field field--wide">
             <span>Tipo de Compra</span>
             <select formControlName="tipoCompra">
               <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
             </select>
-          </label>
-
-          <label class="field field--small">
-            <span>OC - Importacion</span>
-            <input type="text" formControlName="ocImportacion">
           </label>
         </div>
       </section>
@@ -273,11 +415,12 @@
       <section class="editor-section">
         <div class="group-row group-row--meta">
           <label class="field">
-            <span>O/C</span>
+            <span>Tipo de Servicio</span>
             <select formControlName="oc">
               <option [ngValue]="''">Sin enlazar</option>
-              <option *ngFor="let option of tipoOc" [ngValue]="option.codigo">{{ option.descripcion }}</option>
+              <option *ngFor="let option of tipoServicioOptions" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['oc'].touched && detalleForm.controls['oc'].hasError('required')">Campo Tipo de Servicio obligatorio.</small>
           </label>
 
           <label class="field">
@@ -286,11 +429,13 @@
               <option [ngValue]="null">Sin enlazar</option>
               <option *ngFor="let option of tipoMoneda" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['moneda'].touched && detalleForm.controls['moneda'].hasError('required')">Campo Moneda obligatorio.</small>
           </label>
 
           <label class="field">
             <span>Fecha Entrega</span>
-            <input type="text" formControlName="fechaEntrega">
+            <input type="date" [min]="pedidoFechaEntregaMinima" formControlName="fechaEntrega">
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['fechaEntrega'].touched && detalleForm.controls['fechaEntrega'].hasError('required')">Campo Fecha Entrega obligatorio.</small>
           </label>
         </div>
       </section>
@@ -299,6 +444,7 @@
         <label class="field field--textarea">
           <span>Sustento</span>
           <textarea formControlName="sustento" rows="7"></textarea>
+          <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['sustento'].touched && (detalleForm.controls['sustento'].hasError('required') || detalleForm.controls['sustento'].hasError('whitespace'))">Campo Sustento obligatorio.</small>
         </label>
 
         <div class="attachment-panel">
@@ -318,11 +464,15 @@
       </section>
     </form>
 
-    <section class="provider-inline">
-      <app-provider-form [embedded]="true"></app-provider-form>
-    </section>
-
     <footer class="editor-actions">
+      <p *ngIf="saveErrorMessage" class="editor-feedback editor-feedback--error">{{ saveErrorMessage }}</p>
+      <button
+        type="button"
+        class="button button--primary"
+        [disabled]="isSavingPedido || isLoadingCorrelativo || isLoadingPedidoDetalle"
+        (click)="guardarPedido()">
+        {{ isLoadingPedidoDetalle ? 'Cargando...' : isSavingPedido ? 'Guardando...' : isEditingPedido ? 'Actualizar' : 'Guardar' }}
+      </button>
       <button type="button" class="button button--secondary" (click)="confirmarCancelacionPedido()">
         Cancelar
       </button>

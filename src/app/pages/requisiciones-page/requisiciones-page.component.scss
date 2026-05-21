@@ -2,6 +2,7 @@
   display: grid;
   gap: 1.25rem;
   padding: 1.4rem;
+  min-width: 0;
   border: 1px solid var(--line-soft);
   border-radius: 18px;
   background: #ffffff;
@@ -38,6 +39,7 @@
 
 .panel {
   padding: 1rem;
+  min-width: 0;
   border: 1px solid var(--line-soft);
   border-radius: 14px;
   background: #ffffff;
@@ -52,6 +54,7 @@
   display: grid;
   gap: 1.5rem;
   padding: 1.25rem;
+  min-width: 0;
   border: 1px solid var(--line-soft);
   border-radius: 16px;
   background: #ffffff;
@@ -66,6 +69,11 @@
 
 .editor-grid--header {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.editor-grid--detalle-meta {
+  grid-template-columns: minmax(14rem, 18rem);
+  margin-top: 0.85rem;
 }
 
 .editor-section {
@@ -85,8 +93,20 @@
 
 .editor-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 0.75rem;
   padding-top: 0.25rem;
+}
+
+.editor-feedback {
+  margin: 0 auto 0 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.editor-feedback--error {
+  color: #c14d00;
 }
 
 .section-copy h3 {
@@ -118,6 +138,7 @@
 .field {
   display: grid;
   gap: 0.45rem;
+  min-width: 0;
 }
 
 .field span {
@@ -136,6 +157,21 @@
   background: #ffffff;
   color: var(--text-primary);
   font: inherit;
+}
+
+.field .input--readonly {
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  cursor: default;
+  pointer-events: none;
+}
+
+.field .input--readonly:disabled {
+  border-color: var(--line-soft);
+  background: #eef1f4;
+  color: var(--text-secondary);
+  opacity: 1;
+  -webkit-text-fill-color: var(--text-secondary);
 }
 
 .selector-code-button {
@@ -187,6 +223,16 @@
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
+.field .input--readonly:focus {
+  border-color: var(--line-soft);
+  box-shadow: none;
+}
+
+.field .input--readonly:disabled:focus {
+  border-color: var(--line-soft);
+  box-shadow: none;
+}
+
 .selector-code-button:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
@@ -215,6 +261,7 @@
 
 .table-shell {
   overflow-x: auto;
+  max-width: 100%;
   border: 1px solid var(--line-soft);
   border-radius: 12px;
 }
@@ -256,6 +303,22 @@
 .requisiciones-table tbody tr:nth-child(even),
 .costos-table tbody tr:nth-child(even) {
   background: var(--surface-muted);
+}
+
+.requisiciones-table__row {
+  cursor: pointer;
+}
+
+.requisiciones-table__row--selected {
+  background: rgba(255, 158, 49, 0.16) !important;
+}
+
+.requisiciones-table__row--selected td {
+  box-shadow: inset 0 -1px 0 var(--line-soft);
+}
+
+.requisiciones-table__row--expanded td {
+  border-bottom-color: transparent;
 }
 
 .file-badge,
@@ -380,6 +443,27 @@
   text-align: center;
 }
 
+.pedido-detalle-table__action-head {
+  width: 3.2rem;
+  text-align: center;
+}
+
+.pedido-detalle-table__action-cell {
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  text-align: center;
+}
+
+.pedido-detalle-table td:nth-last-child(-n + 2) {
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+}
+
+.pedido-detalle-table td:last-child,
+.pedido-detalle-table th:last-child {
+  padding-right: 1rem;
+}
+
 .costos-table td:nth-child(5),
 .costos-table th:nth-child(5) {
   padding-right: 1rem;
@@ -394,6 +478,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.85rem;
+  margin-bottom: 0.6rem;
 }
 
 .action-button {
@@ -407,6 +492,12 @@
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+.action-button:disabled {
+  background: var(--surface-disabled);
+  color: var(--text-secondary);
+  cursor: not-allowed;
 }
 
 .row-detail-button {
@@ -427,7 +518,7 @@
 }
 
 .group-row--gasto {
-  grid-template-columns: minmax(6rem, 0.45fr) minmax(12rem, 1fr) minmax(16rem, 1.7fr) minmax(6rem, 0.4fr);
+  grid-template-columns: minmax(12rem, 0.95fr) minmax(16rem, 1.75fr);
 }
 
 .group-row--split {
@@ -456,6 +547,21 @@
 
 .field--wide {
   min-width: 0;
+}
+
+@media screen and (max-width: 1360px) {
+  .filters-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .filters-panel__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .requisiciones-table {
+    min-width: 70rem;
+  }
 }
 
 @media screen and (max-width: 1100px) {
@@ -520,7 +626,12 @@
   }
 
   .editor-actions {
-    justify-content: stretch;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editor-feedback {
+    margin: 0;
   }
 
   .requisiciones-table {
@@ -556,6 +667,15 @@
   .costos-table__action-head,
   .costos-table td:nth-child(4),
   .costos-table td:nth-child(5) {
+    width: 3rem;
+  }
+
+  .pedido-detalle-table {
+    min-width: 52rem;
+  }
+
+  .pedido-detalle-table__action-head,
+  .pedido-detalle-table td:nth-last-child(-n + 2) {
     width: 3rem;
   }
 

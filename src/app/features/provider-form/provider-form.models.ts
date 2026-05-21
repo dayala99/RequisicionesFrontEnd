@@ -5,6 +5,11 @@ export interface ProviderRecord {
   address: string;
   contact: string;
   ruc: string;
+  email: string;
+  bankCode: number;
+  bankName: string;
+  bankAccountNumber: string;
+  bankCci: string;
 }
 
 export interface PaymentOption {

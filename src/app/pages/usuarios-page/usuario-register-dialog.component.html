@@ -9,19 +9,14 @@
     <label class="usuario-edit__field">
       <span>Codigo</span>
       <input type="text" formControlName="usrCod">
+      <small class="usuario-edit__error" *ngIf="form.controls['usrCod'].touched && (form.controls['usrCod'].hasError('required') || form.controls['usrCod'].hasError('whitespace'))">Campo Codigo obligatorio.</small>
+      <small class="usuario-edit__error" *ngIf="form.controls['usrCod'].touched && form.controls['usrCod'].hasError('pattern')">Formato invalido.</small>
     </label>
 
     <label class="usuario-edit__field">
       <span>Nombre</span>
       <input type="text" formControlName="usrNom">
-    </label>
-
-    <label class="usuario-edit__field">
-      <span>Estado</span>
-      <select formControlName="flgEst">
-        <option value="A">Activo</option>
-        <option value="I">Inactivo</option>
-      </select>
+      <small class="usuario-edit__error" *ngIf="form.controls['usrNom'].touched && (form.controls['usrNom'].hasError('required') || form.controls['usrNom'].hasError('whitespace'))">Campo Nombre obligatorio.</small>
     </label>
 
     <p *ngIf="errorMessage" class="usuario-edit__error">

@@ -24,7 +24,6 @@
         <input
           type="number"
           formControlName="id"
-          placeholder="Prv_Id"
           min="1"
           step="1"
           (input)="sanitizeIdInput($event)">
@@ -32,17 +31,17 @@
 
       <label class="filter-field">
         <span>Nombre</span>
-        <input type="text" formControlName="nombre" placeholder="Prv_Nom">
+        <input type="text" formControlName="nombre">
       </label>
 
       <label class="filter-field">
         <span>RUC</span>
-        <input type="text" formControlName="ruc" placeholder="Prv_Ruc">
+        <input type="text" formControlName="ruc">
       </label>
 
       <label class="filter-field">
         <span>Nombre Contacto</span>
-        <input type="text" formControlName="nombreContacto" placeholder="Prv_Nom_Con">
+        <input type="text" formControlName="nombreContacto">
       </label>
 
       <label class="filter-field filter-field--select">
@@ -84,19 +83,27 @@
             <th>TEL</th>
             <th>DIR</th>
             <th>NOMBRE CONTACTO</th>
+            <th>EMAIL</th>
+            <th>CTA BAN</th>
+            <th>CCI</th>
+            <th>BANCO</th>
             <th>FECHA</th>
             <th>Action</th>
           </tr>
         </thead>
 
         <tbody>
-          <tr *ngFor="let proveedor of proveedores; trackBy: trackByProveedor">
+          <tr *ngFor="let proveedor of paginatedProveedores; trackBy: trackByProveedor">
             <td>{{ proveedor.prvId ?? '-' }}</td>
             <td>{{ proveedor.prvNom || '-' }}</td>
             <td>{{ proveedor.prvRuc || '-' }}</td>
             <td>{{ proveedor.prvTel || '-' }}</td>
             <td>{{ proveedor.prvDir || '-' }}</td>
             <td>{{ proveedor.prvNomCon || '-' }}</td>
+            <td>{{ proveedor.prvEmail || '-' }}</td>
+            <td>{{ proveedor.prvNroCueBan || '-' }}</td>
+            <td>{{ proveedor.prvNroCueBanCci || '-' }}</td>
+            <td>{{ proveedor.prvBan ?? '-' }}</td>
             <td>{{ proveedor.fecha || '-' }}</td>
             <td>
               <button
@@ -112,5 +119,13 @@
         </tbody>
       </table>
     </div>
+
+    <app-grid-pagination
+      *ngIf="proveedores.length"
+      [totalItems]="proveedores.length"
+      [currentPage]="currentPage"
+      [pageSize]="pageSize"
+      (pageChange)="onPageChange($event)">
+    </app-grid-pagination>
   </section>
 </section>

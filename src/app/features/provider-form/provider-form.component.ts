@@ -8,6 +8,22 @@ import { PaymentOption, ProviderRecord } from './provider-form.models';
 import { ProviderSelectorDialogComponent } from './dialogs/provider-selector-dialog.component';
 
 type DataRecord = Record<string, unknown>;
+type ProviderFormHydration = {
+  supplierCode: number;
+  supplierName: string;
+  phone: string;
+  address: string;
+  contact: string;
+  ruc: string;
+  email: string;
+  bankCode: number;
+  bankName: string;
+  bankAccountNumber: string;
+  bankCci: string;
+  paymentCode: number;
+  paymentDescription: string;
+  isEventual: boolean;
+};
 
 @Component({
   selector: 'app-provider-form',
@@ -16,6 +32,13 @@ type DataRecord = Record<string, unknown>;
 })
 export class ProviderFormComponent implements OnInit {
   @Input() embedded = false;
+
+  readonly bankCatalog = [
+    { code: 1, name: 'BCP' },
+    { code: 2, name: 'BBVA' },
+    { code: 3, name: 'Interbank' },
+    { code: 4, name: 'Scotiabank' }
+  ];
 
   providers: ProviderRecord[] = [];
   paymentOptions: PaymentOption[] = [];
@@ -29,6 +52,11 @@ export class ProviderFormComponent implements OnInit {
     address: [{ value: '', disabled: true }],
     contact: [{ value: '', disabled: true }],
     ruc: [{ value: '', disabled: true }],
+    email: [{ value: '', disabled: true }],
+    bankCode: 0,
+    bankName: [{ value: '', disabled: true }],
+    bankAccountNumber: [{ value: '', disabled: true }],
+    bankCci: [{ value: '', disabled: true }],
     paymentCode: 0,
     paymentDescription: [{ value: '', disabled: true }],
     isEventual: false
@@ -39,8 +67,13 @@ export class ProviderFormComponent implements OnInit {
     this.form.controls.phone,
     this.form.controls.address,
     this.form.controls.contact,
-    this.form.controls.ruc
+    this.form.controls.ruc,
+    this.form.controls.email,
+    this.form.controls.bankName,
+    this.form.controls.bankAccountNumber,
+    this.form.controls.bankCci
   ];
+  private pendingHydration: ProviderFormHydration | null = null;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -63,6 +96,58 @@ export class ProviderFormComponent implements OnInit {
 
   get isEventualMode(): boolean {
     return this.form.controls.isEventual.value;
+  }
+
+  getFormData(): ReturnType<ProviderFormComponent['form']['getRawValue']> {
+    return this.form.getRawValue();
+  }
+
+  hydrateForm(data: ProviderFormHydration): void {
+    this.pendingHydration = data;
+    this.applyHydration(data);
+  }
+
+  private applyHydration(data: ProviderFormHydration): void {
+    const provider = this.providers.find((item) => item.code === data.supplierCode);
+    const paymentOption = this.paymentOptions.find((item) => item.code === data.paymentCode);
+    const resolvedData: ProviderFormHydration = {
+      ...data,
+      supplierName: provider?.name || data.supplierName,
+      phone: provider?.phone || data.phone,
+      address: provider?.address || data.address,
+      contact: provider?.contact || data.contact,
+      ruc: provider?.ruc || data.ruc,
+      email: provider?.email || data.email,
+      bankCode: provider?.bankCode || data.bankCode,
+      bankName: provider?.bankName || data.bankName,
+      bankAccountNumber: provider?.bankAccountNumber || data.bankAccountNumber,
+      bankCci: provider?.bankCci || data.bankCci,
+      paymentDescription: paymentOption?.description || data.paymentDescription
+    };
+
+    if (data.isEventual) {
+      this.enableManualFields();
+    } else {
+      this.disableManualFields();
+    }
+
+    this.form.patchValue({
+      supplierCode: resolvedData.supplierCode,
+      supplierName: resolvedData.supplierName,
+      phone: resolvedData.phone,
+      address: resolvedData.address,
+      contact: resolvedData.contact,
+      ruc: resolvedData.ruc,
+      email: resolvedData.email,
+      bankCode: resolvedData.bankCode,
+      bankName: resolvedData.bankName,
+      bankAccountNumber: resolvedData.bankAccountNumber,
+      bankCci: resolvedData.bankCci,
+      paymentCode: resolvedData.paymentCode,
+      paymentDescription: resolvedData.paymentDescription,
+      isEventual: resolvedData.isEventual
+    });
+    this.form.controls.paymentDescription.disable();
   }
 
   openProviderDialog(): void {
@@ -124,7 +209,12 @@ export class ProviderFormComponent implements OnInit {
       phone: provider.phone,
       address: provider.address,
       contact: provider.contact,
-      ruc: provider.ruc
+      ruc: provider.ruc,
+      email: provider.email,
+      bankCode: provider.bankCode,
+      bankName: provider.bankName,
+      bankAccountNumber: provider.bankAccountNumber,
+      bankCci: provider.bankCci
     });
   }
 
@@ -142,7 +232,12 @@ export class ProviderFormComponent implements OnInit {
       phone: '',
       address: '',
       contact: '',
-      ruc: ''
+      ruc: '',
+      email: '',
+      bankCode: 0,
+      bankName: '',
+      bankAccountNumber: '',
+      bankCci: ''
     });
   }
 
@@ -162,6 +257,11 @@ export class ProviderFormComponent implements OnInit {
       address: '',
       contact: '',
       ruc: '',
+      email: '',
+      bankCode: 0,
+      bankName: '',
+      bankAccountNumber: '',
+      bankCci: '',
       paymentCode: 0,
       paymentDescription: '',
       isEventual: false
@@ -178,6 +278,7 @@ export class ProviderFormComponent implements OnInit {
         this.providers = this.extractRecords(response)
           .map((item) => this.mapProvider(item))
           .filter((provider) => provider.code > 0 && !!provider.name);
+        this.reapplyPendingHydration();
         this.isLoadingProviders = false;
       },
       error: (error: unknown) => {
@@ -188,6 +289,10 @@ export class ProviderFormComponent implements OnInit {
     });
   }
 
+  resetForm(): void {
+    this.resetToInitialState();
+  }
+
   private loadPaymentOptions(): void {
     this.isLoadingPayments = true;
 
@@ -196,6 +301,7 @@ export class ProviderFormComponent implements OnInit {
         this.paymentOptions = this.extractRecords(response)
           .map((item) => this.mapPaymentOption(item))
           .filter((paymentOption) => paymentOption.code > 0 && !!paymentOption.description);
+        this.reapplyPendingHydration();
         this.isLoadingPayments = false;
       },
       error: (error: unknown) => {
@@ -235,7 +341,12 @@ export class ProviderFormComponent implements OnInit {
       phone: this.getTextValue(item, ['Prv_Tel', 'prv_Tel', 'prvTel']),
       address: this.getTextValue(item, ['Prv_Dir', 'prv_Dir', 'prvDir']),
       contact: this.getTextValue(item, ['Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
-      ruc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc'])
+      ruc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc']),
+      email: this.getTextValue(item, ['Prv_Email', 'prv_Email', 'prvEmail']),
+      bankCode: this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan']) ?? 0,
+      bankName: this.getBankName(this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan']) ?? 0),
+      bankAccountNumber: this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']),
+      bankCci: this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci'])
     };
   }
 
@@ -272,5 +383,17 @@ export class ProviderFormComponent implements OnInit {
 
   private isDataRecord(value: unknown): value is DataRecord {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private getBankName(bankCode: number): string {
+    return this.bankCatalog.find((bank) => bank.code === bankCode)?.name || '';
+  }
+
+  private reapplyPendingHydration(): void {
+    if (!this.pendingHydration) {
+      return;
+    }
+
+    this.applyHydration(this.pendingHydration);
   }
 }

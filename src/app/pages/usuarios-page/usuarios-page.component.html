@@ -23,7 +23,6 @@
       <input
         type="number"
         formControlName="codigo"
-        placeholder="Usr_Id"
         min="1"
         step="1"
         (input)="sanitizeCodigoInput($event)">
@@ -31,12 +30,12 @@
 
     <label class="filter-field">
       <span>Cod. Usuario</span>
-      <input type="text" formControlName="codigoUsuario" placeholder="Usr_Cod">
+      <input type="text" formControlName="codigoUsuario">
     </label>
 
     <label class="filter-field">
       <span>Nombres</span>
-      <input type="text" formControlName="nombres" placeholder="Usr_Nom">
+      <input type="text" formControlName="nombres">
     </label>
 
     <label class="filter-field filter-field--select">
@@ -81,7 +80,7 @@
       </thead>
 
       <tbody>
-        <tr *ngFor="let usuario of usuarios; trackBy: trackByUsuario">
+        <tr *ngFor="let usuario of paginatedUsuarios; trackBy: trackByUsuario">
           <td>{{ usuario.usrId ?? '-' }}</td>
           <td>{{ usuario.usrCod || '-' }}</td>
           <td>{{ usuario.usrNom || '-' }}</td>
@@ -100,4 +99,12 @@
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="usuarios.length"
+    [totalItems]="usuarios.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>
