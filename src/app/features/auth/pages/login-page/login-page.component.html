@@ -1,0 +1,32 @@
+<section class="login-shell">
+  <div class="login-card">
+    <div class="login-card__brand">
+      <span class="login-card__logo">AR</span>
+      <div>
+        <p class="login-card__eyebrow">Arce</p>
+        <h2>Iniciar sesion</h2>
+      </div>
+    </div>
+    <p class="login-card__description">Ingresa con el usuario demo para acceder a las pantallas del sistema.</p>
+
+    <form class="login-form" [formGroup]="loginForm" (ngSubmit)="submit()">
+      <label class="login-field">
+        <span>Correo</span>
+          <input type="email" formControlName="email" />
+          <small class="login-error" *ngIf="loginForm.controls.email.touched && loginForm.controls.email.hasError('required')">Campo Correo obligatorio.</small>
+          <small class="login-error" *ngIf="loginForm.controls.email.touched && !loginForm.controls.email.hasError('required') && loginForm.controls.email.hasError('email')">Correo invalido.</small>
+      </label>
+
+      <label class="login-field">
+        <span>Contrasena</span>
+          <input type="password" formControlName="password" />
+          <small class="login-error" *ngIf="loginForm.controls.password.touched && (loginForm.controls.password.hasError('required') || loginForm.controls.password.hasError('whitespace'))">Campo Contrasena obligatorio.</small>
+      </label>
+
+      <p class="login-hint">Demo: admin@demo.com / 123456</p>
+      <p *ngIf="loginError" class="login-error">{{ loginError }}</p>
+
+      <button type="submit" class="login-submit">Entrar al portal</button>
+    </form>
+  </div>
+</section>

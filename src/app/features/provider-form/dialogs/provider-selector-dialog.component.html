@@ -1,0 +1,17 @@
+<h2 mat-dialog-title>Seleccionar Proveedor</h2>
+<p class="selector-description">Elige un proveedor.</p>
+
+<div mat-dialog-content class="selector-content">
+  <button
+    *ngFor="let provider of data.providers; trackBy: trackByCode"
+    type="button"
+    class="option-row"
+    (click)="selectProvider(provider)">
+    <span class="option-code">{{ provider.code }}</span>
+    <span class="option-value">{{ provider.name }}</span>
+  </button>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="close()">Cancelar</button>
+</div>
