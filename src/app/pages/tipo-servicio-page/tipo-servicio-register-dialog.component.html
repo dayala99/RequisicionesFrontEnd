@@ -5,6 +5,7 @@
     <label class="tipo-servicio-dialog__field">
       <span>Descripcion</span>
       <input type="text" formControlName="tipSerDes" maxlength="120">
+      <small class="tipo-servicio-dialog__error" *ngIf="form.controls['tipSerDes'].touched && (form.controls['tipSerDes'].hasError('required') || form.controls['tipSerDes'].hasError('whitespace'))">Campo Descripcion obligatorio.</small>
     </label>
 
     <p *ngIf="errorMessage" class="tipo-servicio-dialog__error">{{ errorMessage }}</p>

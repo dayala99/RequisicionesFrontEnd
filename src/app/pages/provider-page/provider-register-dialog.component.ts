@@ -6,6 +6,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { ApiService, RegistrarProveedorRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator, optionalPatternValidator } from 'src/app/shared/validators/form-validators';
 
 @Component({
   selector: 'app-provider-register-dialog',
@@ -30,14 +31,14 @@ export class ProviderRegisterDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      prvNom: ['', [Validators.required, Validators.maxLength(120)]],
-      prvRuc: ['', [Validators.required, Validators.maxLength(20)]],
-      prvTel: ['', [Validators.required, Validators.maxLength(30)]],
-      prvDir: ['', [Validators.required, Validators.maxLength(180)]],
-      prvNomCon: ['', [Validators.required, Validators.maxLength(120)]],
+      prvNom: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
+      prvRuc: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(20), optionalPatternValidator(/^\d{11}$/)]],
+      prvTel: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(30), optionalPatternValidator(/^[0-9()+\-\s]{6,30}$/)]],
+      prvDir: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(180)]],
+      prvNomCon: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
       prvEmail: ['', [Validators.email, Validators.maxLength(180)]],
-      prvNroCueBan: [this.bankOptions[0].accountNumber, [Validators.maxLength(40)]],
-      prvNroCueBanCci: [this.bankOptions[0].cci, [Validators.maxLength(40)]],
+      prvNroCueBan: [this.bankOptions[0].accountNumber, [Validators.required, noWhitespaceValidator(), Validators.maxLength(40), optionalPatternValidator(/^\d{6,40}$/)]],
+      prvNroCueBanCci: [this.bankOptions[0].cci, [Validators.required, noWhitespaceValidator(), Validators.maxLength(40), optionalPatternValidator(/^\d{6,40}$/)]],
       prvBan: [1, [Validators.required, Validators.min(1)]]
     });
   }

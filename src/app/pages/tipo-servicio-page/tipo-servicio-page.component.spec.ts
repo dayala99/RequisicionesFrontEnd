@@ -57,7 +57,6 @@ describe('TipoServicioPageComponent', () => {
   it('should load tipos de servicio on init', () => {
     expect(apiServiceMock.getListarTipoServicioActivo).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(component.tiposServicio.length).toBe(2);
-    expect(component.selectedTipoServicioId).toBe(1);
   });
 
   it('should search tipos de servicio using ID, descripcion and estado filters', () => {
@@ -104,10 +103,8 @@ describe('TipoServicioPageComponent', () => {
     }));
   });
 
-  it('should open edit dialog for selected row', () => {
-    component.selectedTipoServicioId = 2;
-
-    component.editarTipoServicio();
+  it('should open edit dialog for the provided row', () => {
+    component.editarTipoServicio(component.tiposServicio[1]);
 
     expect(matDialogMock.open).toHaveBeenCalledWith(TipoServicioEditDialogComponent, jasmine.objectContaining({
       data: {

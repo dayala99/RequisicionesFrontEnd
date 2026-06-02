@@ -23,6 +23,15 @@
   grid-template-columns: minmax(9rem, 0.5fr) minmax(16rem, 1.5fr);
 }
 
+.pedido-detalle-dialog__selector-row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pedido-detalle-dialog__selector-row--required {
+  grid-template-columns: minmax(14rem, 1.5fr) minmax(10rem, 0.9fr);
+  align-items: start;
+}
+
 .pedido-detalle-dialog__numbers {
   grid-template-columns: repeat(3, minmax(10rem, 1fr));
 }
@@ -30,6 +39,7 @@
 .pedido-detalle-dialog__field {
   display: grid;
   gap: 0.4rem;
+  min-width: 0;
 }
 
 .pedido-detalle-dialog__field span {
@@ -59,6 +69,14 @@
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
+.pedido-detalle-dialog__material-field {
+  width: 100%;
+}
+
+.pedido-detalle-dialog__field--full {
+  width: 100%;
+}
+
 .input--readonly {
   background: #eef1f4 !important;
   color: var(--text-secondary) !important;
@@ -82,6 +100,59 @@
 .selector-code-button:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.selector-code-button:disabled {
+  border-color: var(--line-soft);
+  background: #d5dae0;
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-form-field-wrapper {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-form-field-outline {
+  color: var(--line-soft);
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-form-field-flex {
+  min-height: 2.9rem;
+  align-items: center;
+  padding: 0 0.85rem;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-form-field-infix {
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem 0;
+  border-top: 0;
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-select-trigger {
+  width: 100%;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-select-value {
+  max-width: 100%;
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-select-value-text {
+  text-overflow: ellipsis;
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field .mat-select-arrow {
+  color: var(--text-secondary);
+}
+
+:host ::ng-deep .pedido-detalle-dialog__material-field.mat-focused .mat-form-field-outline-thick {
+  color: var(--accent);
 }
 
 .pedido-detalle-dialog__error {

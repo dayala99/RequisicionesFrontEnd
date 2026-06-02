@@ -6,6 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActualizarItemRequest, ApiService } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 type DataRecord = Record<string, unknown>;
 
@@ -45,8 +46,8 @@ export class ItemEditDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      itmDes: [data.item.itmDes, [Validators.required, Validators.maxLength(120)]],
-      itmGrp: [data.item.grpDes, Validators.required],
+      itmDes: [data.item.itmDes, [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
+      itmGrp: [data.item.grpDes, [Validators.required, noWhitespaceValidator()]],
       flgEst: [data.item.flgEst || 'A', Validators.required]
     });
 

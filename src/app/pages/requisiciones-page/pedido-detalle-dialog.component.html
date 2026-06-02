@@ -42,16 +42,47 @@
       </label>
     </div>
 
+    <div class="pedido-detalle-dialog__selector-row pedido-detalle-dialog__selector-row--required">
+      <div class="pedido-detalle-dialog__field pedido-detalle-dialog__field--full">
+        <span>Centro de Costo</span>
+        <mat-form-field appearance="outline" class="pedido-detalle-dialog__material-field">
+          <mat-select
+            formControlName="centroCostoId"
+            [disabled]="!data.centrosCosto.length"
+            (selectionChange)="onCentroCostoChange($event.value)">
+            <mat-option [value]="0">Seleccionar centro de costo</mat-option>
+            <mat-option *ngFor="let centroCosto of data.centrosCosto" [value]="centroCosto.id">
+              {{ centroCosto.id }} - {{ centroCosto.descripcion }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        <small *ngIf="!data.centrosCosto.length">No hay centros de costo ligados a este pedido.</small>
+      </div>
+
+      <label class="pedido-detalle-dialog__field">
+        <span>Cantidad requerida</span>
+        <input
+          type="text"
+          class="input--readonly"
+          [value]="formatNumber(cantidadRequeridaCentroCosto)"
+          readonly
+          disabled
+          tabindex="-1">
+      </label>
+    </div>
+
     <div class="pedido-detalle-dialog__numbers">
       <label class="pedido-detalle-dialog__field">
         <span>Cantidad</span>
         <input type="number" min="0" step="0.001" [max]="data.cantidadDisponible" formControlName="quantity">
-        <small>Disponible: {{ formatNumber(data.cantidadDisponible) }}</small>
+        <small>Requerido: {{ formatNumber(cantidadRequeridaCentroCosto) }}</small>
+        <small class="pedido-detalle-dialog__error" *ngIf="form.controls['quantity'].touched && form.controls['quantity'].value <= 0">Campo Cantidad obligatorio.</small>
       </label>
 
       <label class="pedido-detalle-dialog__field">
         <span>Precio Unitario sin IGV</span>
         <input type="number" min="0" step="0.001" formControlName="unitPrice">
+        <small class="pedido-detalle-dialog__error" *ngIf="form.controls['unitPrice'].touched && form.controls['unitPrice'].value <= 0">Campo Precio Unitario obligatorio.</small>
       </label>
 
       <label class="pedido-detalle-dialog__field">

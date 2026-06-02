@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, GrupoItemFiltro, ItemFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { ItemEditDialogComponent } from './item-edit-dialog.component';
 import { ItemRegisterDialogComponent } from './item-register-dialog.component';
 
@@ -30,9 +31,10 @@ interface ItemRow {
 })
 export class ItemPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   items: ItemRow[] = [];
   gruposItem: GrupoItemOption[] = [];
-  selectedItemId: number | null = null;
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
   isGrupoDropdownOpen = false;
@@ -65,13 +67,13 @@ export class ItemPageComponent implements OnInit {
         this.items = this.extractRecords(response)
           .map((item) => this.mapItem(item))
           .sort((left, right) => (left.itmId ?? 0) - (right.itmId ?? 0));
-        this.syncSelectedItem();
+        this.currentPage = normalizePaginationPage(this.currentPage, this.items.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando items:', error);
         this.items = [];
-        this.selectedItemId = null;
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de items. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -104,10 +106,8 @@ export class ItemPageComponent implements OnInit {
     });
   }
 
-  editarItem(): void {
-    const item = this.items.find((currentItem) => currentItem.itmId === this.selectedItemId);
-
-    if (!item || item.itmId === null || item.itmGrp === null) {
+  editarItem(item: ItemRow): void {
+    if (item.itmId === null || item.itmGrp === null) {
       return;
     }
 
@@ -127,16 +127,16 @@ export class ItemPageComponent implements OnInit {
     });
   }
 
-  seleccionarItem(item: ItemRow): void {
-    this.selectedItemId = item.itmId;
-  }
-
-  isSelected(item: ItemRow): boolean {
-    return item.itmId !== null && item.itmId === this.selectedItemId;
-  }
-
   trackByItem(_index: number, item: ItemRow): string {
     return item.itmId !== null ? String(item.itmId) : `${item.itmDes}-${item.itmGrp ?? 'sin-grupo'}`;
+  }
+
+  get paginatedItems(): ItemRow[] {
+    return paginateItems(this.items, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.items.length, this.pageSize);
   }
 
   trackByGrupo(_index: number, grupo: GrupoItemOption): string {
@@ -210,12 +210,6 @@ export class ItemPageComponent implements OnInit {
         this.gruposItem = [];
       }
     });
-  }
-
-  private syncSelectedItem(): void {
-    if (!this.items.some((item) => item.itmId === this.selectedItemId)) {
-      this.selectedItemId = this.items[0]?.itmId ?? null;
-    }
   }
 
   private getFiltros(): ItemFiltro {

@@ -10,14 +10,6 @@
       <button type="button" class="grupo-item-card__create" (click)="registrarGrupoItem()">
         Nuevo
       </button>
-
-      <button
-        type="button"
-        class="grupo-item-card__edit"
-        [disabled]="selectedGrupoItemId === null || isLoading"
-        (click)="editarGrupoItem()">
-        Modificar
-      </button>
     </div>
   </header>
 
@@ -73,14 +65,12 @@
           <th>ID</th>
           <th>Descripcion</th>
           <th>Estado</th>
+          <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        <tr
-          *ngFor="let grupoItem of gruposItem; trackBy: trackByGrupoItem"
-          [class.is-selected]="isSelected(grupoItem)"
-          (click)="seleccionarGrupoItem(grupoItem)">
+        <tr *ngFor="let grupoItem of paginatedGruposItem; trackBy: trackByGrupoItem">
           <td>{{ grupoItem.grpId ?? '-' }}</td>
           <td>{{ grupoItem.grpDes || '-' }}</td>
           <td>
@@ -88,8 +78,26 @@
               {{ grupoItem.estado }}
             </span>
           </td>
+          <td>
+            <button
+              type="button"
+              class="table-action"
+              aria-label="Editar grupo de item"
+              [disabled]="grupoItem.grpId === null"
+              (click)="editarGrupoItem(grupoItem)">
+              &#9998;
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="gruposItem.length"
+    [totalItems]="gruposItem.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>

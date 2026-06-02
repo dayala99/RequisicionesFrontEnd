@@ -10,26 +10,33 @@
       <label class="provider-dialog__field">
         <span>Nombre</span>
         <input type="text" formControlName="prvNom">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvNom'].touched && (form.controls['prvNom'].hasError('required') || form.controls['prvNom'].hasError('whitespace'))">Campo Nombre obligatorio.</small>
       </label>
 
       <label class="provider-dialog__field">
         <span>RUC</span>
         <input type="text" formControlName="prvRuc">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvRuc'].touched && (form.controls['prvRuc'].hasError('required') || form.controls['prvRuc'].hasError('whitespace'))">Campo RUC obligatorio.</small>
+        <small class="provider-dialog__error" *ngIf="form.controls['prvRuc'].touched && form.controls['prvRuc'].hasError('pattern')">Debe tener 11 digitos.</small>
       </label>
 
       <label class="provider-dialog__field">
         <span>Telefono</span>
         <input type="text" formControlName="prvTel">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvTel'].touched && (form.controls['prvTel'].hasError('required') || form.controls['prvTel'].hasError('whitespace'))">Campo Telefono obligatorio.</small>
+        <small class="provider-dialog__error" *ngIf="form.controls['prvTel'].touched && form.controls['prvTel'].hasError('pattern')">Formato invalido.</small>
       </label>
 
       <label class="provider-dialog__field">
         <span>Nombre Contacto</span>
         <input type="text" formControlName="prvNomCon">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvNomCon'].touched && (form.controls['prvNomCon'].hasError('required') || form.controls['prvNomCon'].hasError('whitespace'))">Campo Nombre Contacto obligatorio.</small>
       </label>
 
       <label class="provider-dialog__field">
         <span>Email</span>
         <input type="email" formControlName="prvEmail">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvEmail'].touched && form.controls['prvEmail'].hasError('email')">Correo invalido.</small>
       </label>
 
       <label class="provider-dialog__field">
@@ -44,16 +51,21 @@
       <label class="provider-dialog__field">
         <span>Nro. Cuenta Bancaria</span>
         <input type="text" formControlName="prvNroCueBan">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvNroCueBan'].touched && (form.controls['prvNroCueBan'].hasError('required') || form.controls['prvNroCueBan'].hasError('whitespace'))">Campo Nro. Cuenta Bancaria obligatorio.</small>
+        <small class="provider-dialog__error" *ngIf="form.controls['prvNroCueBan'].touched && form.controls['prvNroCueBan'].hasError('pattern')">Solo numeros.</small>
       </label>
 
       <label class="provider-dialog__field">
         <span>CCI</span>
         <input type="text" formControlName="prvNroCueBanCci">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvNroCueBanCci'].touched && (form.controls['prvNroCueBanCci'].hasError('required') || form.controls['prvNroCueBanCci'].hasError('whitespace'))">Campo CCI obligatorio.</small>
+        <small class="provider-dialog__error" *ngIf="form.controls['prvNroCueBanCci'].touched && form.controls['prvNroCueBanCci'].hasError('pattern')">Solo numeros.</small>
       </label>
 
       <label class="provider-dialog__field provider-dialog__field--full">
         <span>Direccion</span>
         <input type="text" formControlName="prvDir">
+        <small class="provider-dialog__error" *ngIf="form.controls['prvDir'].touched && (form.controls['prvDir'].hasError('required') || form.controls['prvDir'].hasError('whitespace'))">Campo Direccion obligatorio.</small>
       </label>
     </div>
 

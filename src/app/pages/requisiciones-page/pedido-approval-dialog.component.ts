@@ -45,8 +45,7 @@ export class PedidoApprovalDialogComponent {
         return 'P';
       case 'aprobado':
         return 'A';
-      case 'observado':
-        return 'O';
+      case 'cancelado':
       case 'cerrado':
         return 'C';
       default:

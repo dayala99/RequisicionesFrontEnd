@@ -10,14 +10,6 @@
       <button type="button" class="unidad-medida-card__create" (click)="registrarUnidadMedida()">
         Nuevo
       </button>
-
-      <button
-        type="button"
-        class="unidad-medida-card__edit"
-        [disabled]="selectedUnidadMedidaId === null || isLoading"
-        (click)="editarUnidadMedida()">
-        Modificar
-      </button>
     </div>
   </header>
 
@@ -74,14 +66,12 @@
           <th>Descripcion</th>
           <th>Abreviatura</th>
           <th>Estado</th>
+          <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        <tr
-          *ngFor="let unidadMedida of unidadesMedida; trackBy: trackByUnidadMedida"
-          [class.is-selected]="isSelected(unidadMedida)"
-          (click)="seleccionarUnidadMedida(unidadMedida)">
+        <tr *ngFor="let unidadMedida of paginatedUnidadesMedida; trackBy: trackByUnidadMedida">
           <td>{{ unidadMedida.uniMedId ?? '-' }}</td>
           <td>{{ unidadMedida.uniMedDes || '-' }}</td>
           <td>{{ unidadMedida.uniMedAbr || '-' }}</td>
@@ -90,8 +80,26 @@
               {{ unidadMedida.estado }}
             </span>
           </td>
+          <td>
+            <button
+              type="button"
+              class="table-action"
+              aria-label="Editar unidad de medida"
+              [disabled]="unidadMedida.uniMedId === null"
+              (click)="editarUnidadMedida(unidadMedida)">
+              &#9998;
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="unidadesMedida.length"
+    [totalItems]="unidadesMedida.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>

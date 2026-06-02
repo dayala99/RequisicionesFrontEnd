@@ -57,7 +57,6 @@ describe('GrupoItemPageComponent', () => {
   it('should load grupos de item on init', () => {
     expect(apiServiceMock.getListarGrupoItem).toHaveBeenCalledWith({ Flg_Est: 'A' });
     expect(component.gruposItem.length).toBe(2);
-    expect(component.selectedGrupoItemId).toBe(1);
   });
 
   it('should search grupos de item using ID, descripcion and estado filters', () => {
@@ -104,10 +103,8 @@ describe('GrupoItemPageComponent', () => {
     }));
   });
 
-  it('should open edit dialog for selected row', () => {
-    component.selectedGrupoItemId = 2;
-
-    component.editarGrupoItem();
+  it('should open edit dialog for the provided row', () => {
+    component.editarGrupoItem(component.gruposItem[1]);
 
     expect(matDialogMock.open).toHaveBeenCalledWith(GrupoItemEditDialogComponent, jasmine.objectContaining({
       data: {

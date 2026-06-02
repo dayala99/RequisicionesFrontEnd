@@ -80,7 +80,7 @@
       </thead>
 
       <tbody>
-        <tr *ngFor="let usuario of usuarios; trackBy: trackByUsuario">
+        <tr *ngFor="let usuario of paginatedUsuarios; trackBy: trackByUsuario">
           <td>{{ usuario.usrId ?? '-' }}</td>
           <td>{{ usuario.usrCod || '-' }}</td>
           <td>{{ usuario.usrNom || '-' }}</td>
@@ -99,4 +99,12 @@
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="usuarios.length"
+    [totalItems]="usuarios.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>

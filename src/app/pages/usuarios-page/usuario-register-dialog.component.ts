@@ -6,6 +6,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { ApiService, RegistrarUsuarioRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator, optionalPatternValidator } from 'src/app/shared/validators/form-validators';
 
 @Component({
   selector: 'app-usuario-register-dialog',
@@ -24,9 +25,8 @@ export class UsuarioRegisterDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      usrCod: ['', [Validators.required, Validators.maxLength(50)]],
-      usrNom: ['', [Validators.required, Validators.maxLength(120)]],
-      flgEst: ['A', Validators.required]
+      usrCod: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(50), optionalPatternValidator(/^[A-Za-z0-9._-]+$/)]],
+      usrNom: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]]
     });
   }
 
@@ -42,7 +42,6 @@ export class UsuarioRegisterDialogComponent {
     const values = this.form.value as {
       usrCod: string;
       usrNom: string;
-      flgEst: string;
     };
     const usuarioRegistro = this.getUsuarioRegistro();
     const currentIsoDate = new Date().toISOString();
@@ -50,7 +49,7 @@ export class UsuarioRegisterDialogComponent {
       Usr_Id: '0',
       Usr_Cod: values.usrCod.trim(),
       Usr_Nom: values.usrNom.trim(),
-      Flg_Est: values.flgEst,
+      Flg_Est: 'A',
       Usr_Reg: usuarioRegistro,
       Fec_Reg: currentIsoDate,
       Usr_Mod: usuarioRegistro,

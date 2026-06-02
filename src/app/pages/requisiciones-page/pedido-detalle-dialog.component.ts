@@ -2,6 +2,7 @@ import { Component, Inject } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 
+import { CentroCostoOption } from './centro-costo-selector-dialog.component';
 import { PedidoDetalleItemSelectorDialogComponent } from './pedido-detalle-item-selector-dialog.component';
 import { PedidoDetalleUnidadSelectorDialogComponent } from './pedido-detalle-unidad-selector-dialog.component';
 import { PedidoDetalleDialogValue, PedidoDetalleItemOption, PedidoDetalleUnidadOption } from './pedido-detalle-dialog.models';
@@ -12,6 +13,7 @@ export interface PedidoDetalleDialogData {
   moneda: string;
   cantidadDisponible: number;
   isEditing: boolean;
+  centrosCosto: CentroCostoOption[];
   items: PedidoDetalleItemOption[];
   units: PedidoDetalleUnidadOption[];
   initialValue?: Partial<PedidoDetalleDialogValue>;
@@ -37,6 +39,9 @@ export class PedidoDetalleDialogComponent {
       itemDescription: [String(data.initialValue?.itemDescription ?? '').trim()],
       unitCode: [String(data.initialValue?.unitCode ?? '').trim()],
       unitDescription: [String(data.initialValue?.unitDescription ?? '').trim()],
+      centroCostoId: [Number(data.initialValue?.centroCostoId ?? 0)],
+      centroCostoDescripcion: [String(data.initialValue?.centroCostoDescripcion ?? '').trim()],
+      centroCostoCantidadRequerida: [this.normalizeDecimal(Number(data.initialValue?.centroCostoCantidadRequerida ?? 0))],
       quantity: [this.normalizeDecimal(Number(data.initialValue?.quantity ?? 0))],
       unitPrice: [this.normalizeDecimal(Number(data.initialValue?.unitPrice ?? 0))]
     });
@@ -55,7 +60,13 @@ export class PedidoDetalleDialogComponent {
   }
 
   get unitButtonLabel(): string {
-    return String(this.form.controls['unitCode'].value ?? '').trim() || 'Seleccionar unidad';
+    const unitCode = String(this.form.controls['unitCode'].value ?? '').trim();
+
+    if (!unitCode) {
+      return 'Seleccionar unidad';
+    }
+
+    return unitCode;
   }
 
   formatNumber(value: number): string {
@@ -63,6 +74,10 @@ export class PedidoDetalleDialogComponent {
       minimumFractionDigits: 0,
       maximumFractionDigits: 3
     }).format(value);
+  }
+
+  get cantidadRequeridaCentroCosto(): number {
+    return this.normalizeDecimal(Number(this.form.controls['centroCostoCantidadRequerida'].value ?? 0));
   }
 
   openItemSelectorDialog(): void {
@@ -110,11 +125,25 @@ export class PedidoDetalleDialogComponent {
       }
 
       this.form.patchValue({
-        unitCode: selectedUnit.code,
+        unitCode: String(selectedUnit.id),
         unitDescription: selectedUnit.description
       });
       this.errorMessage = '';
     });
+  }
+
+  onCentroCostoChange(centroCostoIdRaw: number | string): void {
+    const centroCostoId = Number(centroCostoIdRaw);
+    const centroCosto = this.data.centrosCosto.find((option) => option.id === centroCostoId);
+    const cantidadRequerida = this.normalizeDecimal(Number(centroCosto?.cantidadRequerida ?? 0));
+
+    this.form.patchValue({
+      centroCostoId,
+      centroCostoDescripcion: centroCosto?.descripcion || '',
+      centroCostoCantidadRequerida: cantidadRequerida,
+      quantity: cantidadRequerida > 0 ? cantidadRequerida : this.normalizeDecimal(Number(this.form.controls['quantity'].value ?? 0))
+    });
+    this.errorMessage = '';
   }
 
   save(): void {
@@ -122,6 +151,11 @@ export class PedidoDetalleDialogComponent {
     const itemDescription = String(this.form.controls['itemDescription'].value ?? '').trim();
     const unitCode = String(this.form.controls['unitCode'].value ?? '').trim();
     const unitDescription = String(this.form.controls['unitDescription'].value ?? '').trim();
+    const centroCostoId = Number(this.form.controls['centroCostoId'].value ?? 0);
+    const centroCostoSeleccionado = this.data.centrosCosto.find((option) => option.id === centroCostoId);
+    const centroCostoDescripcion = centroCostoSeleccionado?.descripcion
+      || String(this.form.controls['centroCostoDescripcion'].value ?? '').trim();
+    const centroCostoCantidadRequerida = this.normalizeDecimal(Number(centroCostoSeleccionado?.cantidadRequerida ?? this.form.controls['centroCostoCantidadRequerida'].value ?? 0));
     const quantity = this.normalizeDecimal(Number(this.form.controls['quantity'].value));
     const unitPrice = this.normalizeDecimal(Number(this.form.controls['unitPrice'].value));
 
@@ -135,8 +169,28 @@ export class PedidoDetalleDialogComponent {
       return;
     }
 
+    if (!this.data.isEditing && !this.data.centrosCosto.length) {
+      this.errorMessage = 'No hay centros de costo ligados al pedido seleccionado.';
+      return;
+    }
+
+    if (!this.data.isEditing && (!Number.isInteger(centroCostoId) || centroCostoId <= 0)) {
+      this.errorMessage = 'Selecciona un centro de costo ligado al pedido.';
+      return;
+    }
+
+    if (!this.data.isEditing && centroCostoCantidadRequerida <= 0) {
+      this.errorMessage = 'El centro de costo seleccionado no tiene una cantidad requerida valida.';
+      return;
+    }
+
     if (quantity <= 0) {
       this.errorMessage = 'La cantidad debe ser mayor a cero.';
+      return;
+    }
+
+    if (!this.data.isEditing && quantity !== centroCostoCantidadRequerida) {
+      this.errorMessage = `La cantidad debe coincidir exactamente con la cantidad requerida del centro de costo: ${this.formatNumber(centroCostoCantidadRequerida)}.`;
       return;
     }
 
@@ -145,8 +199,13 @@ export class PedidoDetalleDialogComponent {
       return;
     }
 
-    if (unitPrice < 0) {
-      this.errorMessage = 'El precio unitario no puede ser negativo.';
+    if (unitPrice <= 0) {
+      this.errorMessage = 'El precio unitario debe ser mayor a cero.';
+      return;
+    }
+
+    if (this.subtotal <= 0) {
+      this.errorMessage = 'El subtotal debe ser mayor a cero.';
       return;
     }
 
@@ -155,6 +214,9 @@ export class PedidoDetalleDialogComponent {
       itemDescription,
       unitCode,
       unitDescription,
+      centroCostoId,
+      centroCostoDescripcion,
+      centroCostoCantidadRequerida,
       quantity,
       unitPrice
     } as PedidoDetalleDialogValue);
@@ -167,6 +229,7 @@ export class PedidoDetalleDialogComponent {
   private resolveInitialLabels(): void {
     const itemCode = String(this.form.controls['itemCode'].value ?? '').trim();
     const unitCode = String(this.form.controls['unitCode'].value ?? '').trim();
+    const centroCostoId = Number(this.form.controls['centroCostoId'].value ?? 0);
 
     if (itemCode && !String(this.form.controls['itemDescription'].value ?? '').trim()) {
       const item = this.data.items.find((option) => option.code === itemCode);
@@ -184,6 +247,17 @@ export class PedidoDetalleDialogComponent {
       if (unit) {
         this.form.patchValue({
           unitDescription: unit.description
+        });
+      }
+    }
+
+    if (Number.isInteger(centroCostoId) && centroCostoId > 0 && !String(this.form.controls['centroCostoDescripcion'].value ?? '').trim()) {
+      const centroCosto = this.data.centrosCosto.find((option) => option.id === centroCostoId);
+
+      if (centroCosto) {
+        this.form.patchValue({
+          centroCostoDescripcion: centroCosto.descripcion,
+          centroCostoCantidadRequerida: this.normalizeDecimal(Number(centroCosto.cantidadRequerida ?? 0))
         });
       }
     }

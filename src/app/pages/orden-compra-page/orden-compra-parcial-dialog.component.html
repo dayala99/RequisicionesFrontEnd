@@ -1,0 +1,15 @@
+<h2 mat-dialog-title>Orden de compra parcial</h2>
+
+<div mat-dialog-content class="orden-compra-parcial-dialog__content">
+  <p>¿La orden de compra que vas a trabajar es parcial?</p>
+  <small>
+    Si eliges <strong>Si</strong>, podras seleccionar manualmente los centros de costo. Si eliges <strong>No</strong>,
+    la orden aplicara a toda la grilla.
+  </small>
+</div>
+
+<div mat-dialog-actions align="end" class="orden-compra-parcial-dialog__actions">
+  <button mat-stroked-button type="button" (click)="close()">Cancelar</button>
+  <button mat-stroked-button color="primary" type="button" (click)="seleccionarModo(false)">No</button>
+  <button mat-flat-button color="primary" type="button" (click)="seleccionarModo(true)">Si</button>
+</div>

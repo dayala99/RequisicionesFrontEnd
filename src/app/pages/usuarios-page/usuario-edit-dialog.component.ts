@@ -6,6 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ActualizarUsuarioRequest, ApiService } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator, optionalPatternValidator } from 'src/app/shared/validators/form-validators';
 
 interface UsuarioEditData {
   usuario: {
@@ -34,8 +35,8 @@ export class UsuarioEditDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      usrCod: [data.usuario.usrCod, [Validators.required, Validators.maxLength(50)]],
-      usrNom: [data.usuario.usrNom, [Validators.required, Validators.maxLength(120)]],
+      usrCod: [data.usuario.usrCod, [Validators.required, noWhitespaceValidator(), Validators.maxLength(50), optionalPatternValidator(/^[A-Za-z0-9._-]+$/)]],
+      usrNom: [data.usuario.usrNom, [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
       flgEst: [data.usuario.flgEst || 'A', Validators.required]
     });
   }

@@ -6,6 +6,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { ApiService, RegistrarUnidadMedidaRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 @Component({
   selector: 'app-unidad-medida-register-dialog',
@@ -24,8 +25,8 @@ export class UnidadMedidaRegisterDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      uniMedDes: ['', [Validators.required, Validators.maxLength(120)]],
-      uniMedAbr: ['', [Validators.required, Validators.maxLength(15)]]
+      uniMedDes: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
+      uniMedAbr: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(15)]]
     });
   }
 

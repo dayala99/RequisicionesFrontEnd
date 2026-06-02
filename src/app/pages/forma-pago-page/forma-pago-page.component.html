@@ -10,14 +10,6 @@
       <button type="button" class="forma-pago-card__create" (click)="registrarFormaPago()">
         Nuevo
       </button>
-
-      <button
-        type="button"
-        class="forma-pago-card__edit"
-        [disabled]="selectedFormaPagoId === null || isLoading"
-        (click)="editarFormaPago()">
-        Modificar
-      </button>
     </div>
   </header>
 
@@ -63,7 +55,7 @@
   </div>
 
   <div *ngIf="!isLoading && !errorMessage && !formasPago.length" class="state-card">
-    No hay formas de pago para mostrar.
+    {{ emptyStateMessage }}
   </div>
 
   <div *ngIf="formasPago.length" class="table-shell">
@@ -73,14 +65,12 @@
           <th>ID</th>
           <th>Descripcion</th>
           <th>Estado</th>
+          <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        <tr
-          *ngFor="let formaPago of formasPago; trackBy: trackByFormaPago"
-          [class.is-selected]="isSelected(formaPago)"
-          (click)="seleccionarFormaPago(formaPago)">
+        <tr *ngFor="let formaPago of paginatedFormasPago; trackBy: trackByFormaPago">
           <td>{{ formaPago.forPagId ?? '-' }}</td>
           <td>{{ formaPago.forPagDes || '-' }}</td>
           <td>
@@ -88,8 +78,26 @@
               {{ formaPago.estado }}
             </span>
           </td>
+          <td>
+            <button
+              type="button"
+              class="table-action"
+              aria-label="Editar forma de pago"
+              [disabled]="formaPago.forPagId === null"
+              (click)="editarFormaPago(formaPago)">
+              &#9998;
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="formasPago.length"
+    [totalItems]="formasPago.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>

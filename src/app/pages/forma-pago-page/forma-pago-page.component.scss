@@ -43,7 +43,6 @@
 }
 
 .forma-pago-card__create,
-.forma-pago-card__edit,
 .forma-pago-filters__search,
 .forma-pago-filters__clear {
   min-height: 2.75rem;
@@ -61,13 +60,6 @@
   color: #ffffff;
 }
 
-.forma-pago-card__edit {
-  border: 1px solid var(--line-strong);
-  background: var(--surface-accent);
-  color: var(--accent-strong);
-}
-
-.forma-pago-card__edit:disabled,
 .forma-pago-card__create:disabled,
 .forma-pago-filters__search:disabled {
   opacity: 0.6;
@@ -172,19 +164,6 @@
   font-weight: 800;
 }
 
-.forma-pago-table tbody tr {
-  cursor: pointer;
-  transition: background-color 0.18s ease;
-}
-
-.forma-pago-table tbody tr:hover {
-  background: var(--surface-soft);
-}
-
-.forma-pago-table tbody tr.is-selected {
-  background: var(--surface-accent);
-}
-
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -201,6 +180,29 @@
 .status-pill--inactive {
   background: var(--surface-soft);
   color: var(--text-primary);
+}
+
+.table-action {
+  display: inline-grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.table-action:hover {
+  background: var(--surface-accent);
+}
+
+.table-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 @media screen and (max-width: 700px) {

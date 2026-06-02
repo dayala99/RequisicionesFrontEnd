@@ -17,6 +17,9 @@ export interface PedidoDetalleDialogValue {
   itemDescription: string;
   unitCode: string;
   unitDescription: string;
+  centroCostoId: number;
+  centroCostoDescripcion: string;
+  centroCostoCantidadRequerida: number;
   quantity: number;
   unitPrice: number;
 }

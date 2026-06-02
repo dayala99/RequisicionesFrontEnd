@@ -3,6 +3,8 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, ProveedoresFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
+import { formatDisplayDate } from 'src/app/shared/utils/date.utils';
 import { ProviderEditDialogComponent } from './provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './provider-register-dialog.component';
 
@@ -35,7 +37,9 @@ type DataRecord = Record<string, unknown>;
 })
 export class ProviderPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   proveedores: ProviderRow[] = [];
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
 
@@ -66,11 +70,13 @@ export class ProviderPageComponent implements OnInit {
         this.proveedores = this.extractRecords(response)
           .map((item) => this.mapProveedor(item))
           .sort((left, right) => this.compareProviderById(left, right));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.proveedores.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando proveedores:', error);
         this.proveedores = [];
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de proveedores. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -136,6 +142,14 @@ export class ProviderPageComponent implements OnInit {
 
   trackByProveedor(_index: number, proveedor: ProviderRow): string {
     return proveedor.prvId !== null ? String(proveedor.prvId) : proveedor.prvRuc;
+  }
+
+  get paginatedProveedores(): ProviderRow[] {
+    return paginateItems(this.proveedores, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.proveedores.length, this.pageSize);
   }
 
   private compareProviderById(left: ProviderRow, right: ProviderRow): number {
@@ -219,7 +233,7 @@ export class ProviderPageComponent implements OnInit {
     const prvNroCueBan = this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']);
     const prvNroCueBanCci = this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci']);
     const prvBan = this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan']);
-    const fecha = this.formatDateValue(this.getTextValue(item, [
+    const fecha = formatDisplayDate(this.getTextValue(item, [
       'Fecha',
       'fecha',
       'Fec_Reg',
@@ -280,36 +294,6 @@ export class ProviderPageComponent implements OnInit {
     }
 
     return null;
-  }
-
-  private formatDateValue(value: string): string {
-    if (!value) {
-      return '';
-    }
-
-    const datePart = value.trim().split('T')[0].split(' ')[0];
-    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(datePart);
-
-    if (isoMatch) {
-      return `${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}-${isoMatch[1]}`;
-    }
-
-    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(datePart);
-
-    if (separatedMatch) {
-      return `${separatedMatch[1].padStart(2, '0')}-${separatedMatch[2].padStart(2, '0')}-${separatedMatch[3]}`;
-    }
-
-    const parsedDate = new Date(value);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return value;
-    }
-
-    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(parsedDate.getDate()).padStart(2, '0');
-
-    return `${month}-${day}-${parsedDate.getFullYear()}`;
   }
 
   private isDataRecord(value: unknown): value is DataRecord {

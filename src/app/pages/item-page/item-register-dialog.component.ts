@@ -6,6 +6,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { ApiService, RegistrarItemRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { GlobalVariable } from 'src/app/VarGlobals';
+import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 type DataRecord = Record<string, unknown>;
 
@@ -34,8 +35,8 @@ export class ItemRegisterDialogComponent {
     private readonly authService: AuthService
   ) {
     this.form = this.formBuilder.group({
-      itmDes: ['', [Validators.required, Validators.maxLength(120)]],
-      itmGrp: ['', Validators.required]
+      itmDes: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
+      itmGrp: ['', [Validators.required, noWhitespaceValidator()]]
     });
 
     this.cargarGruposActivos();

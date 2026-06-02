@@ -177,24 +177,26 @@
 }
 
 .sidebar_group_links {
-  max-height: 0;
+  display: grid;
+  grid-template-rows: 0fr;
   overflow: hidden;
   opacity: 0;
-  transition: max-height 0.22s ease, opacity 0.18s ease;
+  transition: grid-template-rows 0.22s ease, opacity 0.18s ease;
 }
 
 .sidebar_group_links--open {
-  max-height: 28rem;
+  grid-template-rows: 1fr;
   opacity: 1;
 }
 
 .sidebar_group_links_inner {
   display: grid;
+  min-height: 0;
 }
 
 .sidebar_link--nested {
-  padding-left: 1.1rem;
-  font-size: 0.96rem;
+  padding: 0.8rem 0.25rem 0.8rem 1.1rem;
+  font-size: 0.93rem;
 }
 
 @media screen and (max-width: 960px) {

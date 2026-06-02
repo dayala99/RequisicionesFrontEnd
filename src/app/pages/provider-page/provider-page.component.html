@@ -93,7 +93,7 @@
         </thead>
 
         <tbody>
-          <tr *ngFor="let proveedor of proveedores; trackBy: trackByProveedor">
+          <tr *ngFor="let proveedor of paginatedProveedores; trackBy: trackByProveedor">
             <td>{{ proveedor.prvId ?? '-' }}</td>
             <td>{{ proveedor.prvNom || '-' }}</td>
             <td>{{ proveedor.prvRuc || '-' }}</td>
@@ -119,5 +119,13 @@
         </tbody>
       </table>
     </div>
+
+    <app-grid-pagination
+      *ngIf="proveedores.length"
+      [totalItems]="proveedores.length"
+      [currentPage]="currentPage"
+      [pageSize]="pageSize"
+      (pageChange)="onPageChange($event)">
+    </app-grid-pagination>
   </section>
 </section>

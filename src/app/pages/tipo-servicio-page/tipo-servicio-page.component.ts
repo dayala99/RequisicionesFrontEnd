@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, TipoServicioFiltro } from 'src/app/Services/api.services';
+import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { TipoServicioEditDialogComponent } from './tipo-servicio-edit-dialog.component';
 import { TipoServicioRegisterDialogComponent } from './tipo-servicio-register-dialog.component';
 
@@ -23,8 +24,9 @@ interface TipoServicioRow {
 })
 export class TipoServicioPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
+  readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   tiposServicio: TipoServicioRow[] = [];
-  selectedTipoServicioId: number | null = null;
+  currentPage = 1;
   isLoading = false;
   errorMessage = '';
 
@@ -54,13 +56,13 @@ export class TipoServicioPageComponent implements OnInit {
         this.tiposServicio = this.extractRecords(response)
           .map((item) => this.mapTipoServicio(item))
           .sort((left, right) => (left.tipSerId ?? 0) - (right.tipSerId ?? 0));
-        this.syncSelectedTipoServicio();
+        this.currentPage = normalizePaginationPage(this.currentPage, this.tiposServicio.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
         console.error('Error cargando tipos de servicio:', error);
         this.tiposServicio = [];
-        this.selectedTipoServicioId = null;
+        this.currentPage = 1;
         this.errorMessage = 'No se pudo cargar la informacion de tipos de servicio. Intenta nuevamente.';
         this.isLoading = false;
       }
@@ -92,10 +94,8 @@ export class TipoServicioPageComponent implements OnInit {
     });
   }
 
-  editarTipoServicio(): void {
-    const tipoServicio = this.tiposServicio.find((item) => item.tipSerId === this.selectedTipoServicioId);
-
-    if (!tipoServicio || tipoServicio.tipSerId === null) {
+  editarTipoServicio(tipoServicio: TipoServicioRow): void {
+    if (tipoServicio.tipSerId === null) {
       return;
     }
 
@@ -115,16 +115,16 @@ export class TipoServicioPageComponent implements OnInit {
     });
   }
 
-  seleccionarTipoServicio(tipoServicio: TipoServicioRow): void {
-    this.selectedTipoServicioId = tipoServicio.tipSerId;
-  }
-
-  isSelected(tipoServicio: TipoServicioRow): boolean {
-    return tipoServicio.tipSerId !== null && tipoServicio.tipSerId === this.selectedTipoServicioId;
-  }
-
   trackByTipoServicio(_index: number, tipoServicio: TipoServicioRow): string {
     return tipoServicio.tipSerId !== null ? String(tipoServicio.tipSerId) : tipoServicio.tipSerDes;
+  }
+
+  get paginatedTiposServicio(): TipoServicioRow[] {
+    return paginateItems(this.tiposServicio, this.currentPage, this.pageSize);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = normalizePaginationPage(page, this.tiposServicio.length, this.pageSize);
   }
 
   sanitizeCodigoInput(event: Event): void {
@@ -139,12 +139,6 @@ export class TipoServicioPageComponent implements OnInit {
     if (sanitizedValue !== input.value) {
       input.value = sanitizedValue;
       this.filtersForm.controls['codigo'].setValue(sanitizedValue, { emitEvent: false });
-    }
-  }
-
-  private syncSelectedTipoServicio(): void {
-    if (!this.tiposServicio.some((item) => item.tipSerId === this.selectedTipoServicioId)) {
-      this.selectedTipoServicioId = this.tiposServicio[0]?.tipSerId ?? null;
     }
   }
 

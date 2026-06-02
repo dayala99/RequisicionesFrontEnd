@@ -7,11 +7,13 @@
     <label class="unidad-medida-dialog__field">
       <span>Descripcion</span>
       <input type="text" formControlName="uniMedDes" maxlength="120">
+      <small class="unidad-medida-dialog__error" *ngIf="form.controls['uniMedDes'].touched && (form.controls['uniMedDes'].hasError('required') || form.controls['uniMedDes'].hasError('whitespace'))">Campo Descripcion obligatorio.</small>
     </label>
 
     <label class="unidad-medida-dialog__field">
       <span>Abreviatura</span>
       <input type="text" formControlName="uniMedAbr" maxlength="15">
+      <small class="unidad-medida-dialog__error" *ngIf="form.controls['uniMedAbr'].touched && (form.controls['uniMedAbr'].hasError('required') || form.controls['uniMedAbr'].hasError('whitespace'))">Campo Abreviatura obligatorio.</small>
     </label>
 
     <p *ngIf="errorMessage" class="unidad-medida-dialog__error">{{ errorMessage }}</p>

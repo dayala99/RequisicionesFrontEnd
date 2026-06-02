@@ -10,14 +10,6 @@
       <button type="button" class="item-card__create" (click)="registrarItem()">
         Nuevo
       </button>
-
-      <button
-        type="button"
-        class="item-card__edit"
-        [disabled]="selectedItemId === null || isLoading"
-        (click)="editarItem()">
-        Modificar
-      </button>
     </div>
   </header>
 
@@ -104,14 +96,12 @@
           <th>Descripcion</th>
           <th>Grupo</th>
           <th>Estado</th>
+          <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        <tr
-          *ngFor="let item of items; trackBy: trackByItem"
-          [class.is-selected]="isSelected(item)"
-          (click)="seleccionarItem(item)">
+        <tr *ngFor="let item of paginatedItems; trackBy: trackByItem">
           <td>{{ item.itmId ?? '-' }}</td>
           <td>{{ item.itmDes || '-' }}</td>
           <td>{{ item.grpDes || '-' }}</td>
@@ -120,8 +110,26 @@
               {{ item.estado }}
             </span>
           </td>
+          <td>
+            <button
+              type="button"
+              class="table-action"
+              aria-label="Editar item"
+              [disabled]="item.itmId === null || item.itmGrp === null"
+              (click)="editarItem(item)">
+              &#9998;
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <app-grid-pagination
+    *ngIf="items.length"
+    [totalItems]="items.length"
+    [currentPage]="currentPage"
+    [pageSize]="pageSize"
+    (pageChange)="onPageChange($event)">
+  </app-grid-pagination>
 </section>
