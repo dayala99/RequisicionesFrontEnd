@@ -17,7 +17,6 @@
           class="button"
           [class.button--primary]="action !== 'Cerrar'"
           [class.button--secondary]="action === 'Cerrar'"
-          [disabled]="action === 'Modificar' && !canModifySelectedOrdenCompra"
           (click)="ejecutarAccion(action)">
           {{ action }}
         </button>
@@ -67,16 +66,17 @@
               <th>Referencia</th>
               <th>Total</th>
               <th>Estado</th>
+              <th>Accion</th>
             </tr>
           </thead>
 
           <tbody>
             <tr *ngIf="isLoadingOrdenesCompra">
-              <td colspan="7" class="empty-row">Cargando ordenes de compra registradas...</td>
+              <td colspan="8" class="empty-row">Cargando ordenes de compra registradas...</td>
             </tr>
 
             <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !ordenesCompra.length">
-              <td colspan="7" class="empty-row">No se encontraron ordenes de compra.</td>
+              <td colspan="8" class="empty-row">No se encontraron ordenes de compra.</td>
             </tr>
 
             <tr
@@ -91,6 +91,18 @@
               <td>{{ item.referencia || '-' }}</td>
               <td>{{ formatCurrency(item.total) }}</td>
               <td>{{ item.estado }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="icon-button"
+                  aria-label="Editar orden de compra"
+                  [disabled]="!item.canEdit"
+                  (click)="editarOrdenCompraDesdeFila(item); $event.stopPropagation()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 20h4.75L19.81 8.94a1.5 1.5 0 0 0 0-2.12l-2.63-2.63a1.5 1.5 0 0 0-2.12 0L4 15.25V20zm3.5-1.5H5.5v-2l9.66-9.66 2 2L7.5 18.5z"/>
+                  </svg>
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -148,24 +160,43 @@
           <input type="text" formControlName="referencia">
         </label>
 
-        <label class="field field--full">
-          <span>Observacion</span>
-          <textarea formControlName="observacion"></textarea>
-        </label>
+        <div class="editor-attachments-layout field--full">
+          <label class="field">
+            <span>Observacion</span>
+            <textarea formControlName="observacion"></textarea>
+          </label>
+
+          <div class="attachment-panel attachment-panel--orden-compra">
+            <input #ordenCompraFileInput type="file" style="display:none" (change)="onOrdenCompraFileSelected($event)">
+
+            <div class="attachment-panel__actions">
+              <button type="button" class="button button--secondary" (click)="ordenCompraFileInput.click()">Agregar</button>
+              <button type="button" class="button button--secondary" (click)="verOrdenCompraArchivo()">Ver</button>
+              <button type="button" class="button button--secondary" (click)="quitarOrdenCompraArchivo(ordenCompraFileInput)">Quitar</button>
+            </div>
+
+            <label class="field">
+              <span>Archivo</span>
+              <input type="text" formControlName="archivo" class="input--readonly" readonly>
+            </label>
+
+            <p class="attachment-panel__hint">{{ ordenCompraArchivoAdjunto }}</p>
+          </div>
+        </div>
 
         <label class="field">
           <span>Subtotal</span>
-          <input type="text" formControlName="subtotal" class="input--readonly" readonly>
+          <input type="text" formControlName="subtotal" inputmode="decimal" (input)="onMontoInput('subtotal', $event)">
         </label>
 
         <label class="field">
           <span>IGV</span>
-          <input type="text" formControlName="igv" class="input--readonly" readonly>
+          <input type="text" formControlName="igv" inputmode="decimal" (input)="onMontoInput('igv', $event)">
         </label>
 
         <label class="field">
           <span>Total</span>
-          <input type="text" class="input--readonly" [value]="formatCurrency(totalCalculado)" readonly>
+          <input type="text" formControlName="total" inputmode="decimal" (input)="onMontoInput('total', $event)">
         </label>
       </form>
 
@@ -207,15 +238,22 @@
             <input type="text" formControlName="ruc" class="input--readonly" readonly>
           </label>
 
-          <div class="field">
+          <div class="field field--provider-selector">
             <span>Forma de Pago</span>
-            <button
-              type="button"
-              class="selector-code-button selector-code-button--wide selector-code-button--selector"
-              [disabled]="isLoadingFormasPago || !formasPago.length"
-              (click)="openFormaPagoDialog()">
-              {{ isLoadingFormasPago ? 'Cargando formas de pago...' : formaPagoButtonLabel }}
-            </button>
+            <div class="selector-pair">
+              <button
+                type="button"
+                class="selector-code-button selector-code-button--wide"
+                [disabled]="isLoadingFormasPago || !formasPago.length"
+                (click)="openFormaPagoDialog()">
+                {{ isLoadingFormasPago ? 'Cargando...' : formaPagoButtonLabel }}
+              </button>
+              <input
+                type="text"
+                formControlName="formaPago"
+                class="input--readonly"
+                readonly>
+            </div>
           </div>
         </form>
       </section>
@@ -234,7 +272,7 @@
               formControlName="pedidoIdAtencion"
               min="1"
               step="1"
-              placeholder="Ingresa el pedido atendido">
+              (keydown.enter)="onPedidoIdEnter($event)">
           </label>
 
           <div class="pedido-centro-costo-toolbar__actions">
@@ -265,26 +303,30 @@
                       (change)="toggleTodosLosDetallesPedido()">
                   </div>
                 </th>
-                <th>Item</th>
-                <th>Unidad</th>
+                <th>Descripcion Item</th>
+                <th>Unidad de Medida</th>
+                <th>Centro de Costo</th>
                 <th>Cantidad</th>
                 <th>Costo Unit.</th>
                 <th>Subtotal</th>
+                <th>Observacion</th>
+                <th>Accion</th>
               </tr>
             </thead>
 
             <tbody>
               <tr *ngIf="isLoadingPedidoDetalle">
-                <td colspan="6" class="empty-row">Cargando detalle del pedido...</td>
+                <td colspan="9" class="empty-row">Cargando detalle del pedido...</td>
               </tr>
 
               <tr *ngIf="!isLoadingPedidoDetalle && !pedidoDetalles.length">
-                <td colspan="6" class="empty-row">Ingresa un numero de pedido para listar su detalle.</td>
+                <td colspan="9" class="empty-row">Ingresa un numero de pedido para listar su detalle.</td>
               </tr>
 
               <tr
                 *ngFor="let item of paginatedPedidoDetalles; trackBy: trackByDetallePedido"
-                [class.detalle-pedido-table__row--checked]="item.selected">
+                [class.detalle-pedido-table__row--checked]="item.selected"
+                [class.detalle-pedido-table__row--pending-delete]="isDetallePendienteDesasignacion(item)">
                 <td>
                   <input
                     type="checkbox"
@@ -292,11 +334,32 @@
                     [disabled]="!esParcial"
                     (change)="toggleDetallePedido(item)">
                 </td>
-                <td>{{ item.itemCodigo }}</td>
-                <td>{{ item.unidadCodigo }}</td>
+                <td>{{ item.itemDescripcion }}</td>
+                <td>{{ item.unidadDescripcion }}</td>
+                <td>{{ item.centroCostoDescripcion }}</td>
                 <td>{{ formatCurrency(item.cantidad) }}</td>
                 <td>{{ formatCurrency(item.costoUnitario) }}</td>
                 <td>{{ formatCurrency(item.subtotal) }}</td>
+                <td>
+                  <input
+                    type="text"
+                    class="detalle-pedido-table__input"
+                    [value]="item.observacion"
+                    (input)="actualizarObservacionDetallePedido(item, $any($event.target).value)">
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="icon-button icon-button--danger"
+                    aria-label="Quitar detalle del pedido"
+                    [disabled]="!isEditingOrdenCompra"
+                    [title]="isDetallePendienteDesasignacion(item) ? 'Deshacer desasignacion pendiente' : 'Marcar para desasignar'"
+                    (click)="quitarDetallePedido(item)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11a2 2 0 0 1-2-2V8h12v10a2 2 0 0 1-2 2H8z"/>
+                    </svg>
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>

@@ -6,8 +6,10 @@ import { forkJoin, Observable, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
 import {
+  AsignarOrdenCompraDetallePedidoRequest,
   ActualizarOrdenCompraRequest,
   ApiService,
+  DesAsignarOrdenCompraDetallePedidoRequest,
   OrdenCompraFiltro,
   RegistrarOrdenCompraRequest
 } from 'src/app/Services/api.services';
@@ -36,6 +38,7 @@ interface OrdenCompraRow {
   subtotal: number;
   igv: number;
   total: number;
+  archivo: string;
   estadoCodigo: string;
   estado: string;
   canEdit: boolean;
@@ -51,10 +54,15 @@ interface OrdenCompraCentroCostoRow {
 interface OrdenCompraDetallePedidoRow {
   id: number;
   itemCodigo: string;
+  itemDescripcion: string;
   unidadCodigo: string;
+  unidadDescripcion: string;
+  centroCostoCodigo: number | null;
+  centroCostoDescripcion: string;
   cantidad: number;
   costoUnitario: number;
   subtotal: number;
+  observacion: string;
   selected: boolean;
 }
 
@@ -71,7 +79,7 @@ export class OrdenCompraPageComponent implements OnInit {
     { codigo: 'A', descripcion: 'Activo' },
     { codigo: 'I', descripcion: 'Inactivo' }
   ];
-  readonly actionButtons = ['Nuevo', 'Modificar', 'Cerrar'];
+  readonly actionButtons = ['Nuevo', 'Cerrar'];
 
   ordenesCompra: OrdenCompraRow[] = [];
   proveedores: ProviderRecord[] = [];
@@ -97,6 +105,9 @@ export class OrdenCompraPageComponent implements OnInit {
   saveErrorMessage = '';
   centrosCostoErrorMessage = '';
   detallePedidoErrorMessage = '';
+  ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
+  ordenCompraArchivoFile: File | null = null;
+  detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -124,8 +135,10 @@ export class OrdenCompraPageComponent implements OnInit {
       referenciaObra: ['', [Validators.required, noWhitespaceValidator()]],
       referencia: ['', [Validators.required, noWhitespaceValidator()]],
       observacion: ['', [Validators.required, noWhitespaceValidator()]],
+      archivo: ['Sin archivo adjunto'],
       subtotal: [0, Validators.min(0)],
       igv: [0, Validators.min(0)],
+      total: [0, Validators.min(0)],
       estado: ['A', Validators.required]
     });
   }
@@ -147,7 +160,8 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get formaPagoButtonLabel(): string {
-    return this.form.controls['formaPago'].value?.trim() || 'Seleccionar forma de pago';
+    const formaPagoId = Number(this.form.controls['formaPagoId'].value ?? 0);
+    return formaPagoId > 0 ? String(formaPagoId) : 'Seleccionar';
   }
 
   get subtotalCalculado(): number {
@@ -173,7 +187,8 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get detallesPedidoSeleccionados(): OrdenCompraDetallePedidoRow[] {
-    return this.pedidoDetalles.filter((item) => item.selected);
+    const idsPendientes = new Set(this.detallesPendientesDesasignacion.map((item) => item.id));
+    return this.pedidoDetalles.filter((item) => item.selected && !idsPendientes.has(item.id));
   }
 
   get paginatedOrdenesCompra(): OrdenCompraRow[] {
@@ -221,12 +236,12 @@ export class OrdenCompraPageComponent implements OnInit {
       return;
     }
 
-    if (action === 'Modificar') {
-      this.iniciarEdicionOrdenCompra();
-      return;
-    }
-
     this.cerrarVistaActual();
+  }
+
+  editarOrdenCompraDesdeFila(item: OrdenCompraRow): void {
+    this.selectedOrdenCompraId = item.id;
+    this.iniciarEdicionOrdenCompra();
   }
 
   seleccionarOrdenCompra(item: OrdenCompraRow): void {
@@ -255,6 +270,65 @@ export class OrdenCompraPageComponent implements OnInit {
 
   onDetallePedidoPageChange(page: number): void {
     this.currentDetallePedidoPage = normalizePaginationPage(page, this.pedidoDetalles.length, this.pageSize);
+  }
+
+  onMontoInput(controlName: 'subtotal' | 'igv' | 'total', event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = input.value.replace(/[^\d.,]/g, '');
+
+    if (sanitizedValue !== input.value) {
+      input.value = sanitizedValue;
+    }
+
+    this.form.controls[controlName].setValue(sanitizedValue, { emitEvent: false });
+  }
+
+  actualizarObservacionDetallePedido(item: OrdenCompraDetallePedidoRow, observacion: string): void {
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, observacion }
+        : detalle
+    );
+  }
+
+  isDetallePendienteDesasignacion(item: OrdenCompraDetallePedidoRow): boolean {
+    return this.detallesPendientesDesasignacion.some((detalle) => detalle.id === item.id);
+  }
+
+  quitarDetallePedido(item: OrdenCompraDetallePedidoRow): void {
+    if (!this.isEditingOrdenCompra || this.isLoadingPedidoDetalle || this.isSavingOrdenCompra) {
+      return;
+    }
+
+    this.detallePedidoErrorMessage = '';
+
+    if (this.isDetallePendienteDesasignacion(item)) {
+      this.detallesPendientesDesasignacion = this.detallesPendientesDesasignacion.filter((detalle) => detalle.id !== item.id);
+      this.detallePedidoErrorMessage = this.detallesPendientesDesasignacion.length
+        ? 'Hay detalles marcados para desasignacion. Los cambios se aplicaran al actualizar.'
+        : '';
+      this.syncTotalesCalculados();
+      return;
+    }
+
+    this.detallesPendientesDesasignacion = [...this.detallesPendientesDesasignacion, item];
+    this.syncTotalesCalculados();
+    this.detallePedidoErrorMessage = 'El detalle fue marcado para desasignacion. Los cambios se aplicaran al actualizar.';
+  }
+
+  onPedidoIdEnter(event: Event): void {
+    event.preventDefault();
+
+    if (this.isLoadingPedidoCentrosCosto || this.isLoadingPedidoDetalle) {
+      return;
+    }
+
+    this.cargarCentrosCostoDesdePedido();
   }
 
   openProveedorDialog(): void {
@@ -383,40 +457,12 @@ export class OrdenCompraPageComponent implements OnInit {
     this.pedidoDetalles = [];
     this.currentDetallePedidoPage = 1;
 
-    forkJoin({
-      centrosCostoResponse: this.apiService.getListarPedidoRegistradoCentroCosto(pedidoId),
-      detalleResponse: this.apiService.getListarDetallePedido(pedidoId)
-    }).subscribe({
+    this.loadPedidoData(pedidoId).subscribe({
       next: ({ centrosCostoResponse, detalleResponse }) => {
-        const centros = this.mapCentroCostoPedido(centrosCostoResponse);
-
-        this.centrosCosto = centros.map((item) => ({
-          ...item,
-          selected: this.esParcial ? false : true
-        }));
-        this.pedidoDetalles = this.extractRecords(detalleResponse)
-          .map((item) => this.mapDetallePedido(item))
-          .filter((item): item is OrdenCompraDetallePedidoRow => item !== null);
-        this.currentDetallePedidoPage = normalizePaginationPage(this.currentDetallePedidoPage, this.pedidoDetalles.length, this.pageSize);
-        this.centrosCostoErrorMessage = this.centrosCosto.length
-          ? ''
-          : 'El pedido ingresado no tiene centros de costo vinculados.';
-        this.detallePedidoErrorMessage = this.pedidoDetalles.length
-          ? ''
-          : 'El pedido ingresado no tiene detalle registrado.';
-        this.syncTotalesCalculados();
-        this.isLoadingPedidoCentrosCosto = false;
-        this.isLoadingPedidoDetalle = false;
+        this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse);
       },
       error: (error: unknown) => {
-        this.centrosCosto = [];
-        this.pedidoDetalles = [];
-        this.currentDetallePedidoPage = 1;
-        this.centrosCostoErrorMessage = this.resolveErrorMessage(error, 'No se pudieron cargar los centros de costo del pedido.');
-        this.detallePedidoErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el detalle del pedido.');
-        this.syncTotalesCalculados();
-        this.isLoadingPedidoCentrosCosto = false;
-        this.isLoadingPedidoDetalle = false;
+        this.handlePedidoDataError(error);
       }
     });
   }
@@ -437,7 +483,7 @@ export class OrdenCompraPageComponent implements OnInit {
     request$.pipe(
       switchMap((response: unknown) => {
         this.assertSuccessfulResponse(response, 'No se pudo guardar la orden de compra.');
-        return this.sincronizarCentrosCostoPlaceholder();
+        return this.sincronizarDetallePedidoSeleccionado(response);
       })
     ).subscribe({
       next: () => {
@@ -454,6 +500,46 @@ export class OrdenCompraPageComponent implements OnInit {
 
   cancelarEdicion(): void {
     this.cerrarEditor();
+  }
+
+  onOrdenCompraFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    if (!input.files?.length) {
+      return;
+    }
+
+    this.ordenCompraArchivoFile = input.files[0];
+    this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile.name;
+    this.form.patchValue({
+      archivo: this.ordenCompraArchivoAdjunto
+    });
+  }
+
+  quitarOrdenCompraArchivo(fileInput?: HTMLInputElement): void {
+    this.ordenCompraArchivoFile = null;
+    this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
+    this.form.patchValue({
+      archivo: this.ordenCompraArchivoAdjunto
+    });
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  verOrdenCompraArchivo(): void {
+    if (this.ordenCompraArchivoFile) {
+      const url = URL.createObjectURL(this.ordenCompraArchivoFile);
+      window.open(url, '_blank');
+      return;
+    }
+
+    const nombreArchivo = String(this.form.controls['archivo'].value || '').trim();
+
+    if (nombreArchivo && nombreArchivo !== 'Sin archivo adjunto') {
+      this.saveErrorMessage = 'Aun no hay un endpoint configurado para abrir adjuntos de orden de compra.';
+    }
   }
 
   formatCurrency(value: number): string {
@@ -537,15 +623,20 @@ export class OrdenCompraPageComponent implements OnInit {
       referenciaObra: '',
       referencia: '',
       observacion: '',
+      archivo: 'Sin archivo adjunto',
       subtotal: 0,
       igv: 0,
+      total: 0,
       estado: 'A'
     });
     this.esParcial = false;
     this.centrosCosto = [];
     this.pedidoDetalles = [];
+    this.detallesPendientesDesasignacion = [];
     this.centrosCostoErrorMessage = '';
     this.detallePedidoErrorMessage = '';
+    this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
+    this.ordenCompraArchivoFile = null;
     this.syncTotalesCalculados();
   }
 
@@ -580,7 +671,7 @@ export class OrdenCompraPageComponent implements OnInit {
       Usr_Reg: currentUser
     };
 
-    return this.apiService.postRegistrarOrdenCompra(request);
+    return this.apiService.postRegistrarOrdenCompra(request, this.ordenCompraArchivoFile);
   }
 
   private buildActualizarOrdenCompraRequest(): Observable<unknown> | null {
@@ -622,9 +713,9 @@ export class OrdenCompraPageComponent implements OnInit {
     const referenciaObra = String(this.form.controls['referenciaObra'].value || '').trim();
     const referencia = String(this.form.controls['referencia'].value || '').trim();
     const observacion = String(this.form.controls['observacion'].value || '').trim();
-    const subtotal = this.subtotalCalculado;
-    const igv = this.igvCalculado;
-    const total = this.totalCalculado;
+    const subtotal = this.parseMontoControlValue(this.form.controls['subtotal'].value);
+    const igv = this.parseMontoControlValue(this.form.controls['igv'].value);
+    const total = this.parseMontoControlValue(this.form.controls['total'].value);
 
     if (!proveedorId || !proveedor) {
       this.form.controls['proveedor'].markAsTouched();
@@ -662,19 +753,7 @@ export class OrdenCompraPageComponent implements OnInit {
       return null;
     }
 
-    if (!this.centrosCosto.length) {
-      this.saveErrorMessage = 'No hay centros de costo disponibles para esta orden de compra.';
-      return null;
-    }
-
-    if (!this.centrosCostoSeleccionados.length) {
-      this.saveErrorMessage = this.esParcial
-        ? 'Selecciona al menos un centro de costo para una orden parcial.'
-        : 'No hay centros de costo seleccionados para la orden de compra.';
-      return null;
-    }
-
-    if (!this.detallesPedidoSeleccionados.length) {
+    if (!this.detallesPedidoSeleccionados.length && !(this.isEditingOrdenCompra && this.detallesPendientesDesasignacion.length)) {
       this.saveErrorMessage = this.esParcial
         ? 'Selecciona al menos una fila del detalle para la orden parcial.'
         : 'No hay filas del detalle seleccionadas para la orden de compra.';
@@ -699,12 +778,43 @@ export class OrdenCompraPageComponent implements OnInit {
     };
   }
 
-  private sincronizarCentrosCostoPlaceholder(): Observable<unknown> {
-    if (!this.centrosCostoSeleccionados.length) {
-      return of(null);
+  private sincronizarDetallePedidoSeleccionado(response: unknown): Observable<unknown> {
+    if (!this.detallesPedidoSeleccionados.length && !this.detallesPendientesDesasignacion.length) {
+      return of(response);
     }
 
-    return this.apiService.simularPatchOrdenCompraCentroCosto();
+    return this.resolveOrdenCompraIdParaAsignacion(response).pipe(
+      switchMap((ordenCompraId) => {
+        const currentUser = this.authService.getCurrentUser().trim();
+        const asignarRequests = this.detallesPedidoSeleccionados.map((item) =>
+          this.apiService.patchAsignarOrdenCompraADetallePedido(
+            this.buildAsignarOrdenCompraDetallePedidoPayload(item, ordenCompraId, currentUser)
+          ).pipe(
+            switchMap((patchResponse: unknown) => {
+              this.assertSuccessfulResponse(patchResponse, 'No se pudo actualizar un detalle del pedido con la orden de compra.');
+              return of(patchResponse);
+            })
+          )
+        );
+
+        const desAsignarRequests = this.detallesPendientesDesasignacion.map((item) =>
+          this.apiService.patchDesAsignarOrdenCompraADetallePedido({
+            Ord_Com_Id: ordenCompraId,
+            Ped_Det_Id: item.id
+          } as DesAsignarOrdenCompraDetallePedidoRequest).pipe(
+            switchMap((patchResponse: unknown) => {
+              this.assertSuccessfulResponse(patchResponse, 'No se pudo desasignar un detalle del pedido.');
+              return of(patchResponse);
+            })
+          )
+        );
+
+        const requests = [...asignarRequests, ...desAsignarRequests];
+
+        return requests.length ? forkJoin(requests) : of([]);
+      }),
+      switchMap(() => this.recargarDetallePedidoDespuesDeGuardar())
+    );
   }
 
   private cargarOrdenesCompra(): void {
@@ -800,10 +910,14 @@ export class OrdenCompraPageComponent implements OnInit {
         referenciaObra: item.referenciaObra,
       referencia: item.referencia,
       observacion: item.observacion,
+      archivo: item.archivo || 'Sin archivo adjunto',
       subtotal: item.subtotal,
       igv: item.igv,
+      total: item.total,
       estado: item.estadoCodigo
     });
+    this.ordenCompraArchivoAdjunto = item.archivo || 'Sin archivo adjunto';
+    this.ordenCompraArchivoFile = null;
   }
 
   private getOrdenCompraSeleccionada(): OrdenCompraRow | null {
@@ -864,6 +978,7 @@ export class OrdenCompraPageComponent implements OnInit {
       subtotal: this.getDecimalValue(item, ['Ord_Com_Sub_Tot', 'ord_Com_Sub_Tot', 'ordComSubTot']),
       igv: this.getDecimalValue(item, ['Ord_Com_Igv', 'ord_Com_Igv', 'ordComIgv']),
       total: this.getDecimalValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']),
+      archivo: this.getTextValue(item, ['Ord_Com_Arc_Adj_Nom', 'ord_Com_Arc_Adj_Nom', 'ordComArcAdjNom', 'archivo', 'Archivo']) || 'Sin archivo adjunto',
       estadoCodigo,
       estado: estadoCodigo ? this.mapEstadoDescripcion(estadoCodigo) : '-',
       canEdit: ordenCompraId !== null
@@ -942,27 +1057,259 @@ export class OrdenCompraPageComponent implements OnInit {
   private mapDetallePedido(item: DataRecord): OrdenCompraDetallePedidoRow | null {
     const id = this.getNumberValue(item, ['Ped_Det_Id', 'ped_Det_Id', 'pedDetId', 'Id', 'id']);
     const itemCodigo = this.getTextValue(item, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm']);
+    const itemDescripcion = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes', 'descripcionItem', 'DescripcionItem']);
 
     if (!id || !itemCodigo) {
       return null;
     }
 
+    const unidadCodigo = this.getTextValue(item, ['Ped_Uni_Med', 'ped_Uni_Med', 'pedUniMed']) || '-';
+    const unidadDescripcion = this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']) || unidadCodigo;
+    const centroCostoCodigo = this.getNumberValue(item, ['Ped_Cen_Cos_Asg', 'ped_Cen_Cos_Asg', 'pedCenCosAsg']);
+    const centroCostoDescripcion = this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']) || '-';
+
     return {
       id,
       itemCodigo,
-      unidadCodigo: this.getTextValue(item, ['Ped_Uni_Med', 'ped_Uni_Med', 'pedUniMed']) || '-',
+      itemDescripcion: itemDescripcion || itemCodigo,
+      unidadCodigo,
+      unidadDescripcion,
+      centroCostoCodigo,
+      centroCostoDescripcion,
       cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']),
       costoUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']),
       subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']),
+      observacion: this.getTextValue(item, ['Ped_Obs', 'ped_Obs', 'pedObs', 'Observacion', 'observacion']),
       selected: !this.esParcial
     };
+  }
+
+  private loadPedidoData(pedidoId: number): Observable<{ centrosCostoResponse: unknown; detalleResponse: unknown }> {
+    const ordenCompraId = Number(this.form.controls['ordenCompraId'].value);
+    const detalleRequest = this.isEditingOrdenCompra && Number.isInteger(ordenCompraId) && ordenCompraId > 0
+      ? this.apiService.getListarItemsAsignadosPedidoCentroCostoModificar(ordenCompraId, pedidoId)
+      // En nuevo solo se listan items pendientes de asignar a una orden de compra.
+      : this.apiService.getListarItemsAsignadosPedidoCentroCosto(pedidoId);
+
+    return forkJoin({
+      centrosCostoResponse: this.apiService.getListarPedidoRegistradoCentroCosto(pedidoId),
+      detalleResponse: detalleRequest
+    });
+  }
+
+  private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown): void {
+    const centros = this.mapCentroCostoPedido(centrosCostoResponse);
+
+    this.centrosCosto = centros.map((item) => ({
+      ...item,
+      selected: this.esParcial ? false : true
+    }));
+    this.pedidoDetalles = this.extractRecords(detalleResponse)
+      .map((item) => this.mapDetallePedido(item))
+      .filter((item): item is OrdenCompraDetallePedidoRow => item !== null);
+    this.currentDetallePedidoPage = normalizePaginationPage(this.currentDetallePedidoPage, this.pedidoDetalles.length, this.pageSize);
+    this.centrosCostoErrorMessage = this.centrosCosto.length
+      ? ''
+      : 'El pedido ingresado no tiene centros de costo vinculados.';
+    this.detallePedidoErrorMessage = this.pedidoDetalles.length
+      ? ''
+      : 'El pedido ingresado no tiene detalle registrado.';
+    if (this.detallesPendientesDesasignacion.length) {
+      this.detallePedidoErrorMessage = 'Hay detalles marcados para desasignacion. Los cambios se aplicaran al actualizar.';
+    }
+    this.syncTotalesCalculados();
+    this.isLoadingPedidoCentrosCosto = false;
+    this.isLoadingPedidoDetalle = false;
+  }
+
+  private handlePedidoDataError(error: unknown): void {
+    this.centrosCosto = [];
+    this.pedidoDetalles = [];
+    this.currentDetallePedidoPage = 1;
+    this.centrosCostoErrorMessage = this.resolveErrorMessage(error, 'No se pudieron cargar los centros de costo del pedido.');
+    this.detallePedidoErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el detalle del pedido.');
+    this.syncTotalesCalculados();
+    this.isLoadingPedidoCentrosCosto = false;
+    this.isLoadingPedidoDetalle = false;
+  }
+
+  private resolveOrdenCompraIdParaAsignacion(response: unknown): Observable<number> {
+    const ordenCompraIdActual = Number(this.form.controls['ordenCompraId'].value);
+
+    if (Number.isInteger(ordenCompraIdActual) && ordenCompraIdActual > 0) {
+      return of(ordenCompraIdActual);
+    }
+
+    const ordenCompraIdResponse = this.extractOrdenCompraIdFromResponse(response);
+
+    if (ordenCompraIdResponse) {
+      this.form.patchValue({ ordenCompraId: ordenCompraIdResponse }, { emitEvent: false });
+      return of(ordenCompraIdResponse);
+    }
+
+    return this.buscarOrdenCompraGuardadaRecientemente();
+  }
+
+  private buildAsignarOrdenCompraDetallePedidoPayload(
+    item: OrdenCompraDetallePedidoRow,
+    ordenCompraId: number,
+    currentUser: string
+  ): AsignarOrdenCompraDetallePedidoRequest {
+    const observacion = String(item.observacion || '').trim();
+
+    return {
+      Ord_Com_Id: ordenCompraId,
+      Ped_Det_Id: item.id,
+      Ped_Obs: observacion || undefined,
+      Usr_Mod: currentUser || undefined
+    };
+  }
+
+  private recargarDetallePedidoDespuesDeGuardar(): Observable<unknown> {
+    const pedidoId = Number(this.form.controls['pedidoIdAtencion'].value);
+
+    if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
+      return of(null);
+    }
+
+    this.isLoadingPedidoCentrosCosto = true;
+    this.isLoadingPedidoDetalle = true;
+
+    return new Observable<unknown>((subscriber) => {
+      this.loadPedidoData(pedidoId).subscribe({
+        next: ({ centrosCostoResponse, detalleResponse }) => {
+          this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse);
+          subscriber.next(null);
+          subscriber.complete();
+        },
+        error: (error: unknown) => {
+          this.handlePedidoDataError(error);
+          subscriber.error(error);
+        }
+      });
+    });
+  }
+
+  private extractOrdenCompraIdFromResponse(response: unknown): number | null {
+    if (typeof response === 'number' && Number.isInteger(response) && response > 0) {
+      return response;
+    }
+
+    if (!this.isDataRecord(response)) {
+      return null;
+    }
+
+    const directId = this.getNumberValue(response, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId', 'Id', 'id']);
+
+    if (directId) {
+      return directId;
+    }
+
+    const dataAsId = this.getNumberValue(response, ['data', 'Data']);
+
+    if (dataAsId) {
+      return dataAsId;
+    }
+
+    const nestedKeys = ['ordenCompra', 'OrdenCompra', 'data', 'Data', 'result', 'Result', 'element', 'Element'];
+
+    for (const key of nestedKeys) {
+      const nestedValue = response[key];
+
+      if (Array.isArray(nestedValue)) {
+        for (const item of nestedValue) {
+          if (!this.isDataRecord(item)) {
+            continue;
+          }
+
+          const nestedId = this.getNumberValue(item, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId', 'Id', 'id']);
+
+          if (nestedId) {
+            return nestedId;
+          }
+        }
+      }
+
+      if (!this.isDataRecord(nestedValue)) {
+        continue;
+      }
+
+      const nestedId = this.getNumberValue(nestedValue, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId', 'Id', 'id']);
+
+      if (nestedId) {
+        return nestedId;
+      }
+    }
+
+    return null;
+  }
+
+  private buscarOrdenCompraGuardadaRecientemente(): Observable<number> {
+    const pedidoIdAtencion = Number(this.form.controls['pedidoIdAtencion'].value);
+    const proveedorId = Number(this.form.controls['proveedorId'].value);
+    const formaPagoId = Number(this.form.controls['formaPagoId'].value);
+    const referenciaObra = String(this.form.controls['referenciaObra'].value || '').trim();
+    const referencia = String(this.form.controls['referencia'].value || '').trim();
+    const observacion = String(this.form.controls['observacion'].value || '').trim();
+    const subtotal = this.parseMontoControlValue(this.form.controls['subtotal'].value);
+    const igv = this.parseMontoControlValue(this.form.controls['igv'].value);
+    const total = this.parseMontoControlValue(this.form.controls['total'].value);
+
+    return new Observable<number>((subscriber) => {
+      this.apiService.getListarOrdenCompraActivo({ Flg_Est: 'A' }).subscribe({
+        next: (response: unknown) => {
+          const matches = this.extractRecords(response)
+            .map((item, index) => this.mapOrdenCompra(item, index))
+            .filter((item): item is OrdenCompraRow => item !== null)
+            .filter((item) =>
+              item.ordenCompraId !== null &&
+              item.pedidoIdAtencion === pedidoIdAtencion &&
+              item.proveedorId === proveedorId &&
+              item.formaPagoId === formaPagoId &&
+              item.referenciaObra === referenciaObra &&
+              item.referencia === referencia &&
+              item.observacion === observacion &&
+              item.subtotal === subtotal &&
+              item.igv === igv &&
+              item.total === total
+            )
+            .sort((a, b) => (b.ordenCompraId ?? 0) - (a.ordenCompraId ?? 0));
+
+          const ordenCompraId = matches[0]?.ordenCompraId ?? null;
+
+          if (!ordenCompraId) {
+            subscriber.error(new Error('Se guardo la orden, pero no se pudo identificar el Ord_Com_Id para actualizar el detalle.'));
+            return;
+          }
+
+          this.form.patchValue({ ordenCompraId: ordenCompraId }, { emitEvent: false });
+          subscriber.next(ordenCompraId);
+          subscriber.complete();
+        },
+        error: (error: unknown) => subscriber.error(error)
+      });
+    });
   }
 
   private syncTotalesCalculados(): void {
     this.form.patchValue({
       subtotal: this.subtotalCalculado,
-      igv: this.igvCalculado
+      igv: this.igvCalculado,
+      total: this.totalCalculado
     }, { emitEvent: false });
+  }
+
+  private parseMontoControlValue(value: unknown): number {
+    const raw = String(value ?? '').trim();
+
+    if (!raw) {
+      return 0;
+    }
+
+    const normalized = raw.replace(/,/g, '');
+    const parsed = Number(normalized);
+
+    return this.normalizeDecimal(parsed);
   }
 
   private reconciliarDescripcionCentrosCosto(): void {

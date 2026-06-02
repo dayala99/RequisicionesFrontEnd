@@ -4,6 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, UsuariosFiltro } from 'src/app/Services/api.services';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
+import { formatDisplayDate } from 'src/app/shared/utils/date.utils';
 import { UsuarioEditDialogComponent } from './usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './usuario-register-dialog.component';
 
@@ -191,7 +192,7 @@ export class UsuariosPageComponent implements OnInit {
     const usrId = this.getNumberValue(item, ['Usr_Id', 'usr_Id', 'usrId', 'id', 'Id']);
     const usrCod = this.getTextValue(item, ['Usr_Cod', 'usr_Cod', 'usrCod']);
     const usrNom = this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom']);
-    const fecha = this.formatDateValue(this.getTextValue(item, [
+    const fecha = formatDisplayDate(this.getTextValue(item, [
       'Fecha',
       'fecha',
       'Fec_Reg',
@@ -227,36 +228,6 @@ export class UsuariosPageComponent implements OnInit {
     }
 
     return '';
-  }
-
-  private formatDateValue(value: string): string {
-    if (!value) {
-      return '';
-    }
-
-    const datePart = value.trim().split('T')[0].split(' ')[0];
-    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(datePart);
-
-    if (isoMatch) {
-      return `${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}-${isoMatch[1]}`;
-    }
-
-    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(datePart);
-
-    if (separatedMatch) {
-      return `${separatedMatch[1].padStart(2, '0')}-${separatedMatch[2].padStart(2, '0')}-${separatedMatch[3]}`;
-    }
-
-    const parsedDate = new Date(value);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return value;
-    }
-
-    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(parsedDate.getDate()).padStart(2, '0');
-
-    return `${month}-${day}-${parsedDate.getFullYear()}`;
   }
 
   private getNumberValue(item: DataRecord, keys: string[]): number | null {

@@ -41,13 +41,6 @@
         </label>
 
         <label class="field field--compact">
-          <span>GN</span>
-          <select formControlName="gn">
-            <option *ngFor="let option of gnOptions" [value]="option">{{ option }}</option>
-          </select>
-        </label>
-
-        <label class="field field--compact">
           <span>Tipo</span>
           <select formControlName="tipo">
             <option *ngFor="let option of tipoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
@@ -66,15 +59,15 @@
             <tr>
               <th>Codigo</th>
               <th>Archivo</th>
-              <th>Gerencia</th>
               <th>Fecha</th>
-              <th>Proveedor</th>
               <th>Moneda</th>
               <th>Total</th>
               <th>Estado</th>
+              <th>Tipo</th>
               <th>Codigo Usr</th>
               <th>Usr Aprobacion</th>
-              <th>Fecha Usr GA</th>
+              <th>Fecha Aprobacion</th>
+              <th>Reporte</th>
               <th>Detalle</th>
             </tr>
           </thead>
@@ -87,17 +80,25 @@
                 (click)="seleccionarPedido(item)">
                 <td>{{ item.codigo }}</td>
                 <td><span class="file-badge">{{ item.archivo }}</span></td>
-                <td>{{ item.gerencia }}</td>
                 <td>{{ item.fecha }}</td>
-                <td>{{ item.proveedor }}</td>
                 <td>{{ item.moneda }}</td>
                 <td>{{ formatTotal(item.total, item.moneda) }}</td>
                 <td>
                   <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
                 </td>
+                <td>{{ item.tipo }}</td>
                 <td>{{ item.codigoUsr }}</td>
                 <td>{{ item.usrAprobacion }}</td>
                 <td>{{ item.fechaUsrGa }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="row-detail-button"
+                    [disabled]="isLoadingReportePedidoId === item.requisicion"
+                    (click)="verReportePedido(item); $event.stopPropagation()">
+                    {{ isLoadingReportePedidoId === item.requisicion ? 'Cargando...' : 'Ver' }}
+                  </button>
+                </td>
                 <td>
                   <button
                     type="button"
@@ -201,6 +202,7 @@
               <th>Item</th>
               <th>Codigo Item</th>
               <th>Descripcion</th>
+              <th>Centro de Costo</th>
               <th>Unidad Medida</th>
               <th>Cantidad</th>
               <th>Precio Unitario</th>
@@ -219,6 +221,7 @@
               <td>{{ detail.item }}</td>
               <td>{{ detail.codigoItem }}</td>
               <td>{{ detail.descripcion }}</td>
+              <td>{{ detail.centroCosto }}</td>
               <td>{{ detail.unidad }}</td>
               <td>{{ formatDetalleNumero(detail.cantidad) }}</td>
               <td>{{ formatDetalleNumero(detail.precioUnitario) }}</td>
@@ -250,7 +253,7 @@
             </tr>
 
             <tr *ngIf="!getDetallePedidoExpandido().length">
-              <td colspan="9" class="empty-row">No hay items registrados para este pedido.</td>
+              <td colspan="10" class="empty-row">No hay items registrados para este pedido.</td>
             </tr>
           </tbody>
         </table>
@@ -396,20 +399,11 @@
       </section>
 
       <section class="editor-section">
-        <div class="group-row group-row--split">
-          <label class="field field--wide">
-            <span>Referencia</span>
-            <input type="text" formControlName="referencia">
-            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['referencia'].touched && (detalleForm.controls['referencia'].hasError('required') || detalleForm.controls['referencia'].hasError('whitespace'))">Campo Referencia obligatorio.</small>
-          </label>
-
-          <label class="field field--wide">
-            <span>Tipo de Compra</span>
-            <select formControlName="tipoCompra">
-              <option *ngFor="let option of tipoCompraOptions" [value]="option">{{ option }}</option>
-            </select>
-          </label>
-        </div>
+        <label class="field field--wide">
+          <span>Referencia</span>
+          <input type="text" formControlName="referencia">
+          <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['referencia'].touched && (detalleForm.controls['referencia'].hasError('required') || detalleForm.controls['referencia'].hasError('whitespace'))">Campo Referencia obligatorio.</small>
+        </label>
       </section>
 
       <section class="editor-section">
@@ -417,7 +411,6 @@
           <label class="field">
             <span>Tipo de Servicio</span>
             <select formControlName="oc">
-              <option [ngValue]="''">Sin enlazar</option>
               <option *ngFor="let option of tipoServicioOptions" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['oc'].touched && detalleForm.controls['oc'].hasError('required')">Campo Tipo de Servicio obligatorio.</small>
@@ -426,7 +419,6 @@
           <label class="field">
             <span>Moneda</span>
             <select formControlName="moneda">
-              <option [ngValue]="null">Sin enlazar</option>
               <option *ngFor="let option of tipoMoneda" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['moneda'].touched && detalleForm.controls['moneda'].hasError('required')">Campo Moneda obligatorio.</small>
@@ -449,8 +441,12 @@
 
         <div class="attachment-panel">
           <div class="attachment-panel__actions">
-            <button type="button" class="button button--secondary" (click)="adjuntarArchivo()">Adjuntar</button>
+            <!-- <button type="button" class="button button--secondary" (click)="adjuntarArchivo()">Adjuntar</button>
             <button type="button" class="button button--secondary" (click)="quitarArchivo()">Quitar</button>
+            <button type="button" class="button button--secondary" (click)="verArchivo()">Ver</button> -->
+            <input #fileInput type="file" style="display:none" (change)="onFileSelected($event)">
+            <button type="button" class="button button--secondary" (click)="fileInput.click()">Adjuntar</button>
+            <button type="button" class="button button--secondary" (click)="quitarArchivo(); fileInput.value = ''">Quitar</button>
             <button type="button" class="button button--secondary" (click)="verArchivo()">Ver</button>
           </div>
 

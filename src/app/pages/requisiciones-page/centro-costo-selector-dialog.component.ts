@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 export interface CentroCostoOption {
   id: number;
   descripcion: string;
+  cantidadRequerida?: number;
 }
 
 interface CentroCostoDialogData {

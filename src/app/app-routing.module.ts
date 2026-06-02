@@ -5,6 +5,7 @@ import { LoginPageComponent } from './features/auth/pages/login-page/login-page.
 import { LoginRedirectGuard } from './features/auth/guards/login-redirect.guard';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
 import { BancoPageComponent } from './pages/banco-page/banco-page.component';
+import { AlmacenPageComponent } from './pages/almacen-page/almacen-page.component';
 import { CentroCostosPageComponent } from './pages/centro-costos-page/centro-costos-page.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { GrupoItemPageComponent } from './pages/grupo-item-page/grupo-item-page.component';
@@ -77,6 +78,10 @@ const routes: Routes = [
       {
         path: 'orden-compra',
         component: OrdenCompraPageComponent
+      },
+      {
+        path: 'almacen',
+        component: AlmacenPageComponent
       },
       {
         path: 'requisicion',

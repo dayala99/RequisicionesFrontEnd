@@ -14,6 +14,8 @@ import { PedidoDetalleDeleteDialogComponent } from './pedido-detalle-delete-dial
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
 import { PedidoDetalleDialogValue, PedidoDetalleItemOption, PedidoDetalleUnidadOption } from './pedido-detalle-dialog.models';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
+import { formatDateInputValue, formatDisplayDate } from 'src/app/shared/utils/date.utils';
+import { createPedidoReportPdf, mapPedidoReportDisplayDate, PedidoReportePdfData, PedidoReporteDetallePdf } from 'src/app/shared/utils/pedido-report-pdf.utils';
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 type DataRecord = Record<string, unknown>;
@@ -49,11 +51,24 @@ interface PedidoDetalleRow {
   item: string;
   codigoItem: string;
   descripcion: string;
+  centroCosto: string;
   unidadCodigo: string;
   unidad: string;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+}
+
+interface PedidoReporteCabeceraRow {
+  pedidoId: number;
+  fechaSolicitud: string;
+  solicitante: string;
+  referencia: string;
+  tipoServicio: string;
+  moneda: string;
+  lugarEntrega: string;
+  fechaEntrega: string;
+  detalle: PedidoReporteDetallePdf[];
 }
 
 @Component({
@@ -69,12 +84,10 @@ export class RequisicionesPageComponent implements OnInit {
   readonly detallePedidoForm: FormGroup;
   readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   readonly estadoOptions = ['Pendiente', 'Aprobado', 'Cancelado'];
-  readonly gnOptions = ['Todos', 'GN', 'GA', 'GC'];
   tipoOptions: CatalogoTextoOption[] = [
     { codigo: '', descripcion: 'Todos' }
   ];
-  readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Duplicar', 'Imprimir'];
-  readonly tipoCompraOptions = ['Sin enlazar', 'Local', 'Importacion'];
+  readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Aprobar'];
   tipoServicioOptions: CatalogoTextoOption[] = [];
   tipoMoneda: CatalogoNumeroOption[] = [];
   requisiciones: RequisitionRow[] = [];
@@ -90,6 +103,7 @@ export class RequisicionesPageComponent implements OnInit {
   errorMessage = '';
   isLoadingCorrelativo = false;
   isSavingPedido = false;
+  isUpdatingPedidoEstado = false;
   approvalUsers: ApprovalUserOption[] = [];
   centroCostoOptions: CentroCostoOption[] = [];
   saveErrorMessage = '';
@@ -107,11 +121,13 @@ export class RequisicionesPageComponent implements OnInit {
   selectedPedidoDetalleId: number | null = null;
   isEditingPedidoDetalle = false;
   isSavingPedidoDetalle = false;
+  isLoadingReportePedidoId: number | null = null;
   detallePedidoErrorMessage = '';
   detallePedidoCantidadLimite = 0;
   currentPedidosPage = 1;
   currentDetalleExpandidoPage = 1;
   currentCentroCostoPage = 1;
+  archivoFile: File | null = null;
 
   private nextCentroCostoId = 1;
   private deletedCentroCostoIds: number[] = [];
@@ -127,7 +143,6 @@ export class RequisicionesPageComponent implements OnInit {
       nroRequisicion: [''],
       proveedor: [''],
       estado: ['Pendiente'],
-      gn: ['Todos'],
       tipo: ['']
     });
 
@@ -145,7 +160,6 @@ export class RequisicionesPageComponent implements OnInit {
     this.detalleForm = this.formBuilder.group({
       lugarEntrega: ['', [Validators.required, noWhitespaceValidator()]],
       referencia: ['', [Validators.required, noWhitespaceValidator()]],
-      tipoCompra: ['Sin enlazar'],
       oc: ['', Validators.required],
       moneda: [null, Validators.required],
       fechaEntrega: [this.getPedidoFechaEntregaMinima(), Validators.required],
@@ -156,6 +170,9 @@ export class RequisicionesPageComponent implements OnInit {
     this.detallePedidoForm = this.formBuilder.group({
       codigoItem: [''],
       unidad: [''],
+      centroCostoId: [0],
+      centroCostoDescripcion: [''],
+      centroCostoCantidadRequerida: [0],
       cantidad: [0],
       precioUnitario: [0]
     });
@@ -249,17 +266,17 @@ export class RequisicionesPageComponent implements OnInit {
       nroRequisicion: '',
       proveedor: '',
       estado: 'Pendiente',
-      gn: 'Todos',
       tipo: 'Todos'
     });
     this.cargarPedidos();
   }
 
   formatTotal(total: number, moneda: string): string {
-    return new Intl.NumberFormat('es-PE', {
+    const totalFormateado = new Intl.NumberFormat('es-PE', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(total) + ` ${moneda}`;
+    }).format(total);
+    return totalFormateado;
   }
 
   formatDetalleNumero(value: number): string {
@@ -267,6 +284,41 @@ export class RequisicionesPageComponent implements OnInit {
       minimumFractionDigits: 0,
       maximumFractionDigits: 3
     }).format(value);
+  }
+
+  verReportePedido(item: RequisitionRow): void {
+    if (this.isLoadingReportePedidoId === item.requisicion) {
+      return;
+    }
+
+    this.isLoadingReportePedidoId = item.requisicion;
+    this.errorMessage = '';
+
+    this.apiService.getCargarReportePedido(String(item.requisicion)).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo cargar el reporte del pedido.');
+          const reporte = this.mapPedidoReporteCabecera(response, item);
+
+          if (!reporte) {
+            throw new Error('No se encontro informacion para el reporte del pedido.');
+          }
+
+          const pdfBlob = createPedidoReportPdf(this.buildPedidoReportePdfData(reporte, item));
+          const url = URL.createObjectURL(pdfBlob);
+          window.open(url, '_blank');
+          this.isLoadingReportePedidoId = null;
+        } catch (error) {
+          this.errorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el reporte del pedido.');
+          this.isLoadingReportePedidoId = null;
+        }
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando reporte del pedido:', error);
+        this.errorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el reporte del pedido.');
+        this.isLoadingReportePedidoId = null;
+      }
+    });
   }
 
   ejecutarAccion(action: string): void {
@@ -280,10 +332,23 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
+    if (action === 'Eliminar') {
+      this.actualizarEstadoPedidoSeleccionado('C', 'No se pudo cancelar el pedido seleccionado.');
+      return;
+    }
+
+    if (action === 'Aprobar') {
+      this.actualizarEstadoPedidoSeleccionado('A', 'No se pudo aprobar el pedido seleccionado.');
+    }
+
   }
 
   isActionDisabled(action: string): boolean {
-    if (action === 'Modificar') {
+    if (action === 'Modificar' || action === 'Eliminar' || action === 'Aprobar') {
+      if (this.isUpdatingPedidoEstado) {
+        return true;
+      }
+
       return !this.canModifyPedido;
     }
 
@@ -397,7 +462,7 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
-    if (!this.canOpenDetallePedidoDialog()) {
+    if (!this.canOpenDetallePedidoDialog(false)) {
       return;
     }
 
@@ -407,6 +472,9 @@ export class RequisicionesPageComponent implements OnInit {
     this.detallePedidoForm.reset({
       codigoItem: '',
       unidad: '',
+      centroCostoId: 0,
+      centroCostoDescripcion: '',
+      centroCostoCantidadRequerida: 0,
       cantidad: 0,
       precioUnitario: 0
     });
@@ -415,6 +483,9 @@ export class RequisicionesPageComponent implements OnInit {
       itemDescription: '',
       unitCode: '',
       unitDescription: '',
+      centroCostoId: 0,
+      centroCostoDescripcion: '',
+      centroCostoCantidadRequerida: 0,
       quantity: 0,
       unitPrice: 0
     });
@@ -425,7 +496,7 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
-    if (!this.canOpenDetallePedidoDialog()) {
+    if (!this.canOpenDetallePedidoDialog(true)) {
       return;
     }
 
@@ -456,15 +527,23 @@ export class RequisicionesPageComponent implements OnInit {
         this.detallePedidoForm.patchValue({
           codigoItem: this.getTextValue(detalle, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm']),
           unidad: this.getTextValue(detalle, ['Ped_Uni_Med', 'ped_Uni_Med', 'pedUniMed']),
+          centroCostoId: this.getNumberValue(detalle, ['Ped_Cen_Cos_Asg', 'ped_Cen_Cos_Asg', 'pedCenCosAsg']) ?? 0,
+          centroCostoDescripcion: this.getTextValue(detalle, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']),
+          centroCostoCantidadRequerida: 0,
           cantidad: this.getDecimalValue(detalle, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0,
           precioUnitario: this.getDecimalValue(detalle, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']) ?? 0
         });
         this.isEditingPedidoDetalle = true;
         this.openPedidoDetalleDialog({
           itemCode: String(this.detallePedidoForm.controls['codigoItem'].value ?? '').trim(),
-          itemDescription: this.resolveDetalleItemDescription(String(this.detallePedidoForm.controls['codigoItem'].value ?? '').trim()),
+          itemDescription: this.getTextValue(detalle, ['Itm_Des', 'itm_Des', 'itmDes'])
+            || this.resolveDetalleItemDescription(String(this.detallePedidoForm.controls['codigoItem'].value ?? '').trim()),
           unitCode: String(this.detallePedidoForm.controls['unidad'].value ?? '').trim(),
-          unitDescription: this.resolveDetalleUnidadDescription(String(this.detallePedidoForm.controls['unidad'].value ?? '').trim()),
+          unitDescription: this.getTextValue(detalle, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes'])
+            || this.resolveDetalleUnidadDescription(String(this.detallePedidoForm.controls['unidad'].value ?? '').trim()),
+          centroCostoId: Number(this.detallePedidoForm.controls['centroCostoId'].value ?? 0),
+          centroCostoDescripcion: String(this.detallePedidoForm.controls['centroCostoDescripcion'].value ?? '').trim(),
+          centroCostoCantidadRequerida: Number(this.detallePedidoForm.controls['centroCostoCantidadRequerida'].value ?? 0),
           quantity: Number(this.detallePedidoForm.controls['cantidad'].value ?? 0),
           unitPrice: Number(this.detallePedidoForm.controls['precioUnitario'].value ?? 0)
         }, selectedDetail.item);
@@ -499,6 +578,7 @@ export class RequisicionesPageComponent implements OnInit {
             Ped_Det_Id: selectedDetail!.persistedId!,
             Ped_Cod_Itm: payload.Ped_Cod_Itm,
             Ped_Uni_Med: payload.Ped_Uni_Med,
+            Ped_Cen_Cos_Asg: payload.Ped_Cen_Cos_Asg,
             Ped_Can: payload.Ped_Can,
             Ped_Cos_Uni: payload.Ped_Cos_Uni,
             Ped_Cos_Tot: payload.Ped_Cos_Tot,
@@ -630,6 +710,36 @@ export class RequisicionesPageComponent implements OnInit {
     });
   }
 
+  private actualizarEstadoPedidoSeleccionado(flgEst: 'A' | 'C', fallbackMessage: string): void {
+    if (this.selectedPedidoId === null || this.isLoadingPedidoDetalle || this.isUpdatingPedidoEstado) {
+      return;
+    }
+
+    this.isUpdatingPedidoEstado = true;
+    this.errorMessage = '';
+
+    this.apiService.patchActualizarPedidoEstado({
+      Ped_Id: this.selectedPedidoId,
+      Flg_Est: flgEst
+    } as ActualizarPedidoEstadoRequest).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, fallbackMessage);
+          this.isUpdatingPedidoEstado = false;
+          this.cargarPedidos();
+        } catch (error) {
+          this.errorMessage = this.resolveErrorMessage(error, fallbackMessage);
+          this.isUpdatingPedidoEstado = false;
+        }
+      },
+      error: (error: unknown) => {
+        console.error('Error actualizando estado del pedido:', error);
+        this.errorMessage = this.resolveErrorMessage(error, fallbackMessage);
+        this.isUpdatingPedidoEstado = false;
+      }
+    });
+  }
+
   openApprovalUserDialog(): void {
     if (!this.approvalUsers.length) {
       return;
@@ -704,21 +814,97 @@ export class RequisicionesPageComponent implements OnInit {
     this.resetDetallePedidoEditor();
   }
 
+  // guardarPedido(): void {
+  //   if (this.isSavingPedido) {
+  //     return;
+  //   }
+
+
+
+  //   if (this.editandoCentroCostoId !== null && !this.guardarCantidadCentroCosto(this.editandoCentroCostoId)) {
+  //     return;
+  //   }
+
+  //   if (this.isEditingPedido) {
+  //     const payload = this.buildActualizarPedidoPayload();
+
+  //     if (!payload) {
+  //       return;
+  //     }
+
+  //     this.isSavingPedido = true;
+  //     this.saveErrorMessage = '';
+  //     console.debug('Ped_Can_Tot actualizar:', payload.Ped_Can_Tot);
+
+  //     this.apiService.patchActualizarPedido(payload).pipe(
+  //       switchMap((response: unknown) => {
+  //         this.assertSuccessfulResponse(response, 'No se pudo actualizar el pedido.');
+  //         return this.sincronizarCentrosCostoPedido(payload.Ped_Id);
+  //       })
+  //     ).subscribe({
+  //       next: () => {
+  //         this.isSavingPedido = false;
+  //         this.cerrarEditorPedido();
+  //         this.cargarPedidos();
+  //       },
+  //       error: (error: unknown) => {
+  //         console.error('Error guardando pedido:', error);
+  //         this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el pedido. Intenta nuevamente.');
+  //         this.isSavingPedido = false;
+  //       }
+  //     });
+
+  //     return;
+  //   }
+
+  //   const payload = this.buildRegistrarPedidoPayload();
+  //   const file = this.selectedFile;
+
+  //   if (!payload) {
+  //     return;
+  //   }
+
+  //   this.isSavingPedido = true;
+  //   this.saveErrorMessage = '';
+  //   console.debug('Ped_Can_Tot registrar:', payload.Ped_Can_Tot);
+
+  //   this.apiService.postRegistrarPedido(payload).pipe(
+  //     switchMap((response: unknown) => {
+  //       this.assertSuccessfulResponse(response, 'No se pudo registrar el pedido.');
+  //       return this.apiService.patchActualizarPedidoEstado({
+  //         Ped_Id: payload.Ped_Id,
+  //         Flg_Est: 'P'
+  //       } as ActualizarPedidoEstadoRequest);
+  //     }),
+  //     switchMap((response: unknown) => {
+  //       this.assertSuccessfulResponse(response, 'No se pudo establecer el pedido como pendiente.');
+  //       return this.registrarCentrosCostoPedido(payload.Ped_Id);
+  //     })
+  //   ).subscribe({
+  //     next: () => {
+  //       this.isSavingPedido = false;
+  //       this.cerrarEditorPedido();
+  //       this.cargarPedidos();
+  //     },
+  //     error: (error: unknown) => {
+  //       console.error('Error guardando pedido:', error);
+  //       this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo registrar el pedido. Intenta nuevamente.');
+  //       this.isSavingPedido = false;
+  //     }
+  //   });
+  // }
+
   guardarPedido(): void {
-    if (this.isSavingPedido) {
-      return;
-    }
+    if (this.isSavingPedido) return;
 
     if (this.editandoCentroCostoId !== null && !this.guardarCantidadCentroCosto(this.editandoCentroCostoId)) {
       return;
     }
 
+    // Caso: actualizar pedido (sin archivo)
     if (this.isEditingPedido) {
       const payload = this.buildActualizarPedidoPayload();
-
-      if (!payload) {
-        return;
-      }
+      if (!payload) return;
 
       this.isSavingPedido = true;
       this.saveErrorMessage = '';
@@ -745,17 +931,27 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
+    // Caso: registrar pedido (con archivo)
     const payload = this.buildRegistrarPedidoPayload();
-
-    if (!payload) {
-      return;
-    }
+    if (!payload) return;
 
     this.isSavingPedido = true;
     this.saveErrorMessage = '';
     console.debug('Ped_Can_Tot registrar:', payload.Ped_Can_Tot);
 
-    this.apiService.postRegistrarPedido(payload).pipe(
+    const formData = new FormData();
+    Object.keys(payload).forEach(key => {
+      const value = (payload as any)[key];
+      if (value !== null && value !== undefined) {
+        formData.append(key, value.toString());
+      }
+    });
+
+    if (this.archivoFile) {
+      formData.append('archivo', this.archivoFile);
+    }
+
+    this.apiService.postRegistrarPedido(formData).pipe(
       switchMap((response: unknown) => {
         this.assertSuccessfulResponse(response, 'No se pudo registrar el pedido.');
         return this.apiService.patchActualizarPedidoEstado({
@@ -763,10 +959,7 @@ export class RequisicionesPageComponent implements OnInit {
           Flg_Est: 'P'
         } as ActualizarPedidoEstadoRequest);
       }),
-      switchMap((response: unknown) => {
-        this.assertSuccessfulResponse(response, 'No se pudo establecer el pedido como pendiente.');
-        return this.registrarCentrosCostoPedido(payload.Ped_Id);
-      })
+      switchMap(() => this.registrarCentrosCostoPedido(payload.Ped_Id))
     ).subscribe({
       next: () => {
         this.isSavingPedido = false;
@@ -780,6 +973,7 @@ export class RequisicionesPageComponent implements OnInit {
       }
     });
   }
+
 
   agregarCentroCosto(centroCosto: CentroCostoOption): void {
     const yaExiste = this.centrosCosto.some((item) => item.codigo === centroCosto.id);
@@ -863,23 +1057,76 @@ export class RequisicionesPageComponent implements OnInit {
     this.editandoCentroCostoCantidad = 0;
   }
 
-  adjuntarArchivo(): void {
-    this.archivoAdjunto = 'sustento-pedido.pdf';
-    this.detalleForm.patchValue({
-      archivo: this.archivoAdjunto
-    });
+  // adjuntarArchivo(): void {
+  //   this.archivoAdjunto = 'sustento-pedido.pdf';
+  //   this.detalleForm.patchValue({
+  //     archivo: this.archivoAdjunto
+  //   });
+  // }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.archivoFile = input.files[0];
+      this.archivoAdjunto = this.archivoFile.name;
+      this.detalleForm.patchValue({
+        archivo: this.archivoAdjunto
+      });
+    }
   }
 
   quitarArchivo(): void {
+    this.archivoFile = null;
     this.archivoAdjunto = 'Sin archivo adjunto';
     this.detalleForm.patchValue({
       archivo: this.archivoAdjunto
     });
   }
 
+  // verArchivo(): void {
+  //   //this.archivoAdjunto = this.detalleForm.controls['archivo'].value || 'Sin archivo adjunto';
+  //   if (this.archivoFile) {
+  //     const url = URL.createObjectURL(this.archivoFile);
+  //     window.open(url, '_blank');
+  //   }
+  // }
+
   verArchivo(): void {
-    this.archivoAdjunto = this.detalleForm.controls['archivo'].value || 'Sin archivo adjunto';
+    if (this.archivoFile) {
+      const url = URL.createObjectURL(this.archivoFile);
+      window.open(url, '_blank');
+    } else if (this.detalleForm.value.archivo) {
+      const nombreArchivo = this.detalleForm.value.archivo;
+
+      this.apiService.getArchivoPedido(nombreArchivo).subscribe({
+        next: (arrayBuffer: ArrayBuffer) => {
+          const extension = nombreArchivo.split('.').pop()?.toLowerCase();
+          let mimeType = 'application/octet-stream';
+
+          switch (extension) {
+            case 'pdf': mimeType = 'application/pdf'; break;
+            case 'png': mimeType = 'image/png'; break;
+            case 'jpg':
+            case 'jpeg': mimeType = 'image/jpeg'; break;
+            case 'gif': mimeType = 'image/gif'; break;
+            case 'txt': mimeType = 'text/plain'; break;
+            case 'sql': mimeType = 'text/plain'; break;
+            case 'csv': mimeType = 'text/csv'; break;
+          }
+          const blob = new Blob([arrayBuffer], { type: mimeType });
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        },
+        error: () => {
+          this.saveErrorMessage = 'No se pudo abrir el archivo.';
+        }
+      });
+    }
   }
+
+
+
+
 
   trackByRequisicion(_index: number, item: RequisitionRow): number {
     return item.requisicion;
@@ -992,6 +1239,7 @@ export class RequisicionesPageComponent implements OnInit {
           { codigo: '', descripcion: 'Todos' },
           ...this.tipoServicioOptions
         ];
+        this.applyDefaultPedidoSelectValues();
       },
       error: (error: unknown) => {
         console.error('Error cargando catalogos de detalle de pedido:', error);
@@ -1005,15 +1253,15 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
 
-  private canOpenDetallePedidoDialog(): boolean {
-    if (!this.detalleItemOptions.length) {
-      this.detallePedidoErrorMessage = 'No hay items activos disponibles para el detalle.';
-      return false;
-    }
+  private canOpenDetallePedidoDialog(isEditing = false): boolean {
+    if (!isEditing && this.expandedPedidoId !== null) {
+      const totalActual = this.getTotalActualDetalleSinSeleccionado(this.expandedPedidoId);
+      const totalPermitido = this.normalizeCantidadCentroCosto(this.detallePedidoCantidadLimite);
 
-    if (!this.detalleUnidadOptions.length) {
-      this.detallePedidoErrorMessage = 'No hay unidades de medida activas disponibles para el detalle.';
-      return false;
+      if (totalPermitido > 0 && totalActual >= totalPermitido) {
+        this.detallePedidoErrorMessage = `Ya se alcanzo el maximo de la cantidad permitida (${this.formatDetalleNumero(totalPermitido)}). No se pueden registrar mas items.`;
+        return false;
+      }
     }
 
     return true;
@@ -1030,6 +1278,7 @@ export class RequisicionesPageComponent implements OnInit {
       moneda: this.detallePedidoCabecera.moneda,
       cantidadDisponible: this.detallePedidoCantidadDisponible,
       isEditing: this.isEditingPedidoDetalle,
+      centrosCosto: this.getDetalleCentroCostoOptions(),
       items: this.detalleItemOptions,
       units: this.detalleUnidadOptions,
       initialValue
@@ -1053,6 +1302,9 @@ export class RequisicionesPageComponent implements OnInit {
       this.detallePedidoForm.patchValue({
         codigoItem: result.itemCode,
         unidad: result.unitCode,
+        centroCostoId: result.centroCostoId,
+        centroCostoDescripcion: result.centroCostoDescripcion,
+        centroCostoCantidadRequerida: result.centroCostoCantidadRequerida,
         cantidad: result.quantity,
         precioUnitario: result.unitPrice
       });
@@ -1066,6 +1318,14 @@ export class RequisicionesPageComponent implements OnInit {
       centroCosto: centroCosto.descripcion
     });
     this.agregarCentroCosto(centroCosto);
+  }
+
+  private getDetalleCentroCostoOptions(): CentroCostoOption[] {
+    return this.getCentroCostoPedidoExpandido().map((centroCosto) => ({
+      id: centroCosto.codigo,
+      descripcion: centroCosto.costo,
+      cantidadRequerida: centroCosto.cantidad
+    }));
   }
 
 
@@ -1345,10 +1605,10 @@ export class RequisicionesPageComponent implements OnInit {
       nroRequisicion: string;
       proveedor: string;
       estado: string;
-      gn: string;
       tipo: string;
     };
     const requisicionBuscada = Number(filters.nroRequisicion);
+    const tipoBuscado = Number(filters.tipo);
     const filtros: PedidosFiltro = {};
 
     if (filters.nroRequisicion && Number.isInteger(requisicionBuscada) && requisicionBuscada > 0) {
@@ -1365,8 +1625,8 @@ export class RequisicionesPageComponent implements OnInit {
       filtros.Flg_Est = estado;
     }
 
-    if (filters.tipo?.trim()) {
-      filtros.Ped_Tip_Com = filters.tipo.trim();
+    if (filters.tipo?.trim() && Number.isInteger(tipoBuscado) && tipoBuscado > 0) {
+      filtros.Ped_Tip_Com = tipoBuscado;
     }
 
     return filtros;
@@ -1437,8 +1697,8 @@ export class RequisicionesPageComponent implements OnInit {
   private mapPedido(item: DataRecord): RequisitionRow {
     const requisicion = this.getNumberValue(item, ['Ped_Id', 'ped_Id', 'pedId', 'requisicion', 'Requisicion']) ?? 0;
     const archivoNombre = this.getTextValue(item, ['Ped_Arc_Adj_Nom', 'ped_Arc_Adj_Nom', 'pedArcAdjNom', 'archivo', 'Archivo']);
-    const fechaRegistro = this.formatDateValue(this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg', 'Fecha', 'fecha']));
-    const fechaAprobacion = this.formatDateValue(this.getTextValue(item, ['Fec_Mod', 'fec_Mod', 'fecMod', 'Fec_Reg', 'fecReg', 'FechaUsrGa', 'fechaUsrGa']));
+    const fechaRegistro = formatDisplayDate(this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg', 'Fecha', 'fecha']));
+    const fechaAprobacion = formatDisplayDate(this.getTextValue(item, ['Fec_Apr', 'fec_Apr', 'fecApr', 'FechaAprobacion', 'fechaAprobacion', 'Fec_Mod', 'fec_Mod', 'fecMod', 'FechaUsrGa', 'fechaUsrGa']));
     const proveedor = this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom', 'proveedor', 'Proveedor']) || '-';
     const moneda = this.resolveCurrency(item);
     const total = this.getDecimalValue(item, ['Ped_Tot', 'ped_Tot', 'pedTot', 'total', 'Total']) ?? 0;
@@ -1475,7 +1735,7 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private resolveCurrency(item: DataRecord): string {
-    const currencyText = this.getTextValue(item, ['Ped_Tip_Mon_Des', 'ped_Tip_Mon_Des', 'pedTipMonDes', 'Moneda', 'moneda']);
+    const currencyText = this.getTextValue(item, ['Mon_Abr', 'mon_Abr', 'monAbr', 'Ped_Tip_Mon_Des', 'ped_Tip_Mon_Des', 'pedTipMonDes', 'Moneda', 'moneda']);
 
     if (currencyText) {
       return currencyText.toUpperCase();
@@ -1509,7 +1769,7 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private resolveTipo(item: DataRecord): string {
-    const tipoText = this.getTextValue(item, ['Ped_Tip_Com_Des', 'ped_Tip_Com_Des', 'pedTipComDes']);
+    const tipoText = this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des', 'pedTipComDes']);
 
     if (tipoText) {
       return tipoText;
@@ -1518,6 +1778,56 @@ export class RequisicionesPageComponent implements OnInit {
     const tipoCode = this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']);
     const option = this.tipoServicioOptions.find((current) => current.codigo === tipoCode);
     return option?.descripcion || '-';
+  }
+
+  private mapPedidoReporteCabecera(response: unknown, pedido: RequisitionRow): PedidoReporteCabeceraRow | null {
+    const cabecera = this.extractRecords(response)[0];
+
+    if (!cabecera) {
+      return null;
+    }
+
+    const detalleValue = cabecera['Detalle_Reporte'] ?? cabecera['detalle_Reporte'] ?? cabecera['detalleReporte'];
+    const detalle = Array.isArray(detalleValue)
+      ? detalleValue.filter((item): item is DataRecord => this.isDataRecord(item)).map((item) => this.mapPedidoReporteDetalle(item))
+      : [];
+
+    return {
+      pedidoId: this.getNumberValue(cabecera, ['Ped_Id', 'ped_Id', 'pedId']) ?? pedido.requisicion,
+      fechaSolicitud: mapPedidoReportDisplayDate(this.getTextValue(cabecera, ['Fec_Reg', 'fec_Reg', 'fecReg'])),
+      solicitante: this.getTextValue(cabecera, ['Usr_Nom', 'usr_Nom', 'usrNom']) || pedido.codigoUsr,
+      referencia: this.getTextValue(cabecera, ['Ped_Ref', 'ped_Ref', 'pedRef']) || '-',
+      tipoServicio: this.getTextValue(cabecera, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || pedido.tipo,
+      moneda: this.getTextValue(cabecera, ['Mon_Abr', 'mon_Abr', 'monAbr']) || pedido.moneda,
+      lugarEntrega: this.getTextValue(cabecera, ['Ped_Lug_Ent', 'ped_Lug_Ent', 'pedLugEnt']) || '-',
+      fechaEntrega: mapPedidoReportDisplayDate(this.getTextValue(cabecera, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
+      detalle
+    };
+  }
+
+  private mapPedidoReporteDetalle(item: DataRecord): PedidoReporteDetallePdf {
+    return {
+      descripcion: this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']) || '-',
+      unidad: this.getTextValue(item, ['Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr']) || '-',
+      cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0,
+      precioUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']) ?? 0,
+      subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']) ?? 0
+    };
+  }
+
+  private buildPedidoReportePdfData(reporte: PedidoReporteCabeceraRow, pedido: RequisitionRow): PedidoReportePdfData {
+    return {
+      pedidoId: reporte.pedidoId,
+      codigoPedido: pedido.codigo,
+      fechaSolicitud: reporte.fechaSolicitud,
+      solicitante: reporte.solicitante,
+      referencia: reporte.referencia,
+      tipoServicio: reporte.tipoServicio,
+      moneda: reporte.moneda,
+      lugarEntrega: reporte.lugarEntrega,
+      fechaEntrega: reporte.fechaEntrega,
+      detalle: reporte.detalle
+    };
   }
 
   private mapApprovalUser(item: DataRecord): ApprovalUserOption {
@@ -1599,66 +1909,6 @@ export class RequisicionesPageComponent implements OnInit {
     return null;
   }
 
-  private formatDateValue(value: string): string {
-    if (!value) {
-      return '';
-    }
-
-    const datePart = value.trim().split('T')[0].split(' ')[0];
-    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(datePart);
-
-    if (isoMatch) {
-      return `${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}-${isoMatch[1]}`;
-    }
-
-    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(datePart);
-
-    if (separatedMatch) {
-      return `${separatedMatch[1].padStart(2, '0')}-${separatedMatch[2].padStart(2, '0')}-${separatedMatch[3]}`;
-    }
-
-    const parsedDate = new Date(value);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return value;
-    }
-
-    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(parsedDate.getDate()).padStart(2, '0');
-
-    return `${month}-${day}-${parsedDate.getFullYear()}`;
-  }
-
-  private formatDateInputValue(value: string): string {
-    if (!value) {
-      return '';
-    }
-
-    const datePart = value.trim().split('T')[0].split(' ')[0];
-    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(datePart);
-
-    if (isoMatch) {
-      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
-    }
-
-    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(datePart);
-
-    if (separatedMatch) {
-      return `${separatedMatch[3]}-${separatedMatch[1].padStart(2, '0')}-${separatedMatch[2].padStart(2, '0')}`;
-    }
-
-    const parsedDate = new Date(value);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return '';
-    }
-
-    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(parsedDate.getDate()).padStart(2, '0');
-
-    return `${parsedDate.getFullYear()}-${month}-${day}`;
-  }
-
   private toTitleCase(value: string): string {
     const normalized = value.trim().toLowerCase();
 
@@ -1722,16 +1972,17 @@ export class RequisicionesPageComponent implements OnInit {
     this.detalleForm.reset({
       lugarEntrega: '',
       referencia: '',
-      tipoCompra: 'Sin enlazar',
       oc: '',
       moneda: null,
       fechaEntrega: this.getPedidoFechaEntregaMinima(),
       sustento: '',
       archivo: 'Sin archivo adjunto'
     });
+    this.applyDefaultPedidoSelectValues(true);
     this.centrosCosto = [];
     this.currentCentroCostoPage = 1;
     this.editandoCentroCostoCantidad = 0;
+    this.archivoFile = null;
     this.archivoAdjunto = 'Sin archivo adjunto';
     this.saveErrorMessage = '';
     this.isSavingPedido = false;
@@ -1753,15 +2004,40 @@ export class RequisicionesPageComponent implements OnInit {
     this.detalleForm.patchValue({
       lugarEntrega: this.getTextValue(item, ['Ped_Lug_Ent', 'ped_Lug_Ent', 'pedLugEnt']),
       referencia: this.getTextValue(item, ['Ped_Ref', 'ped_Ref', 'pedRef']),
-      tipoCompra: 'Sin enlazar',
       oc: this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']),
       moneda: this.getNumberValue(item, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']),
-      fechaEntrega: this.formatDateInputValue(this.getTextValue(item, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
+      fechaEntrega: formatDateInputValue(this.getTextValue(item, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
       sustento: this.getTextValue(item, ['Ped_Sus', 'ped_Sus', 'pedSus']),
       archivo: this.getTextValue(item, ['Ped_Arc_Adj_Nom', 'ped_Arc_Adj_Nom', 'pedArcAdjNom']) || 'Sin archivo adjunto'
     });
 
     this.archivoAdjunto = String(this.detalleForm.controls['archivo'].value || 'Sin archivo adjunto');
+  }
+
+  private applyDefaultPedidoSelectValues(force = false): void {
+    if (this.isEditingPedido) {
+      return;
+    }
+
+    const patch: Partial<{
+      oc: string;
+      moneda: number | null;
+    }> = {};
+
+    const selectedTipoServicio = this.detalleForm.controls['oc'].value;
+    const selectedMoneda = this.detalleForm.controls['moneda'].value;
+
+    if (this.tipoServicioOptions.length && (force || !String(selectedTipoServicio || '').trim())) {
+      patch.oc = this.tipoServicioOptions[0].codigo;
+    }
+
+    if (this.tipoMoneda.length && (force || selectedMoneda === null || selectedMoneda === undefined || selectedMoneda === '')) {
+      patch.moneda = this.tipoMoneda[0].codigo;
+    }
+
+    if (Object.keys(patch).length) {
+      this.detalleForm.patchValue(patch, { emitEvent: false });
+    }
   }
 
   private populateCentroCostoEditor(response: unknown): void {
@@ -1840,14 +2116,16 @@ export class RequisicionesPageComponent implements OnInit {
     const cantidad = this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0;
     const precioUnitario = this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']) ?? 0;
     const subtotal = this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']) ?? 0;
-    const descripcionItem = this.getTextValue(item, ['Ped_Des_Itm', 'ped_Des_Itm', 'pedDesItm', 'Ped_Des', 'ped_Des']);
+    const descripcionItem = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes', 'Ped_Des_Itm', 'ped_Des_Itm', 'pedDesItm', 'Ped_Des', 'ped_Des']);
+    const descripcionUnidad = this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']);
+    const descripcionCentroCosto = this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']);
 
     if (!codigoItem && !cantidad && !precioUnitario && !subtotal) {
       return null;
     }
 
     const itemDescription = descripcionItem || this.resolveDetalleItemDescription(codigoItem);
-    const unidadDescripcion = this.resolveDetalleUnidadDescription(unidadCodigo);
+    const unidadDescripcion = descripcionUnidad || this.resolveDetalleUnidadDescription(unidadCodigo);
 
     return {
       id,
@@ -1855,6 +2133,7 @@ export class RequisicionesPageComponent implements OnInit {
       item: String(index + 1),
       codigoItem: codigoItem || '-',
       descripcion: itemDescription || '-',
+      centroCosto: descripcionCentroCosto || '-',
       unidadCodigo: unidadCodigo || '-',
       unidad: unidadDescripcion || unidadCodigo || '-',
       cantidad,
@@ -1902,6 +2181,7 @@ export class RequisicionesPageComponent implements OnInit {
 
     const codigoItem = Number(String(this.detallePedidoForm.controls['codigoItem'].value || '').trim());
     const unidad = Number(String(this.detallePedidoForm.controls['unidad'].value || '').trim());
+    const centroCostoAsignado = Number(this.detallePedidoForm.controls['centroCostoId'].value || 0);
     const cantidad = this.normalizeCantidadCentroCosto(Number(this.detallePedidoForm.controls['cantidad'].value));
     const precioUnitario = this.normalizeCantidadCentroCosto(Number(this.detallePedidoForm.controls['precioUnitario'].value));
     const subtotal = this.normalizeCantidadCentroCosto(cantidad * precioUnitario);
@@ -1914,6 +2194,11 @@ export class RequisicionesPageComponent implements OnInit {
 
     if (!Number.isInteger(unidad) || unidad <= 0) {
       this.detallePedidoErrorMessage = 'Selecciona una unidad de medida.';
+      return null;
+    }
+
+    if (!Number.isInteger(centroCostoAsignado) || centroCostoAsignado <= 0) {
+      this.detallePedidoErrorMessage = 'Selecciona un centro de costo asignado.';
       return null;
     }
 
@@ -1946,6 +2231,7 @@ export class RequisicionesPageComponent implements OnInit {
       Ped_Cab_Id: this.expandedPedidoId,
       Ped_Cod_Itm: codigoItem,
       Ped_Uni_Med: unidad,
+      Ped_Cen_Cos_Asg: centroCostoAsignado,
       Ped_Can: cantidad,
       Ped_Cos_Uni: precioUnitario,
       Ped_Cos_Tot: subtotal,
@@ -2002,6 +2288,9 @@ export class RequisicionesPageComponent implements OnInit {
     this.detallePedidoForm.reset({
       codigoItem: '',
       unidad: '',
+      centroCostoId: 0,
+      centroCostoDescripcion: '',
+      centroCostoCantidadRequerida: 0,
       cantidad: 0,
       precioUnitario: 0
     });

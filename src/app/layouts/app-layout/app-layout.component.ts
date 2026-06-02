@@ -18,7 +18,8 @@ export class AppLayoutComponent {
   ];
   readonly processItems = [
     { label: 'Pedidos', route: '/pedidos' },
-    { label: 'Orden de Compra', route: '/orden-compra' }
+    { label: 'Orden de Compra', route: '/orden-compra' },
+    { label: 'Almacen', route: '/almacen' }
   ];
   readonly maintenanceItems = [
     { label: 'Forma de Pagos', route: '/forma-pago' },

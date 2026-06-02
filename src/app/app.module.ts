@@ -4,7 +4,12 @@ import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MAT_DATE_FORMATS, MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_SCROLL_STRATEGY, MatDialogModule } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 //Import API
 import { HttpClientModule } from '@angular/common/http';
 
@@ -15,6 +20,7 @@ import { PaymentSelectorDialogComponent } from './features/provider-form/dialogs
 import { ProviderSelectorDialogComponent } from './features/provider-form/dialogs/provider-selector-dialog.component';
 import { ProviderFormComponent } from './features/provider-form/provider-form.component';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
+import { AlmacenPageComponent } from './pages/almacen-page/almacen-page.component';
 import { BancoEditDialogComponent } from './pages/banco-page/banco-edit-dialog.component';
 import { BancoPageComponent } from './pages/banco-page/banco-page.component';
 import { BancoRegisterDialogComponent } from './pages/banco-page/banco-register-dialog.component';
@@ -42,6 +48,7 @@ import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-
 import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
 import { ApprovalUserSelectorDialogComponent } from './pages/requisiciones-page/approval-user-selector-dialog.component';
 import { CentroCostoSelectorDialogComponent } from './pages/requisiciones-page/centro-costo-selector-dialog.component';
+import { PedidoApprovalDialogComponent } from './pages/requisiciones-page/pedido-approval-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pages/requisiciones-page/pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent } from './pages/requisiciones-page/pedido-detalle-dialog.component';
 import { PedidoDetalleItemSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-item-selector-dialog.component';
@@ -62,10 +69,23 @@ export function dialogScrollStrategyFactory(overlay: Overlay) {
 }
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 
+const APP_DATE_FORMATS = {
+  parse: {
+    dateInput: 'DD/MM/YYYY'
+  },
+  display: {
+    dateInput: 'dd/MM/yyyy',
+    monthYearLabel: 'MMM yyyy',
+    dateA11yLabel: 'dd/MM/yyyy',
+    monthYearA11yLabel: 'MMMM yyyy'
+  }
+};
+
 @NgModule({
   declarations: [
     AppComponent,
     AppLayoutComponent,
+    AlmacenPageComponent,
     BancoPageComponent,
     BancoRegisterDialogComponent,
     BancoEditDialogComponent,
@@ -94,6 +114,7 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     ProviderSelectorDialogComponent,
     PaymentSelectorDialogComponent,
     PedidoCancelDialogComponent,
+    PedidoApprovalDialogComponent,
     ApprovalUserSelectorDialogComponent,
     CentroCostoSelectorDialogComponent,
     PedidoDetalleDeleteDialogComponent,
@@ -119,6 +140,11 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
     ReactiveFormsModule,
     MatDialogModule,
     MatButtonModule,
+    MatDatepickerModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatNativeDateModule,
+    MatSelectModule,
     AppRoutingModule,
     HttpClientModule
   ],
@@ -127,6 +153,14 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
       provide: MAT_DIALOG_SCROLL_STRATEGY,
       deps: [Overlay],
       useFactory: dialogScrollStrategyFactory
+    },
+    {
+      provide: MAT_DATE_LOCALE,
+      useValue: 'es-PE'
+    },
+    {
+      provide: MAT_DATE_FORMATS,
+      useValue: APP_DATE_FORMATS
     }
   ],
   bootstrap: [AppComponent]
