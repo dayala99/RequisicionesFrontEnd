@@ -63,6 +63,7 @@
       <thead>
         <tr>
           <th>ID</th>
+          <th>Cod. Grupo</th>
           <th>Descripcion</th>
           <th>Estado</th>
           <th>Action</th>
@@ -72,6 +73,7 @@
       <tbody>
         <tr *ngFor="let grupoItem of paginatedGruposItem; trackBy: trackByGrupoItem">
           <td>{{ grupoItem.grpId ?? '-' }}</td>
+          <td>{{ grupoItem.grpCod || '-' }}</td>
           <td>{{ grupoItem.grpDes || '-' }}</td>
           <td>
             <span class="status-pill" [class.status-pill--inactive]="!grupoItem.activo">

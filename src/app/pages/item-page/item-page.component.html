@@ -15,13 +15,8 @@
 
   <form class="item-filters" [formGroup]="filtersForm" (ngSubmit)="cargarItems()">
     <label class="filter-field">
-      <span>ID</span>
-      <input
-        type="number"
-        formControlName="codigo"
-        min="1"
-        step="1"
-        (input)="sanitizeCodigoInput($event)">
+      <span>Codigo</span>
+      <input type="text" formControlName="codigo">
     </label>
 
     <label class="filter-field">
@@ -31,32 +26,33 @@
 
     <label class="filter-field">
       <span>Grupo</span>
-      <div class="filter-combobox" [class.filter-combobox--open]="isGrupoDropdownOpen">
-        <input
-          type="text"
-          formControlName="grupo"
-          autocomplete="off"
-          (focus)="openGrupoDropdown()"
-          (blur)="closeGrupoDropdown()"
-          (input)="onGrupoInput()">
-        <button type="button" class="filter-combobox__toggle" (click)="toggleGrupoDropdown()" tabindex="-1" aria-label="Mostrar grupos">
-          <span class="filter-combobox__chevron"></span>
-        </button>
+      <mat-select formControlName="grupo" placeholder="Todos" (selectionChange)="onGrupoFiltroChange()">
+        <mat-option [value]="null">Todos</mat-option>
+        <mat-option *ngFor="let grupo of gruposItem; trackBy: trackByGrupo" [value]="grupo.grpId">{{ grupo.grpDes }}</mat-option>
+      </mat-select>
+    </label>
 
-        <div *ngIf="isGrupoDropdownOpen" class="filter-combobox__panel">
-          <button
-            *ngFor="let grupo of filteredGrupoOptions"
-            type="button"
-            class="filter-combobox__option"
-            (mousedown)="selectGrupoFilter(grupo)">
-            {{ grupo }}
-          </button>
+    <label class="filter-field">
+      <span>Sub Grupo</span>
+      <mat-select
+        formControlName="subGrupo"
+        [placeholder]="isLoadingSubGrupos ? 'Cargando...' : 'Todos'"
+        [disabled]="!filtersForm.controls['grupo'].value || isLoadingSubGrupos"
+        (selectionChange)="onSubGrupoFiltroChange()">
+        <mat-option [value]="null">Todos</mat-option>
+        <mat-option *ngFor="let subGrupo of subGruposItem" [value]="subGrupo.id">{{ subGrupo.descripcion }}</mat-option>
+      </mat-select>
+    </label>
 
-          <div *ngIf="!filteredGrupoOptions.length" class="filter-combobox__empty">
-            No hay coincidencias
-          </div>
-        </div>
-      </div>
+    <label class="filter-field">
+      <span>Detalle Material</span>
+      <mat-select
+        formControlName="detalleMaterial"
+        [placeholder]="isLoadingDetallesMaterial ? 'Cargando...' : 'Todos'"
+        [disabled]="!filtersForm.controls['subGrupo'].value || isLoadingDetallesMaterial">
+        <mat-option [value]="null">Todos</mat-option>
+        <mat-option *ngFor="let detalle of detallesMaterial" [value]="detalle.id">{{ detalle.descripcion }}</mat-option>
+      </mat-select>
     </label>
 
     <label class="filter-field filter-field--select">
@@ -93,8 +89,11 @@
       <thead>
         <tr>
           <th>ID</th>
+          <th>Codigo</th>
           <th>Descripcion</th>
           <th>Grupo</th>
+          <th>Sub Grupo</th>
+          <th>Detalle de Material</th>
           <th>Estado</th>
           <th>Action</th>
         </tr>
@@ -103,8 +102,11 @@
       <tbody>
         <tr *ngFor="let item of paginatedItems; trackBy: trackByItem">
           <td>{{ item.itmId ?? '-' }}</td>
+          <td>{{ item.itmCod || '-' }}</td>
           <td>{{ item.itmDes || '-' }}</td>
           <td>{{ item.grpDes || '-' }}</td>
+          <td>{{ item.subGrpDes || '-' }}</td>
+          <td>{{ item.detMatDes || '-' }}</td>
           <td>
             <span class="status-pill" [class.status-pill--inactive]="!item.activo">
               {{ item.estado }}

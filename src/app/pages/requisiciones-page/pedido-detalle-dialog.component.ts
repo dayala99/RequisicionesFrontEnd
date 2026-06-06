@@ -76,7 +76,7 @@ export class PedidoDetalleDialogComponent {
     }).format(value);
   }
 
-  get cantidadRequeridaCentroCosto(): number {
+  get cantidadRestanteCentroCosto(): number {
     return this.normalizeDecimal(Number(this.form.controls['centroCostoCantidadRequerida'].value ?? 0));
   }
 
@@ -180,7 +180,7 @@ export class PedidoDetalleDialogComponent {
     }
 
     if (!this.data.isEditing && centroCostoCantidadRequerida <= 0) {
-      this.errorMessage = 'El centro de costo seleccionado no tiene una cantidad requerida valida.';
+      this.errorMessage = 'El centro de costo seleccionado no tiene cantidad restante disponible.';
       return;
     }
 
@@ -189,8 +189,8 @@ export class PedidoDetalleDialogComponent {
       return;
     }
 
-    if (!this.data.isEditing && quantity !== centroCostoCantidadRequerida) {
-      this.errorMessage = `La cantidad debe coincidir exactamente con la cantidad requerida del centro de costo: ${this.formatNumber(centroCostoCantidadRequerida)}.`;
+    if (!this.data.isEditing && quantity > centroCostoCantidadRequerida) {
+      this.errorMessage = `La cantidad no puede ser mayor a la cantidad restante del centro de costo: ${this.formatNumber(centroCostoCantidadRequerida)}.`;
       return;
     }
 

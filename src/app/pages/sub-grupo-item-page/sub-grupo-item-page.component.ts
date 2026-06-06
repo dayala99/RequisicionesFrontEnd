@@ -2,16 +2,18 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
-import { ApiService, GrupoItemFiltro } from 'src/app/Services/api.services';
+import { ApiService, SubGrupoItemFiltro } from 'src/app/Services/api.services';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
-import { GrupoItemEditDialogComponent } from './grupo-item-edit-dialog.component';
-import { GrupoItemRegisterDialogComponent } from './grupo-item-register-dialog.component';
+import { SubGrupoItemEditDialogComponent } from './sub-grupo-item-edit-dialog.component';
+import { SubGrupoItemRegisterDialogComponent } from './sub-grupo-item-register-dialog.component';
 
 type DataRecord = Record<string, unknown>;
 
-interface GrupoItemRow {
+export interface SubGrupoItemRow {
+  subGrpId: number | null;
+  subGrpCod: string;
+  subGrpDes: string;
   grpId: number | null;
-  grpCod: string;
   grpDes: string;
   flgEst: string;
   estado: string;
@@ -19,18 +21,18 @@ interface GrupoItemRow {
 }
 
 @Component({
-  selector: 'app-grupo-item-page',
-  templateUrl: './grupo-item-page.component.html',
-  styleUrls: ['./grupo-item-page.component.scss']
+  selector: 'app-sub-grupo-item-page',
+  templateUrl: './sub-grupo-item-page.component.html',
+  styleUrls: ['./sub-grupo-item-page.component.scss']
 })
-export class GrupoItemPageComponent implements OnInit {
+export class SubGrupoItemPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
-  gruposItem: GrupoItemRow[] = [];
+  subGruposItem: SubGrupoItemRow[] = [];
   currentPage = 1;
   isLoading = false;
   errorMessage = '';
-  private appliedFilters: GrupoItemFiltro = { Flg_Est: 'A' };
+  private appliedFilters: SubGrupoItemFiltro = { Flg_Est: 'A' };
 
   constructor(
     private readonly apiService: ApiService,
@@ -45,28 +47,28 @@ export class GrupoItemPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarGrupoItem();
+    this.cargarSubGrupoItem();
   }
 
-  cargarGrupoItem(): void {
+  cargarSubGrupoItem(): void {
     this.isLoading = true;
     this.errorMessage = '';
     const filtros = this.getFiltros();
     this.appliedFilters = { ...filtros };
 
-    this.apiService.getListarGrupoItem(filtros).subscribe({
+    this.apiService.getListarSubGrupoItem(filtros).subscribe({
       next: (response: unknown) => {
-        this.gruposItem = this.extractRecords(response)
-          .map((item) => this.mapGrupoItem(item))
-          .sort((left, right) => (left.grpId ?? 0) - (right.grpId ?? 0));
-        this.currentPage = normalizePaginationPage(this.currentPage, this.gruposItem.length, this.pageSize);
+        this.subGruposItem = this.extractRecords(response)
+          .map((item) => this.mapSubGrupoItem(item))
+          .sort((left, right) => left.subGrpCod.localeCompare(right.subGrpCod));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.subGruposItem.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
-        console.error('Error cargando grupos de item:', error);
-        this.gruposItem = [];
+        console.error('Error cargando sub grupos de item:', error);
+        this.subGruposItem = [];
         this.currentPage = 1;
-        this.errorMessage = 'No se pudo cargar la informacion de grupos de item. Intenta nuevamente.';
+        this.errorMessage = 'No se pudo cargar la informacion de sub grupos de item. Intenta nuevamente.';
         this.isLoading = false;
       }
     });
@@ -78,12 +80,12 @@ export class GrupoItemPageComponent implements OnInit {
       descripcion: '',
       estado: 'A'
     });
-    this.cargarGrupoItem();
+    this.cargarSubGrupoItem();
   }
 
-  registrarGrupoItem(): void {
-    const dialogRef = this.dialog.open(GrupoItemRegisterDialogComponent, {
-      width: 'min(32rem, 92vw)',
+  registrarSubGrupoItem(): void {
+    const dialogRef = this.dialog.open(SubGrupoItemRegisterDialogComponent, {
+      width: 'min(34rem, 92vw)',
       disableClose: true,
       panelClass: 'animated-dialog-pane',
       backdropClass: 'animated-dialog-backdrop',
@@ -92,97 +94,74 @@ export class GrupoItemPageComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((created: boolean | undefined) => {
       if (created) {
-        this.cargarGrupoItem();
+        this.cargarSubGrupoItem();
       }
     });
   }
 
-  editarGrupoItem(grupoItem: GrupoItemRow): void {
-    if (grupoItem.grpId === null) {
+  editarSubGrupoItem(subGrupoItem: SubGrupoItemRow): void {
+    if (subGrupoItem.subGrpId === null) {
       return;
     }
 
-    const dialogRef = this.dialog.open(GrupoItemEditDialogComponent, {
-      width: 'min(32rem, 92vw)',
+    const dialogRef = this.dialog.open(SubGrupoItemEditDialogComponent, {
+      width: 'min(34rem, 92vw)',
       disableClose: true,
       panelClass: 'animated-dialog-pane',
       backdropClass: 'animated-dialog-backdrop',
       autoFocus: false,
-      data: { grupoItem }
+      data: { subGrupoItem }
     });
 
     dialogRef.afterClosed().subscribe((updated: boolean | undefined) => {
       if (updated) {
-        this.cargarGrupoItem();
+        this.cargarSubGrupoItem();
       }
     });
   }
 
-  trackByGrupoItem(_index: number, grupoItem: GrupoItemRow): string {
-    return grupoItem.grpId !== null ? String(grupoItem.grpId) : grupoItem.grpDes;
+  trackBySubGrupoItem(_index: number, subGrupoItem: SubGrupoItemRow): string {
+    return subGrupoItem.subGrpId !== null ? String(subGrupoItem.subGrpId) : subGrupoItem.subGrpCod;
   }
 
-  get paginatedGruposItem(): GrupoItemRow[] {
-    return paginateItems(this.gruposItem, this.currentPage, this.pageSize);
+  get paginatedSubGruposItem(): SubGrupoItemRow[] {
+    return paginateItems(this.subGruposItem, this.currentPage, this.pageSize);
   }
 
   onPageChange(page: number): void {
-    this.currentPage = normalizePaginationPage(page, this.gruposItem.length, this.pageSize);
+    this.currentPage = normalizePaginationPage(page, this.subGruposItem.length, this.pageSize);
   }
 
   get emptyStateMessage(): string {
-    const codigo = String(this.appliedFilters.Grp_Id ?? '').trim();
-    const descripcion = String(this.appliedFilters.Grp_Des ?? '').trim();
+    const codigo = String(this.appliedFilters.Sub_Grp_Cod ?? '').trim();
+    const descripcion = String(this.appliedFilters.Sub_Grp_Des ?? '').trim();
     const estado = this.getEstadoTexto(this.appliedFilters.Flg_Est);
     const hasSpecificFilters = Boolean(codigo || descripcion);
 
     if (hasSpecificFilters) {
-      return `No se encontraron grupos de item ${estado.toLowerCase()} con los filtros aplicados.`;
+      return `No se encontraron sub grupos de item ${estado.toLowerCase()} con los filtros aplicados.`;
     }
 
-    return `No se encontraron grupos de item ${estado.toLowerCase()} para mostrar.`;
+    return `No se encontraron sub grupos de item ${estado.toLowerCase()} para mostrar.`;
   }
 
-  sanitizeCodigoInput(event: Event): void {
-    const input = event.target as HTMLInputElement | null;
-
-    if (!input) {
-      return;
-    }
-
-    const sanitizedValue = input.value.replace(/[^\d]/g, '');
-
-    if (sanitizedValue !== input.value) {
-      input.value = sanitizedValue;
-      this.filtersForm.controls['codigo'].setValue(sanitizedValue, { emitEvent: false });
-    }
-  }
-
-  private getFiltros(): GrupoItemFiltro {
-    const codigoRaw = this.getCodigoBuscado();
+  private getFiltros(): SubGrupoItemFiltro {
+    const codigo = String(this.filtersForm.controls['codigo'].value ?? '').trim();
     const descripcion = String(this.filtersForm.controls['descripcion'].value ?? '').trim();
     const estado = String(this.filtersForm.controls['estado'].value ?? '').trim() || 'A';
-    const filtros: GrupoItemFiltro = {
+    const filtros: SubGrupoItemFiltro = {
       Flg_Est: estado
     };
 
-    if (codigoRaw) {
-      const codigo = Number(codigoRaw);
-
-      if (Number.isInteger(codigo) && codigo > 0) {
-        filtros.Grp_Id = codigo;
-      }
+    if (codigo) {
+      filtros.Sub_Grp_Cod = codigo;
     }
 
     if (descripcion) {
-      filtros.Grp_Des = descripcion;
+      filtros.Sub_Grp_Des = descripcion;
     }
 
     return filtros;
-  }
-
-  private getCodigoBuscado(): string {
-    return String(this.filtersForm.controls['codigo'].value ?? '').trim();
   }
 
   private extractRecords(response: unknown): DataRecord[] {
@@ -194,7 +173,7 @@ export class GrupoItemPageComponent implements OnInit {
       return [];
     }
 
-    const possibleArrayKeys = ['grupoItems', 'GrupoItems', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
+    const possibleArrayKeys = ['subGrupoItems', 'SubGrupoItems', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
 
     for (const key of possibleArrayKeys) {
       const value = response[key];
@@ -204,17 +183,19 @@ export class GrupoItemPageComponent implements OnInit {
       }
     }
 
-    return this.looksLikeGrupoItemRecord(response) ? [response] : [];
+    return this.looksLikeSubGrupoItemRecord(response) ? [response] : [];
   }
 
-  private mapGrupoItem(item: DataRecord): GrupoItemRow {
+  private mapSubGrupoItem(item: DataRecord): SubGrupoItemRow {
     const flgEst = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']) || 'A';
     const activo = flgEst.toUpperCase() === 'A';
 
     return {
-      grpId: this.getNumberValue(item, ['Grp_Id', 'grp_Id', 'grpId', 'id', 'Id']),
-      grpCod: this.getTextValue(item, ['Grp_Cod', 'grp_Cod', 'grpCod']),
-      grpDes: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes', 'descripcion', 'Descripcion']),
+      subGrpId: this.getNumberValue(item, ['Sub_Grp_Id', 'sub_Grp_Id', 'subGrpId', 'id', 'Id']),
+      subGrpCod: this.getTextValue(item, ['Sub_Grp_Cod', 'sub_Grp_Cod', 'subGrpCod', 'codigo', 'Codigo']),
+      subGrpDes: this.getTextValue(item, ['Sub_Grp_Des', 'sub_Grp_Des', 'subGrpDes', 'descripcion', 'Descripcion']),
+      grpId: this.getNumberValue(item, ['Grp_Id', 'grp_Id', 'grpId', 'GrpId', 'grp_id', 'grupoId', 'GrupoId']),
+      grpDes: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes', 'grupo', 'Grupo']),
       flgEst,
       estado: activo ? 'Activo' : 'Inactivo',
       activo
@@ -254,8 +235,8 @@ export class GrupoItemPageComponent implements OnInit {
     return estado === 'I' ? 'inactivos' : 'activos';
   }
 
-  private looksLikeGrupoItemRecord(item: DataRecord): boolean {
-    const recordKeys = ['Grp_Id', 'grp_Id', 'grpId', 'Grp_Des', 'grp_Des', 'grpDes', 'Flg_Est', 'flg_Est', 'flgEst'];
+  private looksLikeSubGrupoItemRecord(item: DataRecord): boolean {
+    const recordKeys = ['Sub_Grp_Id', 'sub_Grp_Id', 'subGrpId', 'Sub_Grp_Cod', 'sub_Grp_Cod', 'subGrpCod', 'Sub_Grp_Des', 'sub_Grp_Des', 'subGrpDes'];
     return recordKeys.some((key) => Object.prototype.hasOwnProperty.call(item, key));
   }
 }

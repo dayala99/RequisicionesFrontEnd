@@ -2,35 +2,35 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
-import { ApiService, GrupoItemFiltro } from 'src/app/Services/api.services';
+import { ApiService, DetraccionFiltro } from 'src/app/Services/api.services';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
-import { GrupoItemEditDialogComponent } from './grupo-item-edit-dialog.component';
-import { GrupoItemRegisterDialogComponent } from './grupo-item-register-dialog.component';
+import { DetraccionEditDialogComponent } from './detraccion-edit-dialog.component';
+import { DetraccionRegisterDialogComponent } from './detraccion-register-dialog.component';
 
 type DataRecord = Record<string, unknown>;
 
-interface GrupoItemRow {
-  grpId: number | null;
-  grpCod: string;
-  grpDes: string;
+export interface DetraccionRow {
+  detId: number | null;
+  detDes: string;
+  detPor: number | null;
   flgEst: string;
   estado: string;
   activo: boolean;
 }
 
 @Component({
-  selector: 'app-grupo-item-page',
-  templateUrl: './grupo-item-page.component.html',
-  styleUrls: ['./grupo-item-page.component.scss']
+  selector: 'app-detraccion-page',
+  templateUrl: './detraccion-page.component.html',
+  styleUrls: ['./detraccion-page.component.scss']
 })
-export class GrupoItemPageComponent implements OnInit {
+export class DetraccionPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
-  gruposItem: GrupoItemRow[] = [];
+  detracciones: DetraccionRow[] = [];
   currentPage = 1;
   isLoading = false;
   errorMessage = '';
-  private appliedFilters: GrupoItemFiltro = { Flg_Est: 'A' };
+  private appliedFilters: DetraccionFiltro = { Flg_Est: 'A' };
 
   constructor(
     private readonly apiService: ApiService,
@@ -45,28 +45,29 @@ export class GrupoItemPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarGrupoItem();
+    this.cargarDetracciones();
   }
 
-  cargarGrupoItem(): void {
+  cargarDetracciones(): void {
     this.isLoading = true;
     this.errorMessage = '';
     const filtros = this.getFiltros();
     this.appliedFilters = { ...filtros };
 
-    this.apiService.getListarGrupoItem(filtros).subscribe({
+    this.apiService.getListarDetraccion(filtros).subscribe({
       next: (response: unknown) => {
-        this.gruposItem = this.extractRecords(response)
-          .map((item) => this.mapGrupoItem(item))
-          .sort((left, right) => (left.grpId ?? 0) - (right.grpId ?? 0));
-        this.currentPage = normalizePaginationPage(this.currentPage, this.gruposItem.length, this.pageSize);
+        this.detracciones = this.extractRecords(response)
+          .map((item) => this.mapDetraccion(item))
+          .filter((item) => item.detId !== null || !!item.detDes)
+          .sort((left, right) => (left.detId ?? 0) - (right.detId ?? 0));
+        this.currentPage = normalizePaginationPage(this.currentPage, this.detracciones.length, this.pageSize);
         this.isLoading = false;
       },
       error: (error: unknown) => {
-        console.error('Error cargando grupos de item:', error);
-        this.gruposItem = [];
+        console.error('Error cargando detracciones:', error);
+        this.detracciones = [];
         this.currentPage = 1;
-        this.errorMessage = 'No se pudo cargar la informacion de grupos de item. Intenta nuevamente.';
+        this.errorMessage = 'No se pudo cargar la informacion de detracciones. Intenta nuevamente.';
         this.isLoading = false;
       }
     });
@@ -78,12 +79,12 @@ export class GrupoItemPageComponent implements OnInit {
       descripcion: '',
       estado: 'A'
     });
-    this.cargarGrupoItem();
+    this.cargarDetracciones();
   }
 
-  registrarGrupoItem(): void {
-    const dialogRef = this.dialog.open(GrupoItemRegisterDialogComponent, {
-      width: 'min(32rem, 92vw)',
+  registrarDetraccion(): void {
+    const dialogRef = this.dialog.open(DetraccionRegisterDialogComponent, {
+      width: 'min(34rem, 92vw)',
       disableClose: true,
       panelClass: 'animated-dialog-pane',
       backdropClass: 'animated-dialog-backdrop',
@@ -92,55 +93,55 @@ export class GrupoItemPageComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((created: boolean | undefined) => {
       if (created) {
-        this.cargarGrupoItem();
+        this.cargarDetracciones();
       }
     });
   }
 
-  editarGrupoItem(grupoItem: GrupoItemRow): void {
-    if (grupoItem.grpId === null) {
+  editarDetraccion(detraccion: DetraccionRow): void {
+    if (detraccion.detId === null) {
       return;
     }
 
-    const dialogRef = this.dialog.open(GrupoItemEditDialogComponent, {
-      width: 'min(32rem, 92vw)',
+    const dialogRef = this.dialog.open(DetraccionEditDialogComponent, {
+      width: 'min(34rem, 92vw)',
       disableClose: true,
       panelClass: 'animated-dialog-pane',
       backdropClass: 'animated-dialog-backdrop',
       autoFocus: false,
-      data: { grupoItem }
+      data: { detraccion }
     });
 
     dialogRef.afterClosed().subscribe((updated: boolean | undefined) => {
       if (updated) {
-        this.cargarGrupoItem();
+        this.cargarDetracciones();
       }
     });
   }
 
-  trackByGrupoItem(_index: number, grupoItem: GrupoItemRow): string {
-    return grupoItem.grpId !== null ? String(grupoItem.grpId) : grupoItem.grpDes;
+  trackByDetraccion(_index: number, detraccion: DetraccionRow): string {
+    return detraccion.detId !== null ? String(detraccion.detId) : detraccion.detDes;
   }
 
-  get paginatedGruposItem(): GrupoItemRow[] {
-    return paginateItems(this.gruposItem, this.currentPage, this.pageSize);
+  get paginatedDetracciones(): DetraccionRow[] {
+    return paginateItems(this.detracciones, this.currentPage, this.pageSize);
   }
 
   onPageChange(page: number): void {
-    this.currentPage = normalizePaginationPage(page, this.gruposItem.length, this.pageSize);
+    this.currentPage = normalizePaginationPage(page, this.detracciones.length, this.pageSize);
   }
 
   get emptyStateMessage(): string {
-    const codigo = String(this.appliedFilters.Grp_Id ?? '').trim();
-    const descripcion = String(this.appliedFilters.Grp_Des ?? '').trim();
+    const descripcion = String(this.appliedFilters.Det_Des ?? '').trim();
+    const codigo = String(this.appliedFilters.Det_Id ?? '').trim();
     const estado = this.getEstadoTexto(this.appliedFilters.Flg_Est);
     const hasSpecificFilters = Boolean(codigo || descripcion);
 
     if (hasSpecificFilters) {
-      return `No se encontraron grupos de item ${estado.toLowerCase()} con los filtros aplicados.`;
+      return `No se han encontrado detracciones ${estado.toLowerCase()} con los filtros aplicados.`;
     }
 
-    return `No se encontraron grupos de item ${estado.toLowerCase()} para mostrar.`;
+    return `No se han encontrado detracciones ${estado.toLowerCase()}.`;
   }
 
   sanitizeCodigoInput(event: Event): void {
@@ -158,11 +159,19 @@ export class GrupoItemPageComponent implements OnInit {
     }
   }
 
-  private getFiltros(): GrupoItemFiltro {
+  formatPorcentaje(value: number | null): string {
+    if (value === null || Number.isNaN(value)) {
+      return '-';
+    }
+
+    return `${value.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
+  }
+
+  private getFiltros(): DetraccionFiltro {
     const codigoRaw = this.getCodigoBuscado();
     const descripcion = String(this.filtersForm.controls['descripcion'].value ?? '').trim();
     const estado = String(this.filtersForm.controls['estado'].value ?? '').trim() || 'A';
-    const filtros: GrupoItemFiltro = {
+    const filtros: DetraccionFiltro = {
       Flg_Est: estado
     };
 
@@ -170,12 +179,12 @@ export class GrupoItemPageComponent implements OnInit {
       const codigo = Number(codigoRaw);
 
       if (Number.isInteger(codigo) && codigo > 0) {
-        filtros.Grp_Id = codigo;
+        filtros.Det_Id = codigo;
       }
     }
 
     if (descripcion) {
-      filtros.Grp_Des = descripcion;
+      filtros.Det_Des = descripcion;
     }
 
     return filtros;
@@ -194,7 +203,11 @@ export class GrupoItemPageComponent implements OnInit {
       return [];
     }
 
-    const possibleArrayKeys = ['grupoItems', 'GrupoItems', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
+    if (response['Success'] === false || response['success'] === false) {
+      return [];
+    }
+
+    const possibleArrayKeys = ['detracciones', 'Detracciones', 'elements', 'Elements', 'data', 'Data', 'result', 'Result'];
 
     for (const key of possibleArrayKeys) {
       const value = response[key];
@@ -204,17 +217,17 @@ export class GrupoItemPageComponent implements OnInit {
       }
     }
 
-    return this.looksLikeGrupoItemRecord(response) ? [response] : [];
+    return this.hasDetraccionFields(response) ? [response] : [];
   }
 
-  private mapGrupoItem(item: DataRecord): GrupoItemRow {
+  private mapDetraccion(item: DataRecord): DetraccionRow {
     const flgEst = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']) || 'A';
     const activo = flgEst.toUpperCase() === 'A';
 
     return {
-      grpId: this.getNumberValue(item, ['Grp_Id', 'grp_Id', 'grpId', 'id', 'Id']),
-      grpCod: this.getTextValue(item, ['Grp_Cod', 'grp_Cod', 'grpCod']),
-      grpDes: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes', 'descripcion', 'Descripcion']),
+      detId: this.getNumberValue(item, ['Det_Id', 'det_Id', 'detId', 'id', 'Id']),
+      detDes: this.getTextValue(item, ['Det_Des', 'det_Des', 'detDes', 'descripcion', 'Descripcion']),
+      detPor: this.getDecimalValue(item, ['Det_Por', 'det_Por', 'detPor', 'porcentaje', 'Porcentaje']),
       flgEst,
       estado: activo ? 'Activo' : 'Inactivo',
       activo
@@ -245,17 +258,28 @@ export class GrupoItemPageComponent implements OnInit {
     return null;
   }
 
+  private getDecimalValue(item: DataRecord, keys: string[]): number | null {
+    for (const key of keys) {
+      const value = Number(item[key]);
+
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
   private isDataRecord(value: unknown): value is DataRecord {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
-  private getEstadoTexto(flgEst: string | undefined): string {
-    const estado = String(flgEst ?? 'A').trim().toUpperCase();
-    return estado === 'I' ? 'inactivos' : 'activos';
+  private hasDetraccionFields(item: DataRecord): boolean {
+    const recordKeys = ['Det_Id', 'det_Id', 'detId', 'Det_Des', 'det_Des', 'detDes', 'Det_Por', 'det_Por', 'detPor', 'Flg_Est', 'flg_Est', 'flgEst'];
+    return recordKeys.some((key) => item[key] !== undefined && item[key] !== null);
   }
 
-  private looksLikeGrupoItemRecord(item: DataRecord): boolean {
-    const recordKeys = ['Grp_Id', 'grp_Id', 'grpId', 'Grp_Des', 'grp_Des', 'grpDes', 'Flg_Est', 'flg_Est', 'flgEst'];
-    return recordKeys.some((key) => Object.prototype.hasOwnProperty.call(item, key));
+  private getEstadoTexto(flgEst?: string): string {
+    return String(flgEst || '').toUpperCase() === 'I' ? 'inactivas' : 'activas';
   }
 }

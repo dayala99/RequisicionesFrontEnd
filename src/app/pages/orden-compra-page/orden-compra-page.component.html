@@ -25,17 +25,24 @@
 
     <section *ngIf="!mostrarEditor" class="panel panel--listing">
       <form class="filters-panel" [formGroup]="filtersForm" (ngSubmit)="aplicarFiltros()">
-        <label class="field">
+        <label class="field field--list-mode">
+          <span>Listado</span>
+          <select formControlName="modoListado" (change)="onListadoModoChange()">
+            <option *ngFor="let option of listadoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
+          </select>
+        </label>
+
+        <label class="field" *ngIf="isListadoGenerados">
           <span>Nro. O/C</span>
           <input type="number" formControlName="ordenCompraId" min="1" step="1">
         </label>
 
-        <label class="field">
+        <label class="field" *ngIf="isListadoGenerados">
           <span>Proveedor</span>
           <input type="text" formControlName="proveedor">
         </label>
 
-        <label class="field">
+        <label class="field" *ngIf="isListadoGenerados">
           <span>Estado</span>
           <select formControlName="estado">
             <option value="A">Activo</option>
@@ -43,7 +50,7 @@
           </select>
         </label>
 
-        <div class="filters-panel__actions">
+        <div class="filters-panel__actions" *ngIf="isListadoGenerados">
           <button type="submit" class="button button--primary" [disabled]="isLoadingOrdenesCompra">
             {{ isLoadingOrdenesCompra ? 'Buscando...' : 'Buscar' }}
           </button>
@@ -55,7 +62,7 @@
 
       <p *ngIf="errorMessage" class="editor-feedback editor-feedback--error">{{ errorMessage }}</p>
 
-      <div class="table-shell">
+      <div class="table-shell" *ngIf="isListadoGenerados; else pedidosPendientesTable">
         <table class="orden-compra-table">
           <thead>
             <tr>
@@ -109,12 +116,67 @@
       </div>
 
       <app-grid-pagination
-        *ngIf="ordenesCompra.length"
+        *ngIf="isListadoGenerados && ordenesCompra.length"
         [totalItems]="ordenesCompra.length"
         [currentPage]="currentOrdenesCompraPage"
         [pageSize]="pageSize"
         (pageChange)="onOrdenesCompraPageChange($event)">
       </app-grid-pagination>
+
+      <ng-template #pedidosPendientesTable>
+        <div class="table-shell">
+          <table class="orden-compra-table">
+            <thead>
+              <tr>
+                <th aria-label="Generar orden de compra"></th>
+                <th>Nro. Pedido</th>
+                <th>Proveedor</th>
+                <th>Tipo de Servicio</th>
+                <th>Referencia</th>
+                <th>Moneda</th>
+                <th>Total</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngIf="isLoadingOrdenesCompra">
+                <td colspan="8" class="empty-row">Cargando pedidos pendientes...</td>
+              </tr>
+
+              <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !pedidosPendientes.length">
+                <td colspan="8" class="empty-row">No se encontraron pedidos pendientes.</td>
+              </tr>
+
+              <tr *ngFor="let item of paginatedPedidosPendientes">
+                <td>
+                  <button
+                    type="button"
+                    class="button button--primary button--compact"
+                    (click)="generarOrdenCompraDesdePedido(item)">
+                    Generar
+                  </button>
+                </td>
+                <td>{{ item.pedidoId || '-' }}</td>
+                <td>{{ item.proveedor }}</td>
+                <td>{{ item.tipoServicio }}</td>
+                <td>{{ item.referencia }}</td>
+                <td>{{ item.moneda }}</td>
+                <td>{{ formatCurrency(item.total) }}</td>
+                <td>{{ item.estado }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <app-grid-pagination
+          *ngIf="pedidosPendientes.length"
+          [totalItems]="pedidosPendientes.length"
+          [currentPage]="currentPedidosPendientesPage"
+          [pageSize]="pageSize"
+          (pageChange)="onPedidosPendientesPageChange($event)">
+        </app-grid-pagination>
+      </ng-template>
     </section>
 
     <section *ngIf="mostrarEditor" class="orden-compra-editor">
@@ -184,20 +246,6 @@
           </div>
         </div>
 
-        <label class="field">
-          <span>Subtotal</span>
-          <input type="text" formControlName="subtotal" inputmode="decimal" (input)="onMontoInput('subtotal', $event)">
-        </label>
-
-        <label class="field">
-          <span>IGV</span>
-          <input type="text" formControlName="igv" inputmode="decimal" (input)="onMontoInput('igv', $event)">
-        </label>
-
-        <label class="field">
-          <span>Total</span>
-          <input type="text" formControlName="total" inputmode="decimal" (input)="onMontoInput('total', $event)">
-        </label>
       </form>
 
       <section class="editor-section">
@@ -372,6 +420,54 @@
           [pageSize]="pageSize"
           (pageChange)="onDetallePedidoPageChange($event)">
         </app-grid-pagination>
+
+        <form class="totals-grid" [formGroup]="form">
+          <label class="field">
+            <span>Subtotal</span>
+            <input type="number" formControlName="subtotal" min="0" step="0.01">
+          </label>
+
+          <label class="field">
+            <span>IGV</span>
+            <input type="number" formControlName="igv" min="0" step="0.01">
+          </label>
+
+          <div class="field">
+            <span>Detraccion</span>
+            <mat-select
+              class="detraccion-select"
+              formControlName="detraccionId"
+              placeholder="Seleccionar detraccion"
+              [disabled]="isLoadingDetracciones"
+              (selectionChange)="onDetraccionChange()"
+              (openedChange)="detraccionSearch = ''">
+              <mat-option class="detraccion-search-option">
+                <input
+                  type="text"
+                  class="detraccion-search-input"
+                  placeholder="Buscar detraccion"
+                  [value]="detraccionSearch"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                  (input)="onDetraccionSearchInput($event)">
+              </mat-option>
+              <mat-option [value]="null">Sin detraccion</mat-option>
+              <mat-option *ngFor="let detraccion of filteredDetracciones" [value]="detraccion.id">
+                {{ detraccion.label }}
+              </mat-option>
+            </mat-select>
+          </div>
+
+          <label class="field">
+            <span>Monto Detraccion</span>
+            <input type="number" formControlName="montoDetraccion" min="0" step="0.01">
+          </label>
+
+          <label class="field">
+            <span>Total</span>
+            <input type="number" formControlName="total" min="0" step="0.01">
+          </label>
+        </form>
       </section>
 
       <div class="editor-actions">

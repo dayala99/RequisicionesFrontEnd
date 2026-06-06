@@ -1,4 +1,4 @@
-<main class="shell">
+<main class="shell" [class.shell--sidebar-collapsed]="sidebarCollapsed">
   <button
     *ngIf="sidebarOpen"
     type="button"
@@ -20,7 +20,24 @@
     <span></span>
   </button>
 
+  <button
+    type="button"
+    class="desktop-sidebar-restore"
+    *ngIf="sidebarCollapsed"
+    (click)="toggleSidebarCollapsed()"
+    aria-label="Mostrar menu lateral">
+    ›
+  </button>
+
   <aside id="sidebar" class="sidebar" [class.sidebar--open]="sidebarOpen">
+    <button
+      type="button"
+      class="sidebar_collapse_button"
+      (click)="toggleSidebarCollapsed()"
+      aria-label="Ocultar menu lateral">
+      ‹
+    </button>
+
     <div class="sidebar_brand_top">
       <div class="sidebar_logo">AR</div>
       <div>

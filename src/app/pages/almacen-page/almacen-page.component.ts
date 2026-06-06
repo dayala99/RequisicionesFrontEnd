@@ -38,6 +38,38 @@ interface AlmacenRow {
   estadoAprobacion: string;
 }
 
+interface OrdenCompraPendienteAlmacenRow {
+  id: number;
+  ordenCompraId: number;
+  pedidoId: number;
+  numeroOrden: string;
+  pedidoCodigo: string;
+  fecha: string;
+  proveedor: string;
+  proveedorRuc: string;
+  formaPago: string;
+  refObra: string;
+  referencia: string;
+  total: number;
+  estado: string;
+}
+
+interface IngresoOrdenDetalleRow {
+  id: number;
+  itemId: number;
+  itemCodigo: string;
+  itemDescripcion: string;
+  unidadId: number;
+  unidad: string;
+  centroCostoId: number;
+  centroCosto: string;
+  compra: number;
+  ingresado: number;
+  pendiente: number;
+  cantidadIngresar: number | null;
+  seleccionado: boolean;
+}
+
 interface AlmacenSolicitanteOption {
   id: number;
   code: string;
@@ -60,7 +92,7 @@ export class AlmacenPageComponent implements OnInit {
   readonly filtersForm: FormGroup;
   readonly ingresoDirectoForm: FormGroup;
   readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
-  readonly actionButtons = ['Nuevo'];
+  readonly actionButtons = ['Ing. Directo'];
   readonly estadoOptions: CatalogoTextoOption[] = [
     { codigo: '', descripcion: 'Todos' },
     { codigo: 'A', descripcion: 'Activo' },
@@ -78,6 +110,10 @@ export class AlmacenPageComponent implements OnInit {
     { codigo: 2, descripcion: 'Orden de servicio' },
     { codigo: 3, descripcion: 'Orden de compra' }
   ];
+  readonly listadoOptions: CatalogoTextoOption[] = [
+    { codigo: 'P', descripcion: 'Pendiente' },
+    { codigo: 'I', descripcion: 'Ingresado' }
+  ];
   readonly ubicacionOptions: CatalogoTextoOption[] = [
     { codigo: '1', descripcion: 'BASE' },
     { codigo: '2', descripcion: 'OBRA' }
@@ -87,8 +123,10 @@ export class AlmacenPageComponent implements OnInit {
   readonly proveedorSearchControl = new FormControl('', { nonNullable: true });
   readonly centroCostoSearchControl = new FormControl('', { nonNullable: true });
   readonly centrosCostoMaterialSearchControl = new FormControl('', { nonNullable: true });
+  readonly listadoControl = new FormControl<'P' | 'I'>('P', { nonNullable: true });
 
   almacenes: AlmacenRow[] = [];
+  ordenesCompraPendientesAlmacen: OrdenCompraPendienteAlmacenRow[] = [];
   solicitanteOptions: AlmacenSolicitanteOption[] = [];
   proveedorOptions: ProviderRecord[] = [];
   centroCostoOptions: AlmacenCentroCostoOption[] = [];
@@ -100,10 +138,13 @@ export class AlmacenPageComponent implements OnInit {
   isSavingIngreso = false;
   isLoadingEditor = false;
   showIngresoDirectoForm = false;
+  showIngresoOrdenForm = false;
   isEditMode = false;
   errorMessage = '';
   saveErrorMessage = '';
   currentPage = 1;
+  ingresoOrdenSeleccionada: OrdenCompraPendienteAlmacenRow | null = null;
+  ingresoOrdenDetalles: IngresoOrdenDetalleRow[] = [];
   private pendingEditMovimientoId: number | null = null;
   private pendingEditCabeceraRecord: DataRecord | null = null;
   private pendingEditDetalleRecord: DataRecord | null = null;
@@ -144,8 +185,16 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarMovimientos();
+    this.cargarListadoSeleccionado();
     this.cargarCatalogosEditor();
+  }
+
+  get isListadoPendiente(): boolean {
+    return this.listadoControl.value === 'P';
+  }
+
+  get isListadoIngresado(): boolean {
+    return this.listadoControl.value === 'I';
   }
 
   get filteredAlmacenes(): AlmacenRow[] {
@@ -172,6 +221,10 @@ export class AlmacenPageComponent implements OnInit {
 
   get paginatedAlmacenes(): AlmacenRow[] {
     return paginateItems(this.filteredAlmacenes, this.currentPage, this.pageSize);
+  }
+
+  get paginatedOrdenesCompraPendientesAlmacen(): OrdenCompraPendienteAlmacenRow[] {
+    return paginateItems(this.ordenesCompraPendientesAlmacen, this.currentPage, this.pageSize);
   }
 
   get filteredSolicitanteOptions(): AlmacenSolicitanteOption[] {
@@ -255,7 +308,7 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   aplicarFiltros(): void {
-    this.cargarMovimientos();
+    this.cargarListadoSeleccionado();
   }
 
   limpiarFiltros(): void {
@@ -266,7 +319,7 @@ export class AlmacenPageComponent implements OnInit {
       estadoAprobacion: ''
     });
     this.globalSearch = '';
-    this.cargarMovimientos();
+    this.cargarListadoSeleccionado();
   }
 
   onGlobalSearchChange(value: string): void {
@@ -275,11 +328,21 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   onPageChange(page: number): void {
-    this.currentPage = normalizePaginationPage(page, this.filteredAlmacenes.length, this.pageSize);
+    const totalItems = this.isListadoPendiente
+      ? this.ordenesCompraPendientesAlmacen.length
+      : this.filteredAlmacenes.length;
+    this.currentPage = normalizePaginationPage(page, totalItems, this.pageSize);
+  }
+
+  onListadoChange(): void {
+    this.currentPage = 1;
+    this.globalSearch = '';
+    this.errorMessage = '';
+    this.cargarListadoSeleccionado();
   }
 
   ejecutarAccion(action: string): void {
-    if (action === 'Nuevo') {
+    if (action === 'Ing. Directo') {
       this.abrirIngresoDirecto();
     }
   }
@@ -431,7 +494,7 @@ export class AlmacenPageComponent implements OnInit {
             this.showIngresoDirectoForm = false;
             this.saveErrorMessage = '';
             this.resetIngresoDirectoForm();
-            this.cargarMovimientos();
+            this.cargarListadoSeleccionado();
           },
           error: (error: unknown) => {
             this.isSavingIngreso = false;
@@ -457,8 +520,74 @@ export class AlmacenPageComponent implements OnInit {
     this.resetIngresoDirectoForm();
   }
 
+  abrirIngresoOrden(item: OrdenCompraPendienteAlmacenRow): void {
+    console.log('Almacen ingresar orden - fila seleccionada:', item);
+    this.errorMessage = '';
+    this.saveErrorMessage = '';
+    this.isLoadingEditor = true;
+    this.showIngresoDirectoForm = false;
+    this.showIngresoOrdenForm = true;
+    this.ingresoOrdenSeleccionada = item;
+    this.ingresoOrdenDetalles = [];
+
+    this.apiService.getListarCabeceraIngresoAlmacen(item.ordenCompraId).subscribe({
+      next: (response: unknown) => {
+        console.log('Almacen ingresar orden - cabecera response:', response);
+        const record = this.extractRecords(response)[0] ?? null;
+        const cabecera = record
+          ? this.mapCabeceraIngresoOrden(record, item)
+          : item;
+        this.ingresoOrdenSeleccionada = cabecera;
+        this.cargarDetalleIngresoOrden(cabecera);
+      },
+      error: (error: unknown) => {
+        this.isLoadingEditor = false;
+        this.saveErrorMessage = this.resolveErrorMessage(
+          error,
+          'No se pudo cargar la cabecera del ingreso a almacen.'
+        );
+      }
+    });
+  }
+
+  cancelarIngresoOrden(): void {
+    this.showIngresoOrdenForm = false;
+    this.ingresoOrdenSeleccionada = null;
+    this.ingresoOrdenDetalles = [];
+    this.saveErrorMessage = '';
+  }
+
   trackByAlmacen(_: number, item: AlmacenRow): number {
     return item.id;
+  }
+
+  trackByOrdenCompraPendienteAlmacen(_: number, item: OrdenCompraPendienteAlmacenRow): number {
+    return item.id;
+  }
+
+  trackByIngresoOrdenDetalle(_: number, item: IngresoOrdenDetalleRow): number {
+    return item.id;
+  }
+
+  setCantidadIngresoDetalle(item: IngresoOrdenDetalleRow, value: string): void {
+    const cantidad = Number(value);
+    item.cantidadIngresar = value === '' || !Number.isFinite(cantidad) ? null : cantidad;
+  }
+
+  setSeleccionIngresoDetalle(item: IngresoOrdenDetalleRow, checked: boolean): void {
+    item.seleccionado = checked;
+  }
+
+  get areAllIngresoOrdenDetallesSelected(): boolean {
+    return this.ingresoOrdenDetalles.length > 0
+      && this.ingresoOrdenDetalles.every((item) => item.seleccionado);
+  }
+
+  setSeleccionTodosIngresoOrdenDetalles(checked: boolean): void {
+    this.ingresoOrdenDetalles = this.ingresoOrdenDetalles.map((item) => ({
+      ...item,
+      seleccionado: checked
+    }));
   }
 
   trackBySolicitante(_: number, item: AlmacenSolicitanteOption): number {
@@ -514,6 +643,8 @@ export class AlmacenPageComponent implements OnInit {
     this.saveErrorMessage = '';
     this.isEditMode = false;
     this.resetIngresoDirectoForm();
+    this.showIngresoOrdenForm = false;
+    this.ingresoOrdenSeleccionada = null;
     this.showIngresoDirectoForm = true;
   }
 
@@ -568,7 +699,6 @@ export class AlmacenPageComponent implements OnInit {
     const documentoNumero = this.getTextValue(sourceRecord, ['Alm_Det_Doc_Nro', 'alm_Det_Doc_Nro', 'almDetDocNro', 'Doc_Nro', 'doc_Nro', 'docNro']);
     const materialId = materialOption?.id ?? this.getNumberValue(sourceRecord, ['Alm_Det_Itm_Id', 'alm_Det_Itm_Id', 'almDetItmId', 'Itm_Id', 'itm_Id', 'itmId']) ?? 0;
     const materialCode = materialOption?.code
-      || this.getTextValue(sourceRecord, ['Itm_Cod', 'itm_Cod', 'itmCod'])
       || (materialId > 0 ? String(materialId) : '');
     const materialDescription = materialOption?.description
       || this.getTextValue(sourceRecord, ['Itm_Des', 'itm_Des', 'itmDes', 'Material', 'material']);
@@ -619,6 +749,7 @@ export class AlmacenPageComponent implements OnInit {
   private cargarMovimientos(): void {
     this.isLoadingAlmacen = true;
     this.errorMessage = '';
+    this.ordenesCompraPendientesAlmacen = [];
 
     this.apiService.getListarIngresoAlmacen(this.getFiltros()).subscribe({
       next: (response: unknown) => {
@@ -633,6 +764,71 @@ export class AlmacenPageComponent implements OnInit {
         this.currentPage = 1;
         this.errorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el listado de ingresos de almacen.');
         this.isLoadingAlmacen = false;
+      }
+    });
+  }
+
+  private cargarOrdenesCompraPendientesAlmacen(): void {
+    this.isLoadingAlmacen = true;
+    this.errorMessage = '';
+    this.almacenes = [];
+
+    this.apiService.getListarOrdenCompraPendienteAlmacen().subscribe({
+      next: (response: unknown) => {
+        this.ordenesCompraPendientesAlmacen = this.extractRecords(response)
+          .map((item, index) => this.mapOrdenCompraPendienteAlmacen(item, index))
+          .filter((item): item is OrdenCompraPendienteAlmacenRow => item !== null);
+        this.currentPage = normalizePaginationPage(
+          this.currentPage,
+          this.ordenesCompraPendientesAlmacen.length,
+          this.pageSize
+        );
+        this.isLoadingAlmacen = false;
+      },
+      error: (error: unknown) => {
+        this.ordenesCompraPendientesAlmacen = [];
+        this.currentPage = 1;
+        this.errorMessage = this.resolveErrorMessage(
+          error,
+          'No se pudo cargar el listado de ordenes de compra pendientes para almacen.'
+        );
+        this.isLoadingAlmacen = false;
+      }
+    });
+  }
+
+  private cargarListadoSeleccionado(): void {
+    if (this.isListadoPendiente) {
+      this.cargarOrdenesCompraPendientesAlmacen();
+      return;
+    }
+
+    this.cargarMovimientos();
+  }
+
+  private cargarDetalleIngresoOrden(cabecera: OrdenCompraPendienteAlmacenRow): void {
+    if (!cabecera.pedidoId || !cabecera.ordenCompraId) {
+      this.ingresoOrdenDetalles = [];
+      this.isLoadingEditor = false;
+      this.saveErrorMessage = 'No se pudo identificar el pedido asociado a la orden seleccionada.';
+      return;
+    }
+
+    this.apiService.getListarDetalleIngresoAlmacen(cabecera.pedidoId, cabecera.ordenCompraId).subscribe({
+      next: (response: unknown) => {
+        console.log('Almacen ingresar orden - detalle response:', response);
+        this.ingresoOrdenDetalles = this.extractRecords(response)
+          .map((item, index) => this.mapIngresoOrdenDetalle(item, index))
+          .filter((item): item is IngresoOrdenDetalleRow => item !== null);
+        this.isLoadingEditor = false;
+      },
+      error: (error: unknown) => {
+        this.ingresoOrdenDetalles = [];
+        this.isLoadingEditor = false;
+        this.saveErrorMessage = this.resolveErrorMessage(
+          error,
+          'No se pudo cargar el detalle del ingreso a almacen.'
+        );
       }
     });
   }
@@ -777,8 +973,8 @@ export class AlmacenPageComponent implements OnInit {
       return null;
     }
 
-    if (!solicitante.documentNumber) {
-      this.saveErrorMessage = 'El solicitante seleccionado no tiene documento asociado para registrar el ingreso.';
+    if (!solicitante.code) {
+      this.saveErrorMessage = 'El solicitante seleccionado no tiene codigo asociado para registrar el ingreso.';
       return null;
     }
 
@@ -795,7 +991,7 @@ export class AlmacenPageComponent implements OnInit {
     return {
       Alm_Ubi: ubicacion,
       Alm_Tip_Ing: 1,
-      Alm_Sol_Dni: solicitante.documentNumber,
+      Alm_Sol_Dni: solicitante.code,
       Alm_Cen_Cos: centroCostoId,
       Usr_Reg: currentUser
     };
@@ -904,7 +1100,7 @@ export class AlmacenPageComponent implements OnInit {
             this.saveErrorMessage = '';
             this.clearPendingEditData();
             this.resetIngresoDirectoForm();
-            this.cargarMovimientos();
+            this.cargarListadoSeleccionado();
           },
           error: (error: unknown) => {
             this.isSavingIngreso = false;
@@ -939,8 +1135,8 @@ export class AlmacenPageComponent implements OnInit {
       return null;
     }
 
-    if (!solicitante.documentNumber) {
-      this.saveErrorMessage = 'El solicitante seleccionado no tiene documento asociado para actualizar el ingreso.';
+    if (!solicitante.code) {
+      this.saveErrorMessage = 'El solicitante seleccionado no tiene codigo asociado para actualizar el ingreso.';
       return null;
     }
 
@@ -957,7 +1153,7 @@ export class AlmacenPageComponent implements OnInit {
     return {
       Alm_Mov_Id: movimientoId,
       Alm_Ubi: ubicacion,
-      Alm_Sol_Dni: solicitante.documentNumber,
+      Alm_Sol_Dni: solicitante.code,
       Alm_Cen_Cos: centroCostoId,
       Flg_Est: this.currentEditFlgEst || 'A',
       Usr_Mod: currentUser
@@ -1030,31 +1226,38 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   private resolveSolicitanteId(detalleRecord: DataRecord | null, cabeceraRecord: DataRecord | null): string {
-    const source = detalleRecord ?? cabeceraRecord ?? {};
-    const storedValue = this.getTextValue(source, ['Alm_Sol_Dni', 'alm_Sol_Dni', 'almSolDni', 'Usr_Doc_Nro', 'usr_Doc_Nro', 'usrDocNro']);
+    const detalleSource = detalleRecord ?? {};
+    const cabeceraSource = cabeceraRecord ?? {};
+    const storedValue = this.getTextValue(cabeceraSource, ['Alm_Sol_Dni', 'alm_Sol_Dni', 'almSolDni', 'Usr_Cod', 'usr_Cod', 'usrCod'])
+      || this.getTextValue(detalleSource, ['Alm_Sol_Dni', 'alm_Sol_Dni', 'almSolDni', 'Usr_Cod', 'usr_Cod', 'usrCod'])
+      || this.getTextValue(cabeceraSource, ['Usr_Doc_Nro', 'usr_Doc_Nro', 'usrDocNro'])
+      || this.getTextValue(detalleSource, ['Usr_Doc_Nro', 'usr_Doc_Nro', 'usrDocNro']);
     const normalizedStoredValue = storedValue.trim().toLowerCase();
 
     if (normalizedStoredValue) {
-      const matchByDocument = this.solicitanteOptions.find(
-        (item) => item.documentNumber.trim().toLowerCase() === normalizedStoredValue
-      );
-
-      if (matchByDocument) {
-        return matchByDocument.documentNumber;
-      }
-
       const matchByCode = this.solicitanteOptions.find(
         (item) => item.code.trim().toLowerCase() === normalizedStoredValue
       );
 
       if (matchByCode) {
-        return matchByCode.documentNumber;
+        return matchByCode.code;
+      }
+
+      const matchByDocument = this.solicitanteOptions.find(
+        (item) => item.documentNumber.trim().toLowerCase() === normalizedStoredValue
+      );
+
+      if (matchByDocument) {
+        return matchByDocument.code;
       }
 
       return storedValue.trim();
     }
 
-    const name = this.getTextValue(source, ['Usr_Nom', 'usr_Nom', 'usrNom']).toLowerCase();
+    const name = (
+      this.getTextValue(cabeceraSource, ['Usr_Nom', 'usr_Nom', 'usrNom'])
+      || this.getTextValue(detalleSource, ['Usr_Nom', 'usr_Nom', 'usrNom'])
+    ).toLowerCase();
     return this.solicitanteOptions.find((item) => item.name.toLowerCase() === name)?.code ?? '';
   }
 
@@ -1157,6 +1360,94 @@ export class AlmacenPageComponent implements OnInit {
     };
   }
 
+  private mapOrdenCompraPendienteAlmacen(item: DataRecord, index: number): OrdenCompraPendienteAlmacenRow | null {
+    const ordenCompraId = this.getNumberValue(item, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId', 'id', 'Id']);
+
+    if (!ordenCompraId) {
+      return null;
+    }
+
+    return {
+      id: ordenCompraId || index + 1,
+      ordenCompraId,
+      pedidoId: this.getNumberValue(item, ['Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId', 'Ped_Id', 'ped_Id', 'pedId']) ?? 0,
+      numeroOrden: this.getTextValue(item, ['Ord_Num', 'ord_Num', 'ordNum', 'Num_Orden', 'num_Orden', 'numOrden'])
+        || `OC${ordenCompraId}`,
+      pedidoCodigo: this.formatPedidoCodigo(
+        this.getNumberValue(item, ['Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId', 'Ped_Id', 'ped_Id', 'pedId'])
+      ),
+      fecha: formatDisplayDate(this.getTextValue(item, [
+        'Fec_Reg',
+        'fec_Reg',
+        'fecReg',
+        'Ord_Com_Fec',
+        'ord_Com_Fec',
+        'ordComFec',
+        'Fecha',
+        'fecha'
+      ])) || '-',
+      proveedor: this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom']) || '-',
+      proveedorRuc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc', 'Ruc', 'ruc']) || '-',
+      formaPago: this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes']) || '-',
+      refObra: this.getTextValue(item, ['Ord_Com_Ref_Obr', 'ord_Com_Ref_Obr', 'ordComRefObr']) || '-',
+      referencia: this.getTextValue(item, ['Ord_Com_Ref', 'ord_Com_Ref', 'ordComRef']) || '-',
+      total: this.getDecimalValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']) ?? 0,
+      estado: this.resolveEstadoTexto(this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']))
+    };
+  }
+
+  private mapCabeceraIngresoOrden(
+    item: DataRecord,
+    fallback: OrdenCompraPendienteAlmacenRow
+  ): OrdenCompraPendienteAlmacenRow {
+    const ordenCompraId = this.getNumberValue(item, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId']) ?? fallback.ordenCompraId;
+    const pedidoId = this.getNumberValue(item, ['Ped_Cab_Id', 'ped_Cab_Id', 'pedCabId']);
+
+    return {
+      ...fallback,
+      id: ordenCompraId,
+      ordenCompraId,
+      pedidoId: pedidoId ?? fallback.pedidoId,
+      numeroOrden: `OC${ordenCompraId}`,
+      pedidoCodigo: this.formatPedidoCodigo(pedidoId),
+      fecha: formatDisplayDate(this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg'])) || fallback.fecha,
+      proveedor: this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom']) || fallback.proveedor,
+      formaPago: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || fallback.formaPago
+    };
+  }
+
+  private mapIngresoOrdenDetalle(item: DataRecord, index: number): IngresoOrdenDetalleRow | null {
+    const itemId = this.getNumberValue(item, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm']);
+
+    if (!itemId) {
+      return null;
+    }
+
+    const compra = this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0;
+    const ingresado = this.getDecimalValue(item, ['Alm_Det_Can', 'alm_Det_Can', 'almDetCan', 'Ingresado', 'ingresado']) ?? 0;
+    const pendiente = Math.max(compra - ingresado, 0);
+
+    return {
+      id: index + 1,
+      itemId,
+      itemCodigo: this.getTextValue(item, ['Itm_Cod', 'itm_Cod', 'itmCod']) || String(itemId),
+      itemDescripcion: this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']) || '-',
+      unidadId: this.getNumberValue(item, ['Ped_Uni_Med', 'ped_Uni_Med', 'pedUniMed']) ?? 0,
+      unidad: this.getTextValue(item, ['Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr', 'Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']) || '-',
+      centroCostoId: this.getNumberValue(item, ['Ped_Cen_Cos_Asg', 'ped_Cen_Cos_Asg', 'pedCenCosAsg']) ?? 0,
+      centroCosto: this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']) || '-',
+      compra,
+      ingresado,
+      pendiente,
+      cantidadIngresar: null,
+      seleccionado: false
+    };
+  }
+
+  private formatPedidoCodigo(pedidoId: number | null): string {
+    return pedidoId ? `P${pedidoId}` : '-';
+  }
+
   private mapSolicitanteOption(item: DataRecord): AlmacenSolicitanteOption | null {
     const id = this.getNumberValue(item, [
       'Usr_Id',
@@ -1250,11 +1541,6 @@ export class AlmacenPageComponent implements OnInit {
       'Itm_Id',
       'itm_Id',
       'itmId',
-      'Itm_Cod',
-      'itm_Cod',
-      'itmCod',
-      'codigo',
-      'Codigo',
       'id',
       'Id'
     ]);
@@ -1275,7 +1561,7 @@ export class AlmacenPageComponent implements OnInit {
 
     return {
       id,
-      code: this.getTextValue(item, ['Itm_Cod', 'itm_Cod', 'itmCod', 'codigo', 'Codigo']) || String(id),
+      code: String(id),
       description,
       groupDescription: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes']) || 'Material'
     };
@@ -1389,7 +1675,11 @@ export class AlmacenPageComponent implements OnInit {
       return '-';
     }
 
-    return this.solicitanteOptions.find((item) => item.documentNumber === normalizedDocumento)?.name || normalizedDocumento;
+    const normalizedValue = normalizedDocumento.toLowerCase();
+    return this.solicitanteOptions.find((item) =>
+      item.code.trim().toLowerCase() === normalizedValue
+      || item.documentNumber.trim().toLowerCase() === normalizedValue
+    )?.name || normalizedDocumento;
   }
 
   private resolveUbicacionDescripcion(item: DataRecord): string {
@@ -1429,7 +1719,22 @@ export class AlmacenPageComponent implements OnInit {
       return [];
     }
 
-    const possibleArrayKeys = ['almacen', 'Almacen', 'movimientos', 'Movimientos', 'data', 'Data', 'result', 'Result', 'elements', 'Elements'];
+    const possibleArrayKeys = [
+      'almacen',
+      'Almacen',
+      'movimientos',
+      'Movimientos',
+      'ordenCompra',
+      'OrdenCompra',
+      'ordenesCompra',
+      'OrdenesCompra',
+      'data',
+      'Data',
+      'result',
+      'Result',
+      'elements',
+      'Elements'
+    ];
 
     for (const key of possibleArrayKeys) {
       const value = response[key];
@@ -1544,13 +1849,26 @@ export class AlmacenPageComponent implements OnInit {
     return null;
   }
 
+  private resolveEstadoTexto(value: string): string {
+    const code = value.trim().toUpperCase();
+
+    switch (code) {
+      case 'A':
+        return 'Activo';
+      case 'I':
+        return 'Inactivo';
+      default:
+        return code || '-';
+    }
+  }
+
   private isDataRecord(value: unknown): value is DataRecord {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
   private getSelectedSolicitante(): AlmacenSolicitanteOption | null {
-    const solicitanteDocumentNumber = String(this.ingresoDirectoForm.controls['solicitanteId'].value || '').trim().toLowerCase();
-    return this.solicitanteOptions.find((item) => item.documentNumber.trim().toLowerCase() === solicitanteDocumentNumber) ?? null;
+    const solicitanteCode = String(this.ingresoDirectoForm.controls['solicitanteId'].value || '').trim().toLowerCase();
+    return this.solicitanteOptions.find((item) => item.code.trim().toLowerCase() === solicitanteCode) ?? null;
   }
 
   private getInvalidIngresoDirectoControls(): string[] {

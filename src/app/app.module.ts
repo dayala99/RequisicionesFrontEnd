@@ -27,6 +27,9 @@ import { BancoRegisterDialogComponent } from './pages/banco-page/banco-register-
 import { CentroCostoEditDialogComponent } from './pages/centro-costos-page/centro-costo-edit-dialog.component';
 import { CentroCostoRegisterDialogComponent } from './pages/centro-costos-page/centro-costo-register-dialog.component';
 import { CentroCostosPageComponent } from './pages/centro-costos-page/centro-costos-page.component';
+import { DetraccionEditDialogComponent } from './pages/detraccion-page/detraccion-edit-dialog.component';
+import { DetraccionPageComponent } from './pages/detraccion-page/detraccion-page.component';
+import { DetraccionRegisterDialogComponent } from './pages/detraccion-page/detraccion-register-dialog.component';
 import { FormaPagoEditDialogComponent } from './pages/forma-pago-page/forma-pago-edit-dialog.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { FormaPagoRegisterDialogComponent } from './pages/forma-pago-page/forma-pago-register-dialog.component';
@@ -37,6 +40,9 @@ import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ItemEditDialogComponent } from './pages/item-page/item-edit-dialog.component';
 import { ItemPageComponent } from './pages/item-page/item-page.component';
 import { ItemRegisterDialogComponent } from './pages/item-page/item-register-dialog.component';
+import { ItemDetalleMaterialEditDialogComponent } from './pages/item-detalle-material-page/item-detalle-material-edit-dialog.component';
+import { ItemDetalleMaterialPageComponent } from './pages/item-detalle-material-page/item-detalle-material-page.component';
+import { ItemDetalleMaterialRegisterDialogComponent } from './pages/item-detalle-material-page/item-detalle-material-register-dialog.component';
 import { MonedaEditDialogComponent } from './pages/moneda-page/moneda-edit-dialog.component';
 import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
 import { MonedaRegisterDialogComponent } from './pages/moneda-page/moneda-register-dialog.component';
@@ -54,6 +60,9 @@ import { PedidoDetalleDialogComponent } from './pages/requisiciones-page/pedido-
 import { PedidoDetalleItemSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-item-selector-dialog.component';
 import { PedidoDetalleUnidadSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-unidad-selector-dialog.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
+import { SubGrupoItemEditDialogComponent } from './pages/sub-grupo-item-page/sub-grupo-item-edit-dialog.component';
+import { SubGrupoItemPageComponent } from './pages/sub-grupo-item-page/sub-grupo-item-page.component';
+import { SubGrupoItemRegisterDialogComponent } from './pages/sub-grupo-item-page/sub-grupo-item-register-dialog.component';
 import { TipoServicioEditDialogComponent } from './pages/tipo-servicio-page/tipo-servicio-edit-dialog.component';
 import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
 import { TipoServicioRegisterDialogComponent } from './pages/tipo-servicio-page/tipo-servicio-register-dialog.component';
@@ -92,6 +101,9 @@ const APP_DATE_FORMATS = {
     CentroCostosPageComponent,
     CentroCostoRegisterDialogComponent,
     CentroCostoEditDialogComponent,
+    DetraccionPageComponent,
+    DetraccionRegisterDialogComponent,
+    DetraccionEditDialogComponent,
     MonedaPageComponent,
     MonedaRegisterDialogComponent,
     MonedaEditDialogComponent,
@@ -103,9 +115,15 @@ const APP_DATE_FORMATS = {
     GrupoItemPageComponent,
     GrupoItemRegisterDialogComponent,
     GrupoItemEditDialogComponent,
+    SubGrupoItemPageComponent,
+    SubGrupoItemRegisterDialogComponent,
+    SubGrupoItemEditDialogComponent,
     ItemPageComponent,
     ItemRegisterDialogComponent,
     ItemEditDialogComponent,
+    ItemDetalleMaterialPageComponent,
+    ItemDetalleMaterialRegisterDialogComponent,
+    ItemDetalleMaterialEditDialogComponent,
     HomePageComponent,
     ProviderPageComponent,
     ProviderEditDialogComponent,

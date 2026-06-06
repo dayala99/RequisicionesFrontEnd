@@ -11,6 +11,7 @@ import {
   ApiService,
   DesAsignarOrdenCompraDetallePedidoRequest,
   OrdenCompraFiltro,
+  PedidosFiltro,
   RegistrarOrdenCompraRequest
 } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
@@ -23,6 +24,7 @@ import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators
 import { OrdenCompraParcialDialogComponent } from './orden-compra-parcial-dialog.component';
 
 type DataRecord = Record<string, unknown>;
+type OrdenCompraListadoModo = 'pendientes' | 'generados';
 
 interface OrdenCompraRow {
   id: number;
@@ -38,10 +40,25 @@ interface OrdenCompraRow {
   subtotal: number;
   igv: number;
   total: number;
+  detraccionId: number;
+  montoDetraccion: number;
   archivo: string;
+  archivoRuta: string;
   estadoCodigo: string;
   estado: string;
   canEdit: boolean;
+}
+
+interface PedidoPendienteRow {
+  id: number;
+  pedidoId: number;
+  proveedor: string;
+  tipoServicio: string;
+  referencia: string;
+  moneda: string;
+  total: number;
+  estadoCodigo: string;
+  estado: string;
 }
 
 interface OrdenCompraCentroCostoRow {
@@ -53,6 +70,7 @@ interface OrdenCompraCentroCostoRow {
 
 interface OrdenCompraDetallePedidoRow {
   id: number;
+  ordenCompraId: number | null;
   itemCodigo: string;
   itemDescripcion: string;
   unidadCodigo: string;
@@ -64,6 +82,13 @@ interface OrdenCompraDetallePedidoRow {
   subtotal: number;
   observacion: string;
   selected: boolean;
+}
+
+interface DetraccionOption {
+  id: number;
+  descripcion: string;
+  porcentaje: number;
+  label: string;
 }
 
 @Component({
@@ -79,15 +104,23 @@ export class OrdenCompraPageComponent implements OnInit {
     { codigo: 'A', descripcion: 'Activo' },
     { codigo: 'I', descripcion: 'Inactivo' }
   ];
+  readonly listadoOptions: Array<{ codigo: OrdenCompraListadoModo; descripcion: string }> = [
+    { codigo: 'pendientes', descripcion: 'Pendientes' },
+    { codigo: 'generados', descripcion: 'Generados' }
+  ];
   readonly actionButtons = ['Nuevo', 'Cerrar'];
 
   ordenesCompra: OrdenCompraRow[] = [];
+  pedidosPendientes: PedidoPendienteRow[] = [];
   proveedores: ProviderRecord[] = [];
   formasPago: PaymentOption[] = [];
   centrosCostoCatalogo: OrdenCompraCentroCostoRow[] = [];
   centrosCosto: OrdenCompraCentroCostoRow[] = [];
   pedidoDetalles: OrdenCompraDetallePedidoRow[] = [];
+  detracciones: DetraccionOption[] = [];
+  detraccionSearch = '';
   currentOrdenesCompraPage = 1;
+  currentPedidosPendientesPage = 1;
   currentDetallePedidoPage = 1;
 
   selectedOrdenCompraId: number | null = null;
@@ -97,6 +130,7 @@ export class OrdenCompraPageComponent implements OnInit {
   isLoadingProveedores = false;
   isLoadingFormasPago = false;
   isLoadingCentrosCosto = false;
+  isLoadingDetracciones = false;
   isLoadingPedidoCentrosCosto = false;
   isLoadingPedidoDetalle = false;
   isSavingOrdenCompra = false;
@@ -106,6 +140,7 @@ export class OrdenCompraPageComponent implements OnInit {
   centrosCostoErrorMessage = '';
   detallePedidoErrorMessage = '';
   ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
+  ordenCompraArchivoRuta = '';
   ordenCompraArchivoFile: File | null = null;
   detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
 
@@ -116,6 +151,7 @@ export class OrdenCompraPageComponent implements OnInit {
     private readonly authService: AuthService
   ) {
     this.filtersForm = this.formBuilder.group({
+      modoListado: ['pendientes'],
       ordenCompraId: [''],
       proveedor: [''],
       estado: ['A']
@@ -136,6 +172,8 @@ export class OrdenCompraPageComponent implements OnInit {
       referencia: ['', [Validators.required, noWhitespaceValidator()]],
       observacion: ['', [Validators.required, noWhitespaceValidator()]],
       archivo: ['Sin archivo adjunto'],
+      detraccionId: [null],
+      montoDetraccion: [0],
       subtotal: [0, Validators.min(0)],
       igv: [0, Validators.min(0)],
       total: [0, Validators.min(0)],
@@ -147,7 +185,8 @@ export class OrdenCompraPageComponent implements OnInit {
     this.cargarProveedores();
     this.cargarFormasPago();
     this.cargarCentrosCosto();
-    this.cargarOrdenesCompra();
+    this.cargarDetracciones();
+    this.cargarPedidosPendientes();
     this.resetEditor();
   }
 
@@ -175,7 +214,35 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get totalCalculado(): number {
+    return this.normalizeDecimal(this.totalConIgvCalculado - this.montoDetraccionCalculado);
+  }
+
+  get totalConIgvCalculado(): number {
     return this.normalizeDecimal(this.subtotalCalculado + this.igvCalculado);
+  }
+
+  get detraccionSeleccionada(): DetraccionOption | null {
+    const detraccionId = this.getDetraccionIdSeleccionada();
+    return this.detracciones.find((item) => item.id === detraccionId) ?? null;
+  }
+
+  get montoDetraccionCalculado(): number {
+    const porcentaje = this.detraccionSeleccionada?.porcentaje ?? 0;
+    return this.normalizeDecimal(this.totalConIgvCalculado * porcentaje / 100);
+  }
+
+  get filteredDetracciones(): DetraccionOption[] {
+    const search = this.detraccionSearch.trim().toLowerCase();
+
+    if (!search) {
+      return this.detracciones;
+    }
+
+    return this.detracciones.filter((item) =>
+      item.label.toLowerCase().includes(search) ||
+      item.descripcion.toLowerCase().includes(search) ||
+      String(item.porcentaje).includes(search)
+    );
   }
 
   get centrosCostoSeleccionados(): OrdenCompraCentroCostoRow[] {
@@ -193,6 +260,14 @@ export class OrdenCompraPageComponent implements OnInit {
 
   get paginatedOrdenesCompra(): OrdenCompraRow[] {
     return paginateItems(this.ordenesCompra, this.currentOrdenesCompraPage, this.pageSize);
+  }
+
+  get paginatedPedidosPendientes(): PedidoPendienteRow[] {
+    return paginateItems(this.pedidosPendientes, this.currentPedidosPendientesPage, this.pageSize);
+  }
+
+  get isListadoGenerados(): boolean {
+    return this.getListadoModo() === 'generados';
   }
 
   get paginatedPedidoDetalles(): OrdenCompraDetallePedidoRow[] {
@@ -218,16 +293,41 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   aplicarFiltros(): void {
-    this.cargarOrdenesCompra();
+    this.cargarListadoSeleccionado();
   }
 
   limpiarFiltros(): void {
     this.filtersForm.reset({
+      modoListado: 'pendientes',
       ordenCompraId: '',
       proveedor: '',
       estado: 'A'
     });
-    this.cargarOrdenesCompra();
+    this.cargarPedidosPendientes();
+  }
+
+  onListadoModoChange(): void {
+    this.errorMessage = '';
+    this.selectedOrdenCompraId = null;
+    this.cargarListadoSeleccionado();
+  }
+
+  generarOrdenCompraDesdePedido(item: PedidoPendienteRow): void {
+    if (!item.pedidoId) {
+      return;
+    }
+
+    this.openParcialDialog((esParcial) => {
+      this.isEditingOrdenCompra = false;
+      this.resetEditor();
+      this.esParcial = esParcial;
+      this.aplicarModoCentrosCosto(esParcial);
+      this.form.patchValue({
+        pedidoIdAtencion: item.pedidoId
+      });
+      this.mostrarEditor = true;
+      this.cargarCentrosCostoDesdePedido();
+    });
   }
 
   ejecutarAccion(action: string): void {
@@ -268,6 +368,10 @@ export class OrdenCompraPageComponent implements OnInit {
     this.currentOrdenesCompraPage = normalizePaginationPage(page, this.ordenesCompra.length, this.pageSize);
   }
 
+  onPedidosPendientesPageChange(page: number): void {
+    this.currentPedidosPendientesPage = normalizePaginationPage(page, this.pedidosPendientes.length, this.pageSize);
+  }
+
   onDetallePedidoPageChange(page: number): void {
     this.currentDetallePedidoPage = normalizePaginationPage(page, this.pedidoDetalles.length, this.pageSize);
   }
@@ -286,6 +390,22 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     this.form.controls[controlName].setValue(sanitizedValue, { emitEvent: false });
+  }
+
+  onDetraccionSearchInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.detraccionSearch = input?.value ?? '';
+  }
+
+  onDetraccionChange(): void {
+    this.syncTotalesCalculados();
+  }
+
+  private getDetraccionIdSeleccionada(): number {
+    const value = this.form.controls['detraccionId'].value;
+    const detraccionId = Number(value);
+
+    return Number.isInteger(detraccionId) && detraccionId > 0 ? detraccionId : 0;
   }
 
   actualizarObservacionDetallePedido(item: OrdenCompraDetallePedidoRow, observacion: string): void {
@@ -489,7 +609,7 @@ export class OrdenCompraPageComponent implements OnInit {
       next: () => {
         this.isSavingOrdenCompra = false;
         this.cerrarEditor();
-        this.cargarOrdenesCompra();
+        this.cargarListadoSeleccionado();
       },
       error: (error: unknown) => {
         this.isSavingOrdenCompra = false;
@@ -511,6 +631,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
     this.ordenCompraArchivoFile = input.files[0];
     this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile.name;
+    this.ordenCompraArchivoRuta = '';
     this.form.patchValue({
       archivo: this.ordenCompraArchivoAdjunto
     });
@@ -519,6 +640,7 @@ export class OrdenCompraPageComponent implements OnInit {
   quitarOrdenCompraArchivo(fileInput?: HTMLInputElement): void {
     this.ordenCompraArchivoFile = null;
     this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
+    this.ordenCompraArchivoRuta = '';
     this.form.patchValue({
       archivo: this.ordenCompraArchivoAdjunto
     });
@@ -529,6 +651,8 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   verOrdenCompraArchivo(): void {
+    this.saveErrorMessage = '';
+
     if (this.ordenCompraArchivoFile) {
       const url = URL.createObjectURL(this.ordenCompraArchivoFile);
       window.open(url, '_blank');
@@ -538,8 +662,21 @@ export class OrdenCompraPageComponent implements OnInit {
     const nombreArchivo = String(this.form.controls['archivo'].value || '').trim();
 
     if (nombreArchivo && nombreArchivo !== 'Sin archivo adjunto') {
-      this.saveErrorMessage = 'Aun no hay un endpoint configurado para abrir adjuntos de orden de compra.';
+      this.apiService.getArchivoOrdenCompra(nombreArchivo).subscribe({
+        next: (arrayBuffer: ArrayBuffer) => {
+          const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        },
+        error: (error: unknown) => {
+          console.error('Error abriendo archivo de orden de compra:', error);
+          this.saveErrorMessage = 'No se pudo abrir el archivo de la orden de compra.';
+        }
+      });
+      return;
     }
+
+    this.saveErrorMessage = 'No hay archivo adjunto para visualizar.';
   }
 
   formatCurrency(value: number): string {
@@ -569,14 +706,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
     this.isEditingOrdenCompra = true;
     this.errorMessage = '';
-    this.populateForm(ordenCompra);
-    this.esParcial = false;
-    this.aplicarModoCentrosCosto(false);
-    this.mostrarEditor = true;
-
-    if (ordenCompra.pedidoIdAtencion) {
-      this.cargarCentrosCostoDesdePedido();
-    }
+    this.cargarOrdenCompraParaModificar(ordenCompra);
   }
 
   private openParcialDialog(onConfirm: (esParcial: boolean) => void): void {
@@ -624,18 +754,22 @@ export class OrdenCompraPageComponent implements OnInit {
       referencia: '',
       observacion: '',
       archivo: 'Sin archivo adjunto',
+      detraccionId: null,
+      montoDetraccion: 0,
       subtotal: 0,
       igv: 0,
       total: 0,
       estado: 'A'
     });
     this.esParcial = false;
+    this.detraccionSearch = '';
     this.centrosCosto = [];
     this.pedidoDetalles = [];
     this.detallesPendientesDesasignacion = [];
     this.centrosCostoErrorMessage = '';
     this.detallePedidoErrorMessage = '';
     this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
+    this.ordenCompraArchivoRuta = '';
     this.ordenCompraArchivoFile = null;
     this.syncTotalesCalculados();
   }
@@ -697,11 +831,24 @@ export class OrdenCompraPageComponent implements OnInit {
     const request: ActualizarOrdenCompraRequest = {
       Ord_Com_Id: ordenCompraId,
       ...payload,
+      Ord_Com_Arc_Adj_Nom: this.getArchivoAdjuntoActual(),
+      Ord_Com_Arc_Adj_Rut: this.ordenCompraArchivoRuta || undefined,
       Flg_Est: String(this.form.controls['estado'].value || 'A'),
       Usr_Mod: currentUser
     };
 
-    return this.apiService.patchActualizarOrdenCompra(request);
+    console.log('Actualizar orden de compra - valores enviados:', {
+      request,
+      archivo: this.ordenCompraArchivoFile
+        ? {
+            name: this.ordenCompraArchivoFile.name,
+            size: this.ordenCompraArchivoFile.size,
+            type: this.ordenCompraArchivoFile.type
+          }
+        : null
+    });
+
+    return this.apiService.patchActualizarOrdenCompra(request, this.ordenCompraArchivoFile);
   }
 
   private buildOrdenCompraPayloadBase(): Omit<RegistrarOrdenCompraRequest, 'Usr_Reg'> | null {
@@ -716,6 +863,8 @@ export class OrdenCompraPageComponent implements OnInit {
     const subtotal = this.parseMontoControlValue(this.form.controls['subtotal'].value);
     const igv = this.parseMontoControlValue(this.form.controls['igv'].value);
     const total = this.parseMontoControlValue(this.form.controls['total'].value);
+    const detraccionId = this.getDetraccionIdSeleccionada();
+    const montoDetraccion = this.parseMontoControlValue(this.form.controls['montoDetraccion'].value);
 
     if (!proveedorId || !proveedor) {
       this.form.controls['proveedor'].markAsTouched();
@@ -774,7 +923,9 @@ export class OrdenCompraPageComponent implements OnInit {
       Ord_Com_Sub_Tot: subtotal,
       Ord_Com_Igv: igv,
       Ord_Com_Tot: total,
-      Ord_Com_Ped_Id: pedidoIdAtencion
+      Ord_Com_Ped_Id: pedidoIdAtencion,
+      Ord_Com_Det_Id: Number.isInteger(detraccionId) && detraccionId > 0 ? detraccionId : 0,
+      Ord_Com_Det_Mon: montoDetraccion > 0 ? montoDetraccion : 0
     };
   }
 
@@ -786,7 +937,10 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.resolveOrdenCompraIdParaAsignacion(response).pipe(
       switchMap((ordenCompraId) => {
         const currentUser = this.authService.getCurrentUser().trim();
-        const asignarRequests = this.detallesPedidoSeleccionados.map((item) =>
+        const detallesParaAsignar = this.isEditingOrdenCompra
+          ? this.detallesPedidoSeleccionados.filter((item) => !this.isDetalleYaAsignadoAOrden(item, ordenCompraId))
+          : this.detallesPedidoSeleccionados;
+        const asignarRequests = detallesParaAsignar.map((item) =>
           this.apiService.patchAsignarOrdenCompraADetallePedido(
             this.buildAsignarOrdenCompraDetallePedidoPayload(item, ordenCompraId, currentUser)
           ).pipe(
@@ -813,7 +967,23 @@ export class OrdenCompraPageComponent implements OnInit {
 
         return requests.length ? forkJoin(requests) : of([]);
       }),
+      switchMap(() => this.actualizarPedidoCuandoDetalleCompleto()),
       switchMap(() => this.recargarDetallePedidoDespuesDeGuardar())
+    );
+  }
+
+  private actualizarPedidoCuandoDetalleCompleto(): Observable<unknown> {
+    const pedidoId = Number(this.form.controls['pedidoIdAtencion'].value);
+
+    if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
+      return of(null);
+    }
+
+    return this.apiService.patchActualizarPedidoCuandoDetalleCompleto({ Ped_Id: pedidoId }).pipe(
+      switchMap((response: unknown) => {
+        this.assertSuccessfulResponse(response, 'No se pudo actualizar el estado del pedido.');
+        return of(response);
+      })
     );
   }
 
@@ -895,6 +1065,94 @@ export class OrdenCompraPageComponent implements OnInit {
     });
   }
 
+  private cargarPedidosPendientes(): void {
+    this.isLoadingOrdenesCompra = true;
+    this.errorMessage = '';
+
+    this.apiService.getListarPedidoAprobadoParaOC(this.getPedidoPendienteFiltros()).subscribe({
+      next: (response: unknown) => {
+        this.pedidosPendientes = this.extractRecords(response)
+          .map((item, index) => this.mapPedidoPendiente(item, index))
+          .filter((item): item is PedidoPendienteRow => item !== null);
+        this.currentPedidosPendientesPage = normalizePaginationPage(
+          this.currentPedidosPendientesPage,
+          this.pedidosPendientes.length,
+          this.pageSize
+        );
+        this.isLoadingOrdenesCompra = false;
+      },
+      error: (error: unknown) => {
+        this.pedidosPendientes = [];
+        this.currentPedidosPendientesPage = 1;
+        this.isLoadingOrdenesCompra = false;
+        this.errorMessage = this.resolveErrorMessage(error, 'No se pudieron cargar los pedidos pendientes.');
+      }
+    });
+  }
+
+  private cargarListadoSeleccionado(): void {
+    if (this.isListadoGenerados) {
+      this.pedidosPendientes = [];
+      this.currentPedidosPendientesPage = 1;
+      this.cargarOrdenesCompra();
+      return;
+    }
+
+    this.ordenesCompra = [];
+    this.currentOrdenesCompraPage = 1;
+    this.cargarPedidosPendientes();
+  }
+
+  private getListadoModo(): OrdenCompraListadoModo {
+    const value = String(this.filtersForm.controls['modoListado'].value || '').trim();
+    return value === 'pendientes' ? 'pendientes' : 'generados';
+  }
+
+  private cargarDetracciones(): void {
+    this.isLoadingDetracciones = true;
+
+    this.apiService.getListarDetraccion({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.detracciones = this.extractRecords(response)
+          .map((item) => this.mapDetraccionOption(item))
+          .filter((item): item is DetraccionOption => item !== null)
+          .sort((left, right) => left.descripcion.localeCompare(right.descripcion));
+        this.isLoadingDetracciones = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando detracciones:', error);
+        this.detracciones = [];
+        this.isLoadingDetracciones = false;
+      }
+    });
+  }
+
+  private cargarOrdenCompraParaModificar(ordenCompra: OrdenCompraRow): void {
+    this.apiService.getListarOrdenCompraModificar(ordenCompra.ordenCompraId ?? 0).subscribe({
+      next: (response: unknown) => {
+        const detalle = this.extractRecords(response)
+          .map((item, index) => this.mapOrdenCompra(item, index))
+          .find((item): item is OrdenCompraRow => item !== null) ?? ordenCompra;
+
+        this.abrirEditorOrdenCompra(detalle);
+      },
+      error: () => {
+        this.abrirEditorOrdenCompra(ordenCompra);
+      }
+    });
+  }
+
+  private abrirEditorOrdenCompra(ordenCompra: OrdenCompraRow): void {
+    this.populateForm(ordenCompra);
+    this.esParcial = false;
+    this.aplicarModoCentrosCosto(false);
+    this.mostrarEditor = true;
+
+    if (ordenCompra.pedidoIdAtencion) {
+      this.cargarCentrosCostoDesdePedido();
+    }
+  }
+
   private populateForm(item: OrdenCompraRow): void {
       this.form.patchValue({
         ordenCompraId: item.ordenCompraId,
@@ -911,12 +1169,15 @@ export class OrdenCompraPageComponent implements OnInit {
       referencia: item.referencia,
       observacion: item.observacion,
       archivo: item.archivo || 'Sin archivo adjunto',
+      detraccionId: item.detraccionId > 0 ? item.detraccionId : null,
+      montoDetraccion: item.montoDetraccion,
       subtotal: item.subtotal,
       igv: item.igv,
       total: item.total,
       estado: item.estadoCodigo
     });
     this.ordenCompraArchivoAdjunto = item.archivo || 'Sin archivo adjunto';
+    this.ordenCompraArchivoRuta = item.archivoRuta;
     this.ordenCompraArchivoFile = null;
   }
 
@@ -926,6 +1187,43 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return this.ordenesCompra.find((item) => item.id === this.selectedOrdenCompraId) ?? null;
+  }
+
+  private getArchivoAdjuntoActual(): string | undefined {
+    const archivo = String(this.form.controls['archivo'].value || '').trim();
+    return archivo && archivo !== 'Sin archivo adjunto' ? archivo : undefined;
+  }
+
+  private getMimeTypeFromFileName(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+
+    switch (extension) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'txt':
+        return 'text/plain';
+      case 'sql':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      case 'gif':
+        return 'image/gif';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   private getFiltros(): OrdenCompraFiltro {
@@ -947,6 +1245,10 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return filtros;
+  }
+
+  private getPedidoPendienteFiltros(): PedidosFiltro {
+    return { Flg_Est: 'A' };
   }
 
   private mapOrdenCompra(item: DataRecord, index: number): OrdenCompraRow | null {
@@ -978,7 +1280,26 @@ export class OrdenCompraPageComponent implements OnInit {
       subtotal: this.getDecimalValue(item, ['Ord_Com_Sub_Tot', 'ord_Com_Sub_Tot', 'ordComSubTot']),
       igv: this.getDecimalValue(item, ['Ord_Com_Igv', 'ord_Com_Igv', 'ordComIgv']),
       total: this.getDecimalValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']),
-      archivo: this.getTextValue(item, ['Ord_Com_Arc_Adj_Nom', 'ord_Com_Arc_Adj_Nom', 'ordComArcAdjNom', 'archivo', 'Archivo']) || 'Sin archivo adjunto',
+      detraccionId: this.getNumberValue(item, ['Ord_Com_Det_Id', 'ord_Com_Det_Id', 'ordComDetId']) ?? 0,
+      montoDetraccion: this.getDecimalValue(item, ['Ord_Com_Det_Mon', 'ord_Com_Det_Mon', 'ordComDetMon']),
+      archivo: this.getTextValue(item, [
+        'Ord_Com_Arc_Adj_Nom',
+        'ord_Com_Arc_Adj_Nom',
+        'ord_com_arc_adj_nom',
+        'ordComArcAdjNom',
+        'OrdComArcAdjNom',
+        'archivo',
+        'Archivo'
+      ]) || 'Sin archivo adjunto',
+      archivoRuta: this.getTextValue(item, [
+        'Ord_Com_Arc_Adj_Rut',
+        'ord_Com_Arc_Adj_Rut',
+        'ord_com_arc_adj_rut',
+        'ordComArcAdjRut',
+        'OrdComArcAdjRut',
+        'archivoRuta',
+        'ArchivoRuta'
+      ]),
       estadoCodigo,
       estado: estadoCodigo ? this.mapEstadoDescripcion(estadoCodigo) : '-',
       canEdit: ordenCompraId !== null
@@ -1070,6 +1391,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
     return {
       id,
+      ordenCompraId: this.getNumberValue(item, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId']) ?? null,
       itemCodigo,
       itemDescripcion: itemDescripcion || itemCodigo,
       unidadCodigo,
@@ -1163,6 +1485,32 @@ export class OrdenCompraPageComponent implements OnInit {
       Ped_Obs: observacion || undefined,
       Usr_Mod: currentUser || undefined
     };
+  }
+
+  private mapPedidoPendiente(item: DataRecord, index: number): PedidoPendienteRow | null {
+    const pedidoId = this.getNumberValue(item, ['Ped_Id', 'ped_Id', 'pedId', 'id', 'Id']);
+    const proveedor = this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom', 'Proveedor', 'proveedor']);
+    const estadoCodigo = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']);
+
+    if (!pedidoId && !proveedor) {
+      return null;
+    }
+
+    return {
+      id: pedidoId ?? -1 * (index + 1),
+      pedidoId: pedidoId ?? 0,
+      proveedor: proveedor || '-',
+      tipoServicio: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des']) || '-',
+      referencia: this.getTextValue(item, ['Ped_Ref', 'ped_Ref', 'pedRef', 'Referencia', 'referencia']) || '-',
+      moneda: this.getTextValue(item, ['Mon_Des', 'mon_Des', 'monDes', 'Mon_Abr', 'mon_Abr', 'monAbr']) || '-',
+      total: this.getDecimalValue(item, ['Ped_Can_Tot', 'ped_Can_Tot', 'pedCanTot', 'Total', 'total']),
+      estadoCodigo,
+      estado: estadoCodigo ? this.mapPedidoEstadoDescripcion(estadoCodigo) : '-'
+    };
+  }
+
+  private isDetalleYaAsignadoAOrden(item: OrdenCompraDetallePedidoRow, ordenCompraId: number): boolean {
+    return item.ordenCompraId === ordenCompraId;
   }
 
   private recargarDetallePedidoDespuesDeGuardar(): Observable<unknown> {
@@ -1295,8 +1643,26 @@ export class OrdenCompraPageComponent implements OnInit {
     this.form.patchValue({
       subtotal: this.subtotalCalculado,
       igv: this.igvCalculado,
+      montoDetraccion: this.montoDetraccionCalculado,
       total: this.totalCalculado
     }, { emitEvent: false });
+  }
+
+  private mapDetraccionOption(item: DataRecord): DetraccionOption | null {
+    const id = this.getNumberValue(item, ['Det_Id', 'det_Id', 'detId', 'id', 'Id']);
+    const descripcion = this.getTextValue(item, ['Det_Des', 'det_Des', 'detDes', 'descripcion', 'Descripcion']);
+    const porcentaje = this.getDecimalValue(item, ['Det_Por', 'det_Por', 'detPor', 'porcentaje', 'Porcentaje']);
+
+    if (!id || !descripcion) {
+      return null;
+    }
+
+    return {
+      id,
+      descripcion,
+      porcentaje,
+      label: `${descripcion} - ${porcentaje.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`
+    };
   }
 
   private parseMontoControlValue(value: unknown): number {
@@ -1370,6 +1736,19 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private mapEstadoDescripcion(value: string): string {
     return this.estadoOptions.find((item) => item.codigo === value)?.descripcion || value || '-';
+  }
+
+  private mapPedidoEstadoDescripcion(value: string): string {
+    switch (value) {
+      case 'P':
+        return 'Pendiente';
+      case 'A':
+        return 'Aprobado';
+      case 'C':
+        return 'Cancelado';
+      default:
+        return value || '-';
+    }
   }
 
   private extractRecords(response: unknown): DataRecord[] {

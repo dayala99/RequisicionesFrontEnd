@@ -14,11 +14,21 @@ interface GrupoItemOption {
   grpDes: string;
 }
 
+interface FilterOption {
+  id: number;
+  descripcion: string;
+}
+
 interface ItemRow {
   itmId: number | null;
+  itmCod: string;
   itmDes: string;
   itmGrp: number | null;
   grpDes: string;
+  itmSubGrp: number | null;
+  subGrpDes: string;
+  itmDetMatId: number | null;
+  detMatDes: string;
   flgEst: string;
   estado: string;
   activo: boolean;
@@ -34,10 +44,13 @@ export class ItemPageComponent implements OnInit {
   readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
   items: ItemRow[] = [];
   gruposItem: GrupoItemOption[] = [];
+  subGruposItem: FilterOption[] = [];
+  detallesMaterial: FilterOption[] = [];
   currentPage = 1;
   isLoading = false;
+  isLoadingSubGrupos = false;
+  isLoadingDetallesMaterial = false;
   errorMessage = '';
-  isGrupoDropdownOpen = false;
 
   constructor(
     private readonly apiService: ApiService,
@@ -47,7 +60,9 @@ export class ItemPageComponent implements OnInit {
     this.filtersForm = this.formBuilder.group({
       codigo: [''],
       descripcion: [''],
-      grupo: ['Todos'],
+      grupo: [null],
+      subGrupo: [null],
+      detalleMaterial: [null],
       estado: ['A']
     });
   }
@@ -61,6 +76,8 @@ export class ItemPageComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
     const filtros = this.getFiltros();
+
+    console.log('Buscar items - filtros enviados:', filtros);
 
     this.apiService.getListarItem(filtros).subscribe({
       next: (response: unknown) => {
@@ -84,10 +101,72 @@ export class ItemPageComponent implements OnInit {
     this.filtersForm.reset({
       codigo: '',
       descripcion: '',
-      grupo: 'Todos',
+      grupo: null,
+      subGrupo: null,
+      detalleMaterial: null,
       estado: 'A'
     });
+    this.subGruposItem = [];
+    this.detallesMaterial = [];
     this.cargarItems();
+  }
+
+  onGrupoFiltroChange(): void {
+    this.filtersForm.patchValue({ subGrupo: null, detalleMaterial: null });
+    this.subGruposItem = [];
+    this.detallesMaterial = [];
+    const grupoId = Number(this.filtersForm.controls['grupo'].value);
+
+    if (!Number.isInteger(grupoId) || grupoId <= 0) {
+      return;
+    }
+
+    this.isLoadingSubGrupos = true;
+    this.apiService.getListarSubGrupoItemPorGrpId(grupoId).subscribe({
+      next: (response: unknown) => {
+        this.subGruposItem = this.extractRecords(response)
+          .map((item) => ({
+            id: this.getNumberValue(item, ['Sub_Grp_Id', 'sub_Grp_Id', 'subGrpId']) ?? 0,
+            descripcion: this.getTextValue(item, ['Sub_Grp_Des', 'sub_Grp_Des', 'subGrpDes'])
+          }))
+          .filter((item) => item.id > 0)
+          .sort((left, right) => left.descripcion.localeCompare(right.descripcion));
+        this.isLoadingSubGrupos = false;
+      },
+      error: () => {
+        this.subGruposItem = [];
+        this.isLoadingSubGrupos = false;
+      }
+    });
+  }
+
+  onSubGrupoFiltroChange(): void {
+    this.filtersForm.patchValue({ detalleMaterial: null });
+    this.detallesMaterial = [];
+    const grupoId = Number(this.filtersForm.controls['grupo'].value);
+    const subGrupoId = Number(this.filtersForm.controls['subGrupo'].value);
+
+    if (!Number.isInteger(grupoId) || grupoId <= 0 || !Number.isInteger(subGrupoId) || subGrupoId <= 0) {
+      return;
+    }
+
+    this.isLoadingDetallesMaterial = true;
+    this.apiService.getItemDetalleMaterialEntity(grupoId, subGrupoId).subscribe({
+      next: (response: unknown) => {
+        this.detallesMaterial = this.extractRecords(response)
+          .map((item) => ({
+            id: this.getNumberValue(item, ['Det_Mat_Id', 'det_Mat_Id', 'detMatId']) ?? 0,
+            descripcion: this.getTextValue(item, ['Det_Mat_Des', 'det_Mat_Des', 'detMatDes'])
+          }))
+          .filter((item) => item.id > 0)
+          .sort((left, right) => left.descripcion.localeCompare(right.descripcion));
+        this.isLoadingDetallesMaterial = false;
+      },
+      error: () => {
+        this.detallesMaterial = [];
+        this.isLoadingDetallesMaterial = false;
+      }
+    });
   }
 
   registrarItem(): void {
@@ -143,58 +222,6 @@ export class ItemPageComponent implements OnInit {
     return String(grupo.grpId);
   }
 
-  get grupoFilterOptions(): string[] {
-    return ['Todos', ...this.gruposItem.map((grupo) => grupo.grpDes)];
-  }
-
-  get filteredGrupoOptions(): string[] {
-    const currentValue = String(this.filtersForm.controls['grupo'].value ?? '').trim().toLowerCase();
-
-    if (!currentValue) {
-      return this.grupoFilterOptions;
-    }
-
-    return this.grupoFilterOptions.filter((option) => option.toLowerCase().includes(currentValue));
-  }
-
-  sanitizeCodigoInput(event: Event): void {
-    const input = event.target as HTMLInputElement | null;
-
-    if (!input) {
-      return;
-    }
-
-    const sanitizedValue = input.value.replace(/[^\d]/g, '');
-
-    if (sanitizedValue !== input.value) {
-      input.value = sanitizedValue;
-      this.filtersForm.controls['codigo'].setValue(sanitizedValue, { emitEvent: false });
-    }
-  }
-
-  openGrupoDropdown(): void {
-    this.isGrupoDropdownOpen = true;
-  }
-
-  closeGrupoDropdown(): void {
-    setTimeout(() => {
-      this.isGrupoDropdownOpen = false;
-    }, 120);
-  }
-
-  toggleGrupoDropdown(): void {
-    this.isGrupoDropdownOpen = !this.isGrupoDropdownOpen;
-  }
-
-  onGrupoInput(): void {
-    this.isGrupoDropdownOpen = true;
-  }
-
-  selectGrupoFilter(option: string): void {
-    this.filtersForm.controls['grupo'].setValue(option);
-    this.isGrupoDropdownOpen = false;
-  }
-
   private cargarGruposItem(): void {
     const filtros: GrupoItemFiltro = {};
 
@@ -213,64 +240,37 @@ export class ItemPageComponent implements OnInit {
   }
 
   private getFiltros(): ItemFiltro {
-    const codigoRaw = this.getCodigoBuscado();
+    const codigo = String(this.filtersForm.controls['codigo'].value ?? '').trim();
     const descripcion = String(this.filtersForm.controls['descripcion'].value ?? '').trim();
-    const grupoRaw = String(this.filtersForm.controls['grupo'].value ?? '').trim();
+    const grupoId = Number(this.filtersForm.controls['grupo'].value);
+    const subGrupoId = Number(this.filtersForm.controls['subGrupo'].value);
+    const detalleMaterialId = Number(this.filtersForm.controls['detalleMaterial'].value);
     const estado = String(this.filtersForm.controls['estado'].value ?? '').trim() || 'A';
     const filtros: ItemFiltro = {
       Flg_Est: estado
     };
 
-    if (codigoRaw) {
-      const codigo = Number(codigoRaw);
-
-      if (Number.isInteger(codigo) && codigo > 0) {
-        filtros.Itm_Id = codigo;
-      }
+    if (codigo) {
+      filtros.Itm_Cod = codigo;
     }
 
     if (descripcion) {
       filtros.Itm_Des = descripcion;
     }
 
-    const grupoId = this.resolveGrupoId(grupoRaw);
-
-    if (grupoId !== null) {
+    if (Number.isInteger(grupoId) && grupoId > 0) {
       filtros.Itm_Grp = grupoId;
     }
 
+    if (Number.isInteger(subGrupoId) && subGrupoId > 0) {
+      filtros.Itm_Sub_Grp = subGrupoId;
+    }
+
+    if (Number.isInteger(detalleMaterialId) && detalleMaterialId > 0) {
+      filtros.Itm_Det_Mat_Id = detalleMaterialId;
+    }
+
     return filtros;
-  }
-
-  private getCodigoBuscado(): string {
-    return String(this.filtersForm.controls['codigo'].value ?? '').trim();
-  }
-
-  private resolveGrupoId(value: string): number | null {
-    const normalizedValue = value.trim().toLowerCase();
-
-    if (!normalizedValue || normalizedValue === 'todos') {
-      return null;
-    }
-
-    if (/^\d+$/.test(normalizedValue)) {
-      const groupById = this.gruposItem.find((grupo) => grupo.grpId === Number(normalizedValue));
-      return groupById?.grpId ?? null;
-    }
-
-    const exactMatch = this.gruposItem.find((grupo) => grupo.grpDes.trim().toLowerCase() === normalizedValue);
-
-    if (exactMatch) {
-      return exactMatch.grpId;
-    }
-
-    const partialMatches = this.gruposItem.filter((grupo) => grupo.grpDes.trim().toLowerCase().includes(normalizedValue));
-
-    if (partialMatches.length === 1) {
-      return partialMatches[0].grpId;
-    }
-
-    return null;
   }
 
   private extractRecords(response: unknown): DataRecord[] {
@@ -301,9 +301,14 @@ export class ItemPageComponent implements OnInit {
 
     return {
       itmId: this.getNumberValue(item, ['Itm_Id', 'itm_Id', 'itmId', 'id', 'Id']),
+      itmCod: this.getTextValue(item, ['Itm_Cod', 'itm_Cod', 'itmCod']),
       itmDes: this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes', 'descripcion', 'Descripcion']),
       itmGrp: this.getNumberValue(item, ['Itm_Grp', 'itm_Grp', 'itmGrp', 'grpId', 'Grp_Id']),
       grpDes: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes', 'grupo', 'Grupo']),
+      itmSubGrp: this.getNumberValue(item, ['Itm_Sub_Grp', 'itm_Sub_Grp', 'itmSubGrp', 'Sub_Grp_Id', 'sub_Grp_Id']),
+      subGrpDes: this.getTextValue(item, ['Sub_Grp_Des', 'sub_Grp_Des', 'subGrpDes']),
+      itmDetMatId: this.getNumberValue(item, ['Itm_Det_Mat_Id', 'itm_Det_Mat_Id', 'itmDetMatId', 'Det_Mat_Id', 'det_Mat_Id']),
+      detMatDes: this.getTextValue(item, ['Det_Mat_Des', 'det_Mat_Des', 'detMatDes']),
       flgEst,
       estado: activo ? 'Activo' : 'Inactivo',
       activo

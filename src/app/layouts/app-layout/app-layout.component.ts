@@ -10,6 +10,7 @@ import { AuthService } from '../../features/auth/services/auth.service';
 })
 export class AppLayoutComponent {
   sidebarOpen = false;
+  sidebarCollapsed = false;
   maintenanceOpen: boolean;
   processOpen: boolean;
 
@@ -27,9 +28,12 @@ export class AppLayoutComponent {
     { label: 'Centro de Costos', route: '/centro-costos' },
     { label: 'Moneda', route: '/moneda' },
     { label: 'Grupo de Item', route: '/grupo-item' },
+    { label: 'Sub Grupo de Item', route: '/sub-grupo-item' },
+    { label: 'Detalle de Material', route: '/item-detalle-material' },
     { label: 'Item', route: '/item' },
     { label: 'Tipo de Servicio', route: '/tipo-servicio' },
     { label: 'Unidad de Medida', route: '/unidad-medida' },
+    { label: 'Detracciones', route: '/detraccion' },
     { label: 'Usuario', route: '/usuario' },
     { label: 'Proveedor', route: '/proveedor' }
   ];
@@ -44,6 +48,11 @@ export class AppLayoutComponent {
 
   toggleSidebar(): void {
     this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  toggleSidebarCollapsed(): void {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+    this.sidebarOpen = false;
   }
 
   toggleProcessMenu(): void {

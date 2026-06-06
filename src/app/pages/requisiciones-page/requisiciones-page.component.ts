@@ -51,6 +51,7 @@ interface PedidoDetalleRow {
   item: string;
   codigoItem: string;
   descripcion: string;
+  centroCostoId: number | null;
   centroCosto: string;
   unidadCodigo: string;
   unidad: string;
@@ -910,7 +911,7 @@ export class RequisicionesPageComponent implements OnInit {
       this.saveErrorMessage = '';
       console.debug('Ped_Can_Tot actualizar:', payload.Ped_Can_Tot);
 
-      this.apiService.patchActualizarPedido(payload).pipe(
+      this.apiService.patchActualizarPedido(payload, this.archivoFile).pipe(
         switchMap((response: unknown) => {
           this.assertSuccessfulResponse(response, 'No se pudo actualizar el pedido.');
           return this.sincronizarCentrosCostoPedido(payload.Ped_Id);
@@ -1321,11 +1322,16 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private getDetalleCentroCostoOptions(): CentroCostoOption[] {
-    return this.getCentroCostoPedidoExpandido().map((centroCosto) => ({
-      id: centroCosto.codigo,
-      descripcion: centroCosto.costo,
-      cantidadRequerida: centroCosto.cantidad
-    }));
+    return this.getCentroCostoPedidoExpandido().map((centroCosto) => {
+      const cantidadUsada = this.getCantidadDetallePorCentroCosto(centroCosto.codigo);
+      const cantidadRestante = this.normalizeCantidadCentroCosto(Math.max(0, centroCosto.cantidad - cantidadUsada));
+
+      return {
+        id: centroCosto.codigo,
+        descripcion: centroCosto.costo,
+        cantidadRequerida: cantidadRestante
+      };
+    });
   }
 
 
@@ -1550,11 +1556,33 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private getTotalActualDetalleSinSeleccionado(pedId: number): number {
-    const selectedPersistedId = this.isEditingPedidoDetalle ? this.selectedPedidoDetalleId : null;
+    const selectedRowId = this.isEditingPedidoDetalle ? this.selectedPedidoDetalleId : null;
 
     return this.normalizeCantidadCentroCosto(
       (this.pedidoDetalles[pedId] ?? []).reduce((total, item) => {
-        if (selectedPersistedId !== null && item.persistedId === selectedPersistedId) {
+        if (selectedRowId !== null && item.id === selectedRowId) {
+          return total;
+        }
+
+        return total + this.normalizeCantidadCentroCosto(item.cantidad);
+      }, 0)
+    );
+  }
+
+  private getCantidadDetallePorCentroCosto(centroCostoCodigo: number): number {
+    if (this.expandedPedidoId === null) {
+      return 0;
+    }
+
+    const selectedRowId = this.isEditingPedidoDetalle ? this.selectedPedidoDetalleId : null;
+
+    return this.normalizeCantidadCentroCosto(
+      (this.pedidoDetalles[this.expandedPedidoId] ?? []).reduce((total, item) => {
+        if (selectedRowId !== null && item.id === selectedRowId) {
+          return total;
+        }
+
+        if (item.centroCostoId !== centroCostoCodigo) {
           return total;
         }
 
@@ -2119,6 +2147,7 @@ export class RequisicionesPageComponent implements OnInit {
     const descripcionItem = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes', 'Ped_Des_Itm', 'ped_Des_Itm', 'pedDesItm', 'Ped_Des', 'ped_Des']);
     const descripcionUnidad = this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']);
     const descripcionCentroCosto = this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']);
+    const centroCostoId = this.getNumberValue(item, ['Ped_Cen_Cos_Asg', 'ped_Cen_Cos_Asg', 'pedCenCosAsg']);
 
     if (!codigoItem && !cantidad && !precioUnitario && !subtotal) {
       return null;
@@ -2133,6 +2162,7 @@ export class RequisicionesPageComponent implements OnInit {
       item: String(index + 1),
       codigoItem: codigoItem || '-',
       descripcion: itemDescription || '-',
+      centroCostoId,
       centroCosto: descripcionCentroCosto || '-',
       unidadCodigo: unidadCodigo || '-',
       unidad: unidadDescripcion || unidadCodigo || '-',

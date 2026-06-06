@@ -60,11 +60,11 @@
       </div>
 
       <label class="pedido-detalle-dialog__field">
-        <span>Cantidad requerida</span>
+        <span>Cantidad Restante</span>
         <input
           type="text"
           class="input--readonly"
-          [value]="formatNumber(cantidadRequeridaCentroCosto)"
+          [value]="formatNumber(cantidadRestanteCentroCosto)"
           readonly
           disabled
           tabindex="-1">
@@ -74,8 +74,8 @@
     <div class="pedido-detalle-dialog__numbers">
       <label class="pedido-detalle-dialog__field">
         <span>Cantidad</span>
-        <input type="number" min="0" step="0.001" [max]="data.cantidadDisponible" formControlName="quantity">
-        <small>Requerido: {{ formatNumber(cantidadRequeridaCentroCosto) }}</small>
+        <input type="number" min="0" step="0.001" [max]="cantidadRestanteCentroCosto" formControlName="quantity">
+        <small>Restante: {{ formatNumber(cantidadRestanteCentroCosto) }}</small>
         <small class="pedido-detalle-dialog__error" *ngIf="form.controls['quantity'].touched && form.controls['quantity'].value <= 0">Campo Cantidad obligatorio.</small>
       </label>
 

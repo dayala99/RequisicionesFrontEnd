@@ -1,8 +1,10 @@
 .item-dialog {
-  display: block;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: min(42rem, 90vh);
   position: relative;
   isolation: isolate;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .item-dialog__content {
@@ -11,7 +13,7 @@
   min-width: min(30rem, 78vw);
   position: relative;
   z-index: 3;
-  overflow: visible;
+  overflow-y: auto;
 }
 
 .item-dialog__description {
@@ -31,7 +33,8 @@
 }
 
 .item-dialog__field input,
-.item-dialog__field select {
+.item-dialog__field select,
+.item-dialog__field mat-select {
   width: 100%;
   min-height: 2.75rem;
   padding: 0.7rem 0.8rem;
@@ -43,9 +46,21 @@
 }
 
 .item-dialog__field input:focus,
-.item-dialog__field select:focus {
+.item-dialog__field select:focus,
+.item-dialog__field mat-select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.item-dialog__field mat-select {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.item-dialog__field mat-select ::ng-deep .mat-select-trigger {
+  width: 100%;
+  min-height: 1.35rem;
 }
 
 .item-dialog__field input:disabled,
@@ -116,14 +131,12 @@
   box-shadow: 0 16px 30px rgba(32, 24, 15, 0.14);
 }
 
-:host ::ng-deep .mat-mdc-dialog-content,
-:host ::ng-deep .mat-dialog-content {
-  overflow: visible;
-}
-
 .item-dialog__actions {
   position: relative;
-  z-index: 1;
+  z-index: 4;
+  min-height: 4.25rem;
+  border-top: 1px solid var(--line-soft);
+  background: #ffffff;
 }
 
 .item-dialog__combobox-option,
