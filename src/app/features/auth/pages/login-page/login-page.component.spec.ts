@@ -26,8 +26,8 @@ describe('LoginPageComponent', () => {
   it('should render the login form fields', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelector('input[type="email"]')).toBeTruthy();
-    expect(compiled.querySelector('input[type="password"]')).toBeTruthy();
+    expect(compiled.querySelector('input[formControlName="userCode"]')).toBeTruthy();
+    expect(compiled.querySelector('input[type="password"]')).toBeFalsy();
     expect(compiled.querySelector('button[type="submit"]')?.textContent).toContain('Entrar');
   });
 });

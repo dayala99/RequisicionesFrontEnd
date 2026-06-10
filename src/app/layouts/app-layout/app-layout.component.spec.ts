@@ -18,7 +18,7 @@ describe('AppLayoutComponent', () => {
     authService = TestBed.inject(AuthService);
     router = TestBed.inject(Router);
     sessionStorage.setItem('app_auth_session', 'true');
-    sessionStorage.setItem('app_auth_user', 'admin@demo.com');
+    sessionStorage.setItem('app_auth_user', 'dayala');
   });
 
   afterEach(() => {
@@ -107,7 +107,7 @@ describe('AppLayoutComponent', () => {
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('admin@demo.com');
+    expect(compiled.textContent).toContain('dayala');
   });
 
   it('should toggle the mobile sidebar state', () => {

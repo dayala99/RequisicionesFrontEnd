@@ -135,12 +135,13 @@
       <div *ngIf="isListadoPendiente" class="table-shell">
         <table class="almacen-table">
           <thead>
-            <tr>
-              <th></th>
-              <th>Nro. O/C</th>
-              <th>Proveedor</th>
-              <th>Forma de Pago</th>
-              <th>Ref. Obra</th>
+              <tr>
+                <th></th>
+                <th>Nro. O/C</th>
+                <th>Tipo</th>
+                <th>Proveedor</th>
+                <th>Forma de Pago</th>
+                <th>Ref. Obra</th>
               <th>Referencia</th>
               <th>Total</th>
               <th>Estado</th>
@@ -163,6 +164,7 @@
                 </button>
               </td>
               <td>{{ item.ordenCompraId }}</td>
+              <td>{{ item.tipo }}</td>
               <td>{{ item.proveedor }}</td>
               <td>{{ item.formaPago }}</td>
               <td>{{ item.refObra }}</td>
@@ -219,15 +221,26 @@
         </div>
         <div class="order-summary-field order-summary-field--wide">
           <span>Proveedor</span>
-          <strong>{{ ingresoOrdenSeleccionada.proveedor }}</strong>
+          <strong>{{ formatProveedorIngresoOrden(ingresoOrdenSeleccionada) }}</strong>
         </div>
         <div class="order-summary-field">
           <span>RUC</span>
           <strong>{{ ingresoOrdenSeleccionada.proveedorRuc }}</strong>
         </div>
+        <mat-form-field appearance="outline" class="field field--mat order-summary-select">
+          <mat-label>Ubicacion</mat-label>
+          <mat-select
+            [value]="ingresoOrdenUbicacionId"
+            (selectionChange)="setIngresoOrdenUbicacion($event.value)">
+            <mat-option [value]="0">Seleccionar ubicacion</mat-option>
+            <mat-option *ngFor="let option of ubicacionIngresoOrdenOptions" [value]="option.codigo">
+              {{ option.descripcion }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
       </section>
 
-      <section class="editor-section">
+      <section *ngIf="!esIngresoOrdenServicio" class="editor-section">
         <div class="section-copy section-copy--inline">
           <h3>Productos Pendientes de Ingreso</h3>
           <p>{{ ingresoOrdenDetalles.length }} productos</p>
@@ -251,18 +264,17 @@
                 <th>Centro(s) de Costo</th>
                 <th>Compra</th>
                 <th>Ingresado</th>
-                <th>Pendiente</th>
                 <th>Cantidad a Ingresar</th>
               </tr>
             </thead>
 
             <tbody>
               <tr *ngIf="isLoadingEditor">
-                <td colspan="10" class="empty-row">Cargando productos pendientes de ingreso...</td>
+                <td colspan="9" class="empty-row">Cargando productos pendientes de ingreso...</td>
               </tr>
 
               <tr *ngIf="!isLoadingEditor && !ingresoOrdenDetalles.length">
-                <td colspan="10" class="empty-row">No se encontraron productos pendientes de ingreso.</td>
+                <td colspan="9" class="empty-row">No se encontraron productos pendientes de ingreso.</td>
               </tr>
 
               <tr *ngFor="let item of ingresoOrdenDetalles; trackBy: trackByIngresoOrdenDetalle" class="almacen-table__row">
@@ -287,14 +299,11 @@
                   <span class="quantity-badge quantity-badge--entered">{{ item.ingresado | number:'1.2-2' }}</span>
                 </td>
                 <td>
-                  <span class="quantity-badge quantity-badge--pending">{{ item.pendiente | number:'1.2-2' }}</span>
-                </td>
-                <td>
                   <input
                     type="number"
                     class="table-input"
                     min="0"
-                    [max]="item.pendiente"
+                    [max]="getCantidadMaximaIngreso(item)"
                     step="0.001"
                     [value]="item.cantidadIngresar ?? ''"
                     (input)="setCantidadIngresoDetalle(item, $any($event.target).value)">
@@ -308,6 +317,13 @@
       <div class="editor-actions">
         <p *ngIf="isLoadingEditor" class="editor-feedback">Cargando cabecera del ingreso...</p>
         <p *ngIf="saveErrorMessage" class="editor-feedback editor-feedback--error">{{ saveErrorMessage }}</p>
+        <button
+          type="button"
+          class="button button--primary"
+          [disabled]="isLoadingEditor || isSavingIngreso"
+          (click)="guardarIngresoOrden()">
+          {{ isSavingIngreso ? 'Guardando...' : 'Guardar' }}
+        </button>
         <button type="button" class="button button--secondary" (click)="cancelarIngresoOrden()">
           Cancelar
         </button>

@@ -6,11 +6,14 @@ import { catchError, forkJoin, of } from 'rxjs';
 
 import {
   AlmacenFiltro,
+  ActualizarPedidoDetalleIngresoAlmacenRequest,
   ActualizarIngresoAlmacenDetalleRequest,
   ActualizarIngresoAlmacenRequest,
   ApiService,
+  CambiarEstadoOrdenCompraRequest,
   CatalogoNumeroOption,
   CatalogoTextoOption,
+  RegistrarIngresoAlmacenOrdenCompraRequest,
   RegistrarIngresoAlmacenDetalleRequest,
   RegistrarIngresoAlmacenRequest
 } from 'src/app/Services/api.services';
@@ -29,6 +32,9 @@ interface AlmacenRow {
   movimientoId: number;
   tipoIngresoId: number;
   tipoIngreso: string;
+  ordenCompraId: number;
+  pedidoId: number;
+  ubicacionId: number;
   centroCostoId: number;
   centroCosto: string;
   solicitanteDocumento: string;
@@ -44,7 +50,9 @@ interface OrdenCompraPendienteAlmacenRow {
   pedidoId: number;
   numeroOrden: string;
   pedidoCodigo: string;
+  tipo: string;
   fecha: string;
+  proveedorId: number;
   proveedor: string;
   proveedorRuc: string;
   formaPago: string;
@@ -56,6 +64,7 @@ interface OrdenCompraPendienteAlmacenRow {
 
 interface IngresoOrdenDetalleRow {
   id: number;
+  pedidoDetalleId: number;
   itemId: number;
   itemCodigo: string;
   itemDescripcion: string;
@@ -107,8 +116,8 @@ export class AlmacenPageComponent implements OnInit {
   readonly tipoIngresoOptions: CatalogoNumeroOption[] = [
     { codigo: 0, descripcion: 'Todos' },
     { codigo: 1, descripcion: 'Ingreso directo' },
-    { codigo: 2, descripcion: 'Orden de servicio' },
-    { codigo: 3, descripcion: 'Orden de compra' }
+    { codigo: 2, descripcion: 'Orden de compra' },
+    { codigo: 3, descripcion: 'Orden de servicio' }
   ];
   readonly listadoOptions: CatalogoTextoOption[] = [
     { codigo: 'P', descripcion: 'Pendiente' },
@@ -132,6 +141,7 @@ export class AlmacenPageComponent implements OnInit {
   centroCostoOptions: AlmacenCentroCostoOption[] = [];
   itemOptions: PedidoDetalleItemOption[] = [];
   unidadOptions: PedidoDetalleUnidadOption[] = [];
+  ubicacionIngresoOrdenOptions: CatalogoNumeroOption[] = [];
   globalSearch = '';
   isLoadingAlmacen = false;
   isLoadingCatalogos = false;
@@ -145,11 +155,13 @@ export class AlmacenPageComponent implements OnInit {
   currentPage = 1;
   ingresoOrdenSeleccionada: OrdenCompraPendienteAlmacenRow | null = null;
   ingresoOrdenDetalles: IngresoOrdenDetalleRow[] = [];
+  ingresoOrdenUbicacionId = 1;
   private pendingEditMovimientoId: number | null = null;
   private pendingEditCabeceraRecord: DataRecord | null = null;
   private pendingEditDetalleRecord: DataRecord | null = null;
   private currentEditDetalleId = 0;
   private currentEditFlgEst = 'A';
+  private isIngresoOrdenEditMode = false;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -527,8 +539,10 @@ export class AlmacenPageComponent implements OnInit {
     this.isLoadingEditor = true;
     this.showIngresoDirectoForm = false;
     this.showIngresoOrdenForm = true;
+    this.isIngresoOrdenEditMode = false;
     this.ingresoOrdenSeleccionada = item;
     this.ingresoOrdenDetalles = [];
+    this.ingresoOrdenUbicacionId = 1;
 
     this.apiService.getListarCabeceraIngresoAlmacen(item.ordenCompraId).subscribe({
       next: (response: unknown) => {
@@ -538,7 +552,7 @@ export class AlmacenPageComponent implements OnInit {
           ? this.mapCabeceraIngresoOrden(record, item)
           : item;
         this.ingresoOrdenSeleccionada = cabecera;
-        this.cargarDetalleIngresoOrden(cabecera);
+        this.cargarDetalleIngresoOrden(cabecera, item);
       },
       error: (error: unknown) => {
         this.isLoadingEditor = false;
@@ -554,7 +568,9 @@ export class AlmacenPageComponent implements OnInit {
     this.showIngresoOrdenForm = false;
     this.ingresoOrdenSeleccionada = null;
     this.ingresoOrdenDetalles = [];
+    this.ingresoOrdenUbicacionId = 1;
     this.saveErrorMessage = '';
+    this.isIngresoOrdenEditMode = false;
   }
 
   trackByAlmacen(_: number, item: AlmacenRow): number {
@@ -590,6 +606,175 @@ export class AlmacenPageComponent implements OnInit {
     }));
   }
 
+  setIngresoOrdenUbicacion(value: number): void {
+    this.ingresoOrdenUbicacionId = Number(value) || 0;
+  }
+
+  getCantidadMaximaIngreso(item: IngresoOrdenDetalleRow): number {
+    return this.isIngresoOrdenEditMode ? item.compra : item.pendiente;
+  }
+
+  get esIngresoOrdenServicio(): boolean {
+    return this.ingresoOrdenSeleccionada
+      ? this.esOrdenServicio(this.ingresoOrdenSeleccionada.tipo || this.ingresoOrdenSeleccionada.formaPago)
+      : false;
+  }
+
+  guardarIngresoOrden(): void {
+    if (this.isIngresoOrdenEditMode) {
+      this.actualizarIngresoOrden();
+      return;
+    }
+
+    const cabecera = this.ingresoOrdenSeleccionada;
+    const cabeceraPayload = this.buildRegistrarIngresoAlmacenOrdenCompraPayload();
+    const detallePayloads = this.esIngresoOrdenServicio ? [] : this.buildActualizarPedidoDetalleIngresoAlmacenPayloads();
+
+    if (!cabecera || !cabeceraPayload || (!this.esIngresoOrdenServicio && !detallePayloads.length)) {
+      return;
+    }
+
+    this.isSavingIngreso = true;
+    this.saveErrorMessage = '';
+
+    if (this.esIngresoOrdenServicio) {
+      this.cambiarEstadoOrdenCompraIngresada(cabecera, () => {
+        this.registrarIngresoOrdenCompra(cabeceraPayload, []);
+      });
+      return;
+    }
+
+    this.cambiarEstadoOrdenCompraIngresada(cabecera, () => {
+      this.registrarIngresoOrdenCompra(cabeceraPayload, detallePayloads);
+    });
+  }
+
+  private registrarIngresoOrdenCompra(
+    cabeceraPayload: RegistrarIngresoAlmacenOrdenCompraRequest,
+    detallePayloads: ActualizarPedidoDetalleIngresoAlmacenRequest[]
+  ): void {
+    this.apiService.postRegistrarIngresoAlmacenOrdenCompra(cabeceraPayload).subscribe({
+      next: (cabeceraResponse: unknown) => {
+        try {
+          this.assertSuccessfulResponse(cabeceraResponse, 'No se pudo registrar el ingreso de almacen por orden de compra.');
+        } catch (error: unknown) {
+          this.isSavingIngreso = false;
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo registrar el ingreso de almacen por orden de compra.');
+          return;
+        }
+
+        if (!detallePayloads.length) {
+          this.finalizarGuardadoIngresoOrden();
+          return;
+        }
+
+        forkJoin(detallePayloads.map((detalle) => this.apiService.patchActualizarPedidoDetalleIngresoAlmacen(detalle))).subscribe({
+          next: (detalleResponses: unknown[]) => {
+            try {
+              detalleResponses.forEach((response) => {
+                this.assertSuccessfulResponse(response, 'No se pudo actualizar el detalle del pedido para ingreso de almacen.');
+              });
+            } catch (error: unknown) {
+              this.isSavingIngreso = false;
+              this.saveErrorMessage = this.resolveErrorMessage(
+                error,
+                'Se registro el ingreso, pero no se pudo actualizar el detalle del pedido.'
+              );
+              return;
+            }
+
+            this.finalizarGuardadoIngresoOrden();
+          },
+          error: (error: unknown) => {
+            this.isSavingIngreso = false;
+            this.saveErrorMessage = this.resolveErrorMessage(
+              error,
+              'Se registro el ingreso, pero no se pudo actualizar el detalle del pedido.'
+            );
+          }
+        });
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo registrar el ingreso de almacen por orden de compra.');
+      }
+    });
+  }
+
+  private actualizarIngresoOrden(): void {
+    if (this.esIngresoOrdenServicio) {
+      this.finalizarGuardadoIngresoOrden();
+      return;
+    }
+
+    const detallePayloads = this.buildActualizarPedidoDetalleIngresoAlmacenPayloads();
+
+    if (!this.ingresoOrdenSeleccionada || !detallePayloads.length) {
+      return;
+    }
+
+    this.isSavingIngreso = true;
+    this.saveErrorMessage = '';
+
+    forkJoin(detallePayloads.map((detalle) => this.apiService.patchActualizarPedidoDetalleIngresoAlmacen(detalle))).subscribe({
+      next: (detalleResponses: unknown[]) => {
+        try {
+          detalleResponses.forEach((response) => {
+            this.assertSuccessfulResponse(response, 'No se pudo actualizar el detalle del ingreso por orden.');
+          });
+        } catch (error: unknown) {
+          this.isSavingIngreso = false;
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el detalle del ingreso por orden.');
+          return;
+        }
+
+        this.finalizarGuardadoIngresoOrden();
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el detalle del ingreso por orden.');
+      }
+    });
+  }
+
+  private cambiarEstadoOrdenCompraIngresada(cabecera: OrdenCompraPendienteAlmacenRow, onSuccess: () => void): void {
+    const payload: CambiarEstadoOrdenCompraRequest = {
+      Ord_Com_Id: cabecera.ordenCompraId,
+      Flg_Alm: 'I'
+    };
+
+    console.log('Almacen ingreso orden - cambiar estado OC:', payload);
+
+    this.apiService.patchCambiarEstadoOrdenCompra(payload).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo cambiar el estado de almacen de la orden de compra.');
+        } catch (error: unknown) {
+          this.isSavingIngreso = false;
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo cambiar el estado de almacen de la orden de compra.');
+          return;
+        }
+
+        onSuccess();
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo cambiar el estado de almacen de la orden de compra.');
+      }
+    });
+  }
+
+  private finalizarGuardadoIngresoOrden(): void {
+    this.isSavingIngreso = false;
+    this.showIngresoOrdenForm = false;
+    this.ingresoOrdenSeleccionada = null;
+    this.ingresoOrdenDetalles = [];
+    this.ingresoOrdenUbicacionId = 1;
+    this.saveErrorMessage = '';
+    this.isIngresoOrdenEditMode = false;
+    this.cargarListadoSeleccionado();
+  }
+
   trackBySolicitante(_: number, item: AlmacenSolicitanteOption): number {
     return item.id;
   }
@@ -603,10 +788,17 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   editarMovimiento(item: AlmacenRow): void {
+    if (this.esIngresoPorOrden(item)) {
+      this.editarIngresoOrden(item);
+      return;
+    }
+
     this.errorMessage = '';
     this.saveErrorMessage = '';
     this.isLoadingEditor = true;
     this.showIngresoDirectoForm = true;
+    this.showIngresoOrdenForm = false;
+    this.isIngresoOrdenEditMode = false;
     this.isEditMode = true;
     this.resetIngresoDirectoForm();
 
@@ -645,6 +837,8 @@ export class AlmacenPageComponent implements OnInit {
     this.resetIngresoDirectoForm();
     this.showIngresoOrdenForm = false;
     this.ingresoOrdenSeleccionada = null;
+    this.ingresoOrdenUbicacionId = 1;
+    this.isIngresoOrdenEditMode = false;
     this.showIngresoDirectoForm = true;
   }
 
@@ -806,15 +1000,34 @@ export class AlmacenPageComponent implements OnInit {
     this.cargarMovimientos();
   }
 
-  private cargarDetalleIngresoOrden(cabecera: OrdenCompraPendienteAlmacenRow): void {
-    if (!cabecera.pedidoId || !cabecera.ordenCompraId) {
+  private cargarDetalleIngresoOrden(
+    cabecera: OrdenCompraPendienteAlmacenRow,
+    fallback?: OrdenCompraPendienteAlmacenRow
+  ): void {
+    if (this.esOrdenServicio(cabecera.tipo || cabecera.formaPago || fallback?.tipo || fallback?.formaPago || '')) {
+      this.ingresoOrdenDetalles = [];
+      this.isLoadingEditor = false;
+      return;
+    }
+
+    const pedCabId = cabecera.pedidoId || fallback?.pedidoId || 0;
+    const ordComId = cabecera.ordenCompraId || fallback?.ordenCompraId || 0;
+
+    console.log('Almacen ingresar orden - detalle request:', {
+      Ped_Cab_Id: pedCabId,
+      Ord_Com_Id: ordComId,
+      cabecera,
+      fallback
+    });
+
+    if (!pedCabId || !ordComId) {
       this.ingresoOrdenDetalles = [];
       this.isLoadingEditor = false;
       this.saveErrorMessage = 'No se pudo identificar el pedido asociado a la orden seleccionada.';
       return;
     }
 
-    this.apiService.getListarDetalleIngresoAlmacen(cabecera.pedidoId, cabecera.ordenCompraId).subscribe({
+    this.apiService.getListarDetalleIngresoAlmacen(pedCabId, ordComId).subscribe({
       next: (response: unknown) => {
         console.log('Almacen ingresar orden - detalle response:', response);
         this.ingresoOrdenDetalles = this.extractRecords(response)
@@ -835,7 +1048,7 @@ export class AlmacenPageComponent implements OnInit {
 
   private cargarCatalogosEditor(): void {
     this.isLoadingCatalogos = true;
-    let pendingRequests = 5;
+    let pendingRequests = 6;
     const finishRequest = () => {
       pendingRequests -= 1;
 
@@ -931,6 +1144,125 @@ export class AlmacenPageComponent implements OnInit {
         finishRequest();
       }
     });
+
+    this.apiService.getListarUbicacionActivo({ Flg_Est: 'A' }).pipe(
+      catchError(() => of([]))
+    ).subscribe({
+      next: (response: unknown) => {
+        this.ubicacionIngresoOrdenOptions = this.extractRecords(response)
+          .map((item) => this.mapUbicacionOption(item))
+          .filter((item): item is CatalogoNumeroOption => item !== null);
+        finishRequest();
+      },
+      error: () => {
+        this.ubicacionIngresoOrdenOptions = [];
+        finishRequest();
+      }
+    });
+  }
+
+  private esIngresoPorOrden(item: AlmacenRow): boolean {
+    const tipoIngreso = item.tipoIngreso.trim().toLowerCase();
+    return item.tipoIngresoId > 1 || tipoIngreso.includes('orden');
+  }
+
+  private esOrdenServicio(tipo: string): boolean {
+    return tipo.trim().toLowerCase().includes('servicio');
+  }
+
+  private mapAlmacenRowToIngresoOrdenFallback(item: AlmacenRow): OrdenCompraPendienteAlmacenRow {
+    return {
+      id: item.ordenCompraId || item.movimientoId,
+      ordenCompraId: item.ordenCompraId,
+      pedidoId: item.pedidoId,
+      numeroOrden: item.ordenCompraId ? this.formatNumeroIngresoOrden(item.ordenCompraId, item.tipoIngreso) : '-',
+      pedidoCodigo: this.formatPedidoCodigo(item.pedidoId),
+      tipo: item.tipoIngreso,
+      fecha: item.fechaRegistro,
+      proveedorId: 0,
+      proveedor: '-',
+      proveedorRuc: '-',
+      formaPago: item.tipoIngreso,
+      refObra: '-',
+      referencia: '-',
+      total: 0,
+      estado: item.estadoAprobacion
+    };
+  }
+
+  private editarIngresoOrden(item: AlmacenRow): void {
+    this.errorMessage = '';
+    this.saveErrorMessage = '';
+    this.isLoadingEditor = true;
+    this.showIngresoDirectoForm = false;
+    this.showIngresoOrdenForm = true;
+    this.isIngresoOrdenEditMode = true;
+    this.isEditMode = false;
+    this.ingresoOrdenDetalles = [];
+    this.ingresoOrdenUbicacionId = item.ubicacionId || 1;
+
+    const fallback: OrdenCompraPendienteAlmacenRow = this.mapAlmacenRowToIngresoOrdenFallback(item);
+    this.ingresoOrdenSeleccionada = fallback;
+
+    this.apiService.getListarIngresoAlmacenModificar(item.movimientoId).subscribe({
+      next: (response: unknown) => {
+        console.log('Almacen editar ingreso por orden - cabecera almacen response:', response);
+        const record = this.extractRecords(response)[0] ?? null;
+        const ordenCompraId = record
+          ? this.getNumberValue(record, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId']) ?? fallback.ordenCompraId
+          : fallback.ordenCompraId;
+        const pedidoId = record
+          ? this.getNumberValue(record, ['Ped_Id', 'ped_Id', 'pedId', 'Ped_Cab_Id', 'ped_Cab_Id', 'pedCabId']) ?? fallback.pedidoId
+          : fallback.pedidoId;
+        const ubicacionId = record
+          ? this.getNumberValue(record, ['Alm_Ubi', 'alm_Ubi', 'almUbi']) ?? this.ingresoOrdenUbicacionId
+          : this.ingresoOrdenUbicacionId;
+
+        this.ingresoOrdenUbicacionId = ubicacionId || 1;
+
+        if (!ordenCompraId || !pedidoId) {
+          this.isLoadingEditor = false;
+          this.saveErrorMessage = 'No se pudo identificar la orden de compra o el pedido asociado al ingreso.';
+          return;
+        }
+
+        const fallbackConIds: OrdenCompraPendienteAlmacenRow = {
+          ...fallback,
+          id: ordenCompraId,
+          ordenCompraId,
+          pedidoId,
+          numeroOrden: this.formatNumeroIngresoOrden(ordenCompraId, fallback.tipo),
+          pedidoCodigo: this.formatPedidoCodigo(pedidoId)
+        };
+
+        this.apiService.getListarCabeceraIngresoAlmacen(ordenCompraId).subscribe({
+          next: (cabeceraResponse: unknown) => {
+            console.log('Almacen editar ingreso por orden - cabecera OC response:', cabeceraResponse);
+            const cabeceraRecord = this.extractRecords(cabeceraResponse)[0] ?? null;
+            const cabecera = cabeceraRecord
+              ? this.mapCabeceraIngresoOrden(cabeceraRecord, fallbackConIds)
+              : fallbackConIds;
+            this.ingresoOrdenSeleccionada = {
+              ...cabecera,
+              pedidoId: cabecera.pedidoId || pedidoId,
+              ordenCompraId: cabecera.ordenCompraId || ordenCompraId
+            };
+            this.cargarDetalleIngresoOrden(this.ingresoOrdenSeleccionada, fallbackConIds);
+          },
+          error: (error: unknown) => {
+            this.isLoadingEditor = false;
+            this.saveErrorMessage = this.resolveErrorMessage(
+              error,
+              'No se pudo cargar la cabecera de la orden asociada al ingreso.'
+            );
+          }
+        });
+      },
+      error: (error: unknown) => {
+        this.isLoadingEditor = false;
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el ingreso por orden seleccionado.');
+      }
+    });
   }
 
   private getFiltros(): AlmacenFiltro {
@@ -995,6 +1327,81 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Cen_Cos: centroCostoId,
       Usr_Reg: currentUser
     };
+  }
+
+  private buildRegistrarIngresoAlmacenOrdenCompraPayload(): RegistrarIngresoAlmacenOrdenCompraRequest | null {
+    const cabecera = this.ingresoOrdenSeleccionada;
+    const ubicacion = Number(this.ingresoOrdenUbicacionId);
+    const currentUser = this.getCurrentOperator();
+
+    if (!cabecera) {
+      this.saveErrorMessage = 'No se encontro la orden de compra seleccionada para registrar el ingreso.';
+      return null;
+    }
+
+    if (!Number.isInteger(ubicacion) || ubicacion <= 0) {
+      this.saveErrorMessage = 'Selecciona una ubicacion valida para registrar el ingreso.';
+      return null;
+    }
+
+    if (!Number.isInteger(cabecera.ordenCompraId) || cabecera.ordenCompraId <= 0) {
+      this.saveErrorMessage = 'No se pudo identificar la orden de compra seleccionada.';
+      return null;
+    }
+
+    if (!Number.isInteger(cabecera.pedidoId) || cabecera.pedidoId <= 0) {
+      this.saveErrorMessage = 'No se pudo identificar el pedido asociado a la orden de compra.';
+      return null;
+    }
+
+    const tipoIngreso = this.esOrdenServicio(cabecera.tipo || cabecera.formaPago) ? 3 : 2;
+
+    return {
+      Alm_Ubi: ubicacion,
+      Alm_Tip_Ing: tipoIngreso,
+      Usr_Reg: currentUser,
+      Ord_Com_Id: cabecera.ordenCompraId,
+      Ped_Id: cabecera.pedidoId
+    };
+  }
+
+  private buildActualizarPedidoDetalleIngresoAlmacenPayloads(): ActualizarPedidoDetalleIngresoAlmacenRequest[] {
+    const cabecera = this.ingresoOrdenSeleccionada;
+    const seleccionados = this.ingresoOrdenDetalles.filter((item) => item.seleccionado);
+
+    if (!cabecera) {
+      this.saveErrorMessage = 'No se encontro la orden de compra seleccionada para actualizar el detalle.';
+      return [];
+    }
+
+    if (!seleccionados.length) {
+      this.saveErrorMessage = 'Selecciona al menos un producto para registrar el ingreso.';
+      return [];
+    }
+
+    const detalleSinId = seleccionados.find((item) => !Number.isInteger(item.pedidoDetalleId) || item.pedidoDetalleId <= 0);
+    if (detalleSinId) {
+      this.saveErrorMessage = `El producto ${detalleSinId.itemDescripcion} no tiene Ped_Det_Id para actualizar el pedido.`;
+      return [];
+    }
+
+    const detalleSinCantidad = seleccionados.find((item) => !Number.isFinite(item.cantidadIngresar) || Number(item.cantidadIngresar) <= 0);
+    if (detalleSinCantidad) {
+      this.saveErrorMessage = `Ingresa una cantidad valida para ${detalleSinCantidad.itemDescripcion}.`;
+      return [];
+    }
+
+    const detalleMayorPendiente = seleccionados.find((item) => Number(item.cantidadIngresar) > this.getCantidadMaximaIngreso(item));
+    if (detalleMayorPendiente) {
+      this.saveErrorMessage = `La cantidad a ingresar de ${detalleMayorPendiente.itemDescripcion} no puede superar la cantidad permitida.`;
+      return [];
+    }
+
+    return seleccionados.map((item) => ({
+      Ped_Det_Id: item.pedidoDetalleId,
+      Ord_Com_Id: cabecera.ordenCompraId,
+      Can_Ing: Number(item.cantidadIngresar)
+    }));
   }
 
   private buildRegistrarIngresoAlmacenDetallePayload(movimientoId: number): RegistrarIngresoAlmacenDetalleRequest | null {
@@ -1350,6 +1757,9 @@ export class AlmacenPageComponent implements OnInit {
       movimientoId,
       tipoIngresoId,
       tipoIngreso: tipoIngresoDescripcion,
+      ordenCompraId: this.getNumberValue(item, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId']) ?? 0,
+      pedidoId: this.getNumberValue(item, ['Ped_Id', 'ped_Id', 'pedId', 'Ped_Cab_Id', 'ped_Cab_Id', 'pedCabId']) ?? 0,
+      ubicacionId: this.getNumberValue(item, ['Alm_Ubi', 'alm_Ubi', 'almUbi', 'Ubi_Id', 'ubi_Id', 'ubiId']) ?? 0,
       centroCostoId,
       centroCosto: this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']) || this.resolveCentroCostoDescripcion(centroCostoId),
       solicitanteDocumento,
@@ -1372,10 +1782,14 @@ export class AlmacenPageComponent implements OnInit {
       ordenCompraId,
       pedidoId: this.getNumberValue(item, ['Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId', 'Ped_Id', 'ped_Id', 'pedId']) ?? 0,
       numeroOrden: this.getTextValue(item, ['Ord_Num', 'ord_Num', 'ordNum', 'Num_Orden', 'num_Orden', 'numOrden'])
-        || `OC${ordenCompraId}`,
+        || this.formatNumeroIngresoOrden(
+          ordenCompraId,
+          this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes'])
+        ),
       pedidoCodigo: this.formatPedidoCodigo(
         this.getNumberValue(item, ['Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId', 'Ped_Id', 'ped_Id', 'pedId'])
       ),
+      tipo: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || '-',
       fecha: formatDisplayDate(this.getTextValue(item, [
         'Fec_Reg',
         'fec_Reg',
@@ -1386,6 +1800,7 @@ export class AlmacenPageComponent implements OnInit {
         'Fecha',
         'fecha'
       ])) || '-',
+      proveedorId: this.getNumberValue(item, ['Ord_Com_Prv', 'ord_Com_Prv', 'ordComPrv', 'Prv_Id', 'prv_Id', 'prvId']) ?? 0,
       proveedor: this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom']) || '-',
       proveedorRuc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc', 'Ruc', 'ruc']) || '-',
       formaPago: this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes']) || '-',
@@ -1401,36 +1816,58 @@ export class AlmacenPageComponent implements OnInit {
     fallback: OrdenCompraPendienteAlmacenRow
   ): OrdenCompraPendienteAlmacenRow {
     const ordenCompraId = this.getNumberValue(item, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId']) ?? fallback.ordenCompraId;
-    const pedidoId = this.getNumberValue(item, ['Ped_Cab_Id', 'ped_Cab_Id', 'pedCabId']);
+    const pedidoId = this.getNumberValue(item, [
+      'Ped_Cab_Id',
+      'ped_Cab_Id',
+      'pedCabId',
+      'Ped_Id',
+      'ped_Id',
+      'pedId',
+      'Ord_Com_Ped_Id',
+      'ord_Com_Ped_Id',
+      'ordComPedId'
+    ]);
 
     return {
       ...fallback,
       id: ordenCompraId,
       ordenCompraId,
       pedidoId: pedidoId ?? fallback.pedidoId,
-      numeroOrden: `OC${ordenCompraId}`,
-      pedidoCodigo: this.formatPedidoCodigo(pedidoId),
+      numeroOrden: this.formatNumeroIngresoOrden(
+        ordenCompraId,
+        this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || fallback.tipo
+      ),
+      pedidoCodigo: this.formatPedidoCodigo(pedidoId ?? fallback.pedidoId),
+      tipo: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || fallback.tipo,
       fecha: formatDisplayDate(this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg'])) || fallback.fecha,
+      proveedorId: this.getNumberValue(item, ['Ord_Com_Prv', 'ord_Com_Prv', 'ordComPrv', 'Prv_Id', 'prv_Id', 'prvId']) ?? fallback.proveedorId,
       proveedor: this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom']) || fallback.proveedor,
+      proveedorRuc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc', 'Ruc', 'ruc']) || fallback.proveedorRuc,
       formaPago: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || fallback.formaPago
     };
   }
 
-  private mapIngresoOrdenDetalle(item: DataRecord, index: number): IngresoOrdenDetalleRow | null {
-    const itemId = this.getNumberValue(item, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm']);
+  formatProveedorIngresoOrden(item: OrdenCompraPendienteAlmacenRow): string {
+    return item.proveedorId > 0 ? `${item.proveedorId} - ${item.proveedor}` : item.proveedor;
+  }
 
-    if (!itemId) {
+  private mapIngresoOrdenDetalle(item: DataRecord, index: number): IngresoOrdenDetalleRow | null {
+    const pedidoDetalleId = this.getNumberValue(item, ['Ped_Det_Id', 'ped_Det_Id', 'pedDetId']) ?? 0;
+    const itemId = this.getNumberValue(item, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm', 'Itm_Id', 'itm_Id', 'itmId']) ?? 0;
+
+    if (!pedidoDetalleId && !itemId) {
       return null;
     }
 
     const compra = this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0;
-    const ingresado = this.getDecimalValue(item, ['Alm_Det_Can', 'alm_Det_Can', 'almDetCan', 'Ingresado', 'ingresado']) ?? 0;
+    const ingresado = this.getDecimalValue(item, ['Can_Ing', 'can_Ing', 'canIng', 'Alm_Det_Can', 'alm_Det_Can', 'almDetCan', 'Ingresado', 'ingresado']) ?? 0;
     const pendiente = Math.max(compra - ingresado, 0);
 
     return {
       id: index + 1,
+      pedidoDetalleId,
       itemId,
-      itemCodigo: this.getTextValue(item, ['Itm_Cod', 'itm_Cod', 'itmCod']) || String(itemId),
+      itemCodigo: this.getTextValue(item, ['Itm_Cod', 'itm_Cod', 'itmCod']) || (itemId ? String(itemId) : '-'),
       itemDescripcion: this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']) || '-',
       unidadId: this.getNumberValue(item, ['Ped_Uni_Med', 'ped_Uni_Med', 'pedUniMed']) ?? 0,
       unidad: this.getTextValue(item, ['Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr', 'Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']) || '-',
@@ -1439,13 +1876,23 @@ export class AlmacenPageComponent implements OnInit {
       compra,
       ingresado,
       pendiente,
-      cantidadIngresar: null,
-      seleccionado: false
+      cantidadIngresar: this.isIngresoOrdenEditMode ? ingresado : null,
+      seleccionado: this.isIngresoOrdenEditMode
     };
   }
 
   private formatPedidoCodigo(pedidoId: number | null): string {
     return pedidoId ? `P${pedidoId}` : '-';
+  }
+
+  private formatNumeroIngresoOrden(ordenId: number, tipo: string): string {
+    if (!ordenId) {
+      return '-';
+    }
+
+    const normalizedTipo = tipo.trim().toLowerCase();
+    const prefijo = this.esOrdenServicio(normalizedTipo) ? 'OS' : 'OC';
+    return `${prefijo}${ordenId}`;
   }
 
   private mapSolicitanteOption(item: DataRecord): AlmacenSolicitanteOption | null {
@@ -1600,6 +2047,20 @@ export class AlmacenPageComponent implements OnInit {
       code: this.getTextValue(item, ['Uni_Med_Cod', 'uni_Med_Cod', 'uniMedCod', 'codigo', 'Codigo']) || String(id),
       description,
       abbreviation: this.getTextValue(item, ['Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr']) || description
+    };
+  }
+
+  private mapUbicacionOption(item: DataRecord): CatalogoNumeroOption | null {
+    const id = this.getNumberValue(item, ['Ubi_Id', 'ubi_Id', 'ubiId', 'id', 'Id']);
+    const description = this.getTextValue(item, ['Ubi_Des', 'ubi_Des', 'ubiDes', 'descripcion', 'Descripcion']);
+
+    if (!id || !description) {
+      return null;
+    }
+
+    return {
+      codigo: id,
+      descripcion: description
     };
   }
 

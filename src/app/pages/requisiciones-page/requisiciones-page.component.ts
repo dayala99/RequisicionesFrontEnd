@@ -742,6 +742,14 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   openApprovalUserDialog(): void {
+    if (this.isLoadingApprovalUsers) {
+      return;
+    }
+
+    this.cargarUsuariosAprobacion(true);
+  }
+
+  private abrirApprovalUserDialog(): void {
     if (!this.approvalUsers.length) {
       return;
     }
@@ -949,7 +957,9 @@ export class RequisicionesPageComponent implements OnInit {
     });
 
     if (this.archivoFile) {
-      formData.append('archivo', this.archivoFile);
+      formData.append('archivo', this.archivoFile, this.archivoFile.name);
+    } else {
+      formData.append('archivo', new File([], 'sin-archivo-adjunto.txt'), 'sin-archivo-adjunto.txt');
     }
 
     this.apiService.postRegistrarPedido(formData).pipe(
@@ -1176,15 +1186,19 @@ export class RequisicionesPageComponent implements OnInit {
     return this.apiService.getListarPedido(filtros);
   }
 
-  private cargarUsuariosAprobacion(): void {
+  private cargarUsuariosAprobacion(openDialogAfterLoad = false): void {
     this.isLoadingApprovalUsers = true;
 
-    this.apiService.getListarUsuarioActivo({ Flg_Est: 'A' }).subscribe({
+    this.apiService.getObtenerUsuariosAprobacion('S').subscribe({
       next: (response: unknown) => {
         this.approvalUsers = this.extractRecords(response)
           .map((item) => this.mapApprovalUser(item))
           .filter((user) => user.id > 0 && !!user.code);
         this.isLoadingApprovalUsers = false;
+
+        if (openDialogAfterLoad) {
+          this.abrirApprovalUserDialog();
+        }
       },
       error: (error: unknown) => {
         console.error('Error cargando usuarios de aprobacion:', error);
@@ -1638,6 +1652,11 @@ export class RequisicionesPageComponent implements OnInit {
     const requisicionBuscada = Number(filters.nroRequisicion);
     const tipoBuscado = Number(filters.tipo);
     const filtros: PedidosFiltro = {};
+    const usuarioActual = this.authService.getCurrentUser().trim();
+
+    if (usuarioActual) {
+      filtros.Usr_Cod = usuarioActual;
+    }
 
     if (filters.nroRequisicion && Number.isInteger(requisicionBuscada) && requisicionBuscada > 0) {
       filtros.Ped_Id = requisicionBuscada;

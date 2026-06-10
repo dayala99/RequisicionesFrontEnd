@@ -41,7 +41,7 @@
     <div class="sidebar_brand_top">
       <div class="sidebar_logo">AR</div>
       <div>
-        <h2>Arce</h2>
+        <h2>{{ currentUserName }}</h2>
         <p class="sidebar_user">{{ currentUser }}</p>
       </div>
     </div>
@@ -76,7 +76,15 @@
               routerLinkActive="active"
               class="sidebar_link sidebar_link--nested"
               (click)="closeSidebar()">
-              {{ item.label }}
+              <span class="sidebar_link_content">
+                <span>{{ item.label }}</span>
+                <span
+                  *ngIf="getProcessNotificationCount(item) > 0"
+                  class="sidebar_notification_badge"
+                  [attr.aria-label]="getProcessNotificationCount(item) + ' pedidos pendientes por aprobar'">
+                  {{ getProcessNotificationCount(item) }}
+                </span>
+              </span>
             </a>
           </div>
         </div>

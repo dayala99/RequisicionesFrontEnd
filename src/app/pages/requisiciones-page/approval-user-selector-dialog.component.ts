@@ -17,13 +17,33 @@ interface ApprovalUserDialogData {
   styleUrls: ['./approval-user-selector-dialog.component.scss']
 })
 export class ApprovalUserSelectorDialogComponent {
+  searchTerm = '';
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: ApprovalUserDialogData,
     private readonly dialogRef: MatDialogRef<ApprovalUserSelectorDialogComponent>
   ) {}
 
+  get filteredUsers(): ApprovalUserOption[] {
+    const term = this.searchTerm.trim().toLowerCase();
+
+    if (!term) {
+      return this.data.users;
+    }
+
+    return this.data.users.filter((user) =>
+      String(user.id).includes(term)
+      || user.code.toLowerCase().includes(term)
+      || user.name.toLowerCase().includes(term)
+    );
+  }
+
   trackByUser(_: number, user: ApprovalUserOption): number {
     return user.id;
+  }
+
+  setSearchTerm(value: string): void {
+    this.searchTerm = value;
   }
 
   selectUser(user: ApprovalUserOption): void {

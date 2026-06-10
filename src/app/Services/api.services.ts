@@ -12,6 +12,11 @@ export interface UsuariosFiltro {
     Flg_Est?: string;
 }
 
+export interface ObtenerAccesoUsuarioFiltro {
+    Usr_Cod: string;
+    Usr_Pass: string;
+}
+
 export interface ProveedoresFiltro {
     Prv_Id?: number;
     Prv_Nom?: string;
@@ -70,6 +75,12 @@ export interface TipoServicioFiltro {
 export interface UnidadMedidaFiltro {
     Uni_Med_Id?: number;
     Uni_Med_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface UbicacionFiltro {
+    Ubi_Id?: number;
+    Ubi_Des?: string;
     Flg_Est?: string;
 }
 
@@ -248,6 +259,7 @@ export interface PedidosFiltro {
     Prv_Nom?: string;
     Flg_Est?: string;
     Ped_Tip_Com?: number;
+    Usr_Cod?: string;
 }
 
 export interface OrdenCompraFiltro {
@@ -269,6 +281,14 @@ export interface RegistrarIngresoAlmacenRequest {
     Alm_Sol_Dni: string;
     Alm_Cen_Cos: number;
     Usr_Reg: string;
+}
+
+export interface RegistrarIngresoAlmacenOrdenCompraRequest {
+    Alm_Ubi: number;
+    Alm_Tip_Ing: number;
+    Usr_Reg: string;
+    Ord_Com_Id: number;
+    Ped_Id: number;
 }
 
 export interface ActualizarIngresoAlmacenRequest {
@@ -304,6 +324,17 @@ export interface ActualizarIngresoAlmacenDetalleRequest {
     Usr_Reg: string;
 }
 
+export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
+    Ped_Det_Id: number;
+    Ord_Com_Id: number;
+    Can_Ing: number;
+}
+
+export interface CambiarEstadoOrdenCompraRequest {
+    Ord_Com_Id: number;
+    Flg_Alm: string;
+}
+
 export interface CatalogoTextoOption {
     codigo: string;
     descripcion: string;
@@ -320,6 +351,10 @@ export interface ActualizarUsuarioRequest {
     Usr_Nom: string;
     Flg_Est: string;
     Usr_Mod: string;
+    Usr_Doc_Nro: string;
+    Usr_Cen_Cos_Id: number;
+    Usr_Pass: string;
+    Usr_Apr: string;
 }
 
 export interface RegistrarUsuarioRequest {
@@ -331,6 +366,10 @@ export interface RegistrarUsuarioRequest {
     Fec_Reg: string;
     Usr_Mod: string;
     Fec_Mod: string;
+    Usr_Doc_Nro: string;
+    Usr_Cen_Cos_Id: number;
+    Usr_Pass: string;
+    Usr_Apr: string;
 }
 
 export interface RegistrarProveedorRequest {
@@ -516,6 +555,23 @@ export class ApiService {
 
     getUsuarios(filtros: UsuariosFiltro = {}): Observable<any> {
         return this.getUsuariosDesdeRuta('Usuario/GetUsuarios', filtros);
+    }
+
+    getObtenerAccesoUsuario(filtros: ObtenerAccesoUsuarioFiltro): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Usr_Cod', filtros.Usr_Cod);
+        params = params.append('Usr_Pass', filtros.Usr_Pass);
+
+        return this.http.get(this.baseUrl + 'Usuario/getObtenerAccesoUsuario', { headers, params });
+    }
+
+    getObtenerUsuariosAprobacion(Usr_Apr: string): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Usr_Apr', Usr_Apr);
+
+        return this.http.get(this.baseUrl + 'Usuario/getObtenerUsuariosAprobacion', { headers, params });
     }
 
     private getUsuariosDesdeRuta(ruta: string, filtros: UsuariosFiltro): Observable<any> {
@@ -885,6 +941,25 @@ export class ApiService {
         return this.http.post(this.baseUrl + 'UnidadMedida/patchActualizarUnidadMedida', unidadMedida, { headers });
     }
 
+    getListarUbicacionActivo(filtros: UbicacionFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Ubi_Id !== undefined) {
+            params = params.append('Ubi_Id', filtros.Ubi_Id);
+        }
+
+        if (filtros.Ubi_Des) {
+            params = params.append('Ubi_Des', filtros.Ubi_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'Ubicacion/getListarUbicacionActivo', { headers, params });
+    }
+
     getListarCentroCostoActivo(filtros: CentroCostoFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -932,6 +1007,10 @@ export class ApiService {
 
         if (filtros.Ped_Tip_Com !== undefined) {
             params = params.append('Ped_Tip_Com', filtros.Ped_Tip_Com);
+        }
+
+        if (filtros.Usr_Cod) {
+            params = params.append('Usr_Cod', filtros.Usr_Cod);
         }
 
         return this.http.get(this.baseUrl + 'Pedido/getListarPedido', { headers, params });
@@ -1012,6 +1091,11 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'OrdenCompra/getListarOrdenCompraModificar', { headers, params });
     }
 
+    patchCambiarEstadoOrdenCompra(ordenCompra: CambiarEstadoOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'OrdenCompra/patchCambiarEstadoOrdenCompra', ordenCompra, { headers });
+    }
+
     getListarIngresoAlmacen(filtros: AlmacenFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -1052,6 +1136,11 @@ export class ApiService {
     postRegistrarIngresoAlmacen(almacen: RegistrarIngresoAlmacenRequest): Observable<any> {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'Almacen/postRegistrarIngresoAlmacen', almacen, { headers });
+    }
+
+    postRegistrarIngresoAlmacenOrdenCompra(almacen: RegistrarIngresoAlmacenOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Almacen/postRegistrarIngresoAlmacenOrdenCompra', almacen, { headers });
     }
 
     patchActualizarIngresoAlmacen(almacen: ActualizarIngresoAlmacenRequest): Observable<any> {
@@ -1101,6 +1190,11 @@ export class ApiService {
         params = params.append('Ped_Cab_Id', Ped_Cab_Id);
         params = params.append('Ord_Com_Id', Ord_Com_Id);
         return this.http.get(this.baseUrl + 'Pedido/getListarDetalleIngresoAlmacen', { headers, params });
+    }
+
+    patchActualizarPedidoDetalleIngresoAlmacen(detalle: ActualizarPedidoDetalleIngresoAlmacenRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedidoDetalleIngresoAlmacen', detalle, { headers });
     }
 
     getListarItemsAsignadosPedidoCentroCosto(Ped_Cab_Id: number): Observable<any> {
@@ -1168,6 +1262,9 @@ export class ApiService {
 
         if (archivo) {
             formData.append('archivo', archivo, archivo.name);
+        } else {
+            const nombreArchivoActual = pedido.Ped_Arc_Adj_Nom || 'sin-archivo-adjunto.txt';
+            formData.append('archivo', new File([], nombreArchivoActual), nombreArchivoActual);
         }
 
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedido', formData);

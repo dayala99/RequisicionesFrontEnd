@@ -12,6 +12,32 @@
   max-height: 22rem;
 }
 
+.selector-search {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.selector-search span {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.selector-search input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.selector-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
 .option-row {
   display: grid;
   grid-template-columns: 6rem 1fr;
@@ -47,4 +73,13 @@
 .option-value {
   color: var(--text-primary);
   line-height: 1.5;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  text-align: center;
 }

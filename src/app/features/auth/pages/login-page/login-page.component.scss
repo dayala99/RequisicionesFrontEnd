@@ -120,6 +120,11 @@
   cursor: pointer;
 }
 
+.login-submit:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
 @media screen and (max-width: 640px) {
   .login-shell {
     padding: 1rem;

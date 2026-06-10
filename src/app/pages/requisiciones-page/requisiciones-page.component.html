@@ -281,7 +281,7 @@
         <button
           type="button"
           class="selector-code-button selector-code-button--wide"
-          [disabled]="isLoadingApprovalUsers || !approvalUsers.length"
+          [disabled]="isLoadingApprovalUsers"
           (click)="openApprovalUserDialog()">
           {{ isLoadingApprovalUsers ? 'Cargando usuarios...' : approvalUserButtonLabel }}
         </button>

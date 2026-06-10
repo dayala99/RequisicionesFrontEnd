@@ -19,6 +19,36 @@
       <small class="usuario-edit__error" *ngIf="form.controls['usrNom'].touched && (form.controls['usrNom'].hasError('required') || form.controls['usrNom'].hasError('whitespace'))">Campo Nombre obligatorio.</small>
     </label>
 
+    <label class="usuario-edit__field">
+      <span>Numero de documento</span>
+      <input type="text" formControlName="usrDocNro">
+      <small class="usuario-edit__error" *ngIf="form.controls['usrDocNro'].touched && (form.controls['usrDocNro'].hasError('required') || form.controls['usrDocNro'].hasError('whitespace'))">Campo Numero de documento obligatorio.</small>
+      <small class="usuario-edit__error" *ngIf="form.controls['usrDocNro'].touched && form.controls['usrDocNro'].hasError('pattern')">Solo se permiten numeros.</small>
+    </label>
+
+    <label class="usuario-edit__field">
+      <span>Contraseña</span>
+      <input type="password" formControlName="usrPass" autocomplete="new-password">
+      <small class="usuario-edit__error" *ngIf="form.controls['usrPass'].touched && (form.controls['usrPass'].hasError('required') || form.controls['usrPass'].hasError('whitespace'))">Campo Contraseña obligatorio.</small>
+    </label>
+
+    <label class="usuario-edit__field">
+      <span>Centro de costo</span>
+      <select formControlName="usrCenCosId" [disabled]="isLoadingCentrosCosto">
+        <option [ngValue]="0">{{ isLoadingCentrosCosto ? 'Cargando centros de costo...' : 'Seleccionar centro de costo' }}</option>
+        <option *ngFor="let option of centroCostoOptions" [ngValue]="option.id">{{ option.descripcion }}</option>
+      </select>
+      <small class="usuario-edit__error" *ngIf="form.controls['usrCenCosId'].touched && form.controls['usrCenCosId'].hasError('min')">Campo Centro de costo obligatorio.</small>
+    </label>
+
+    <label class="usuario-edit__field">
+      <span>¿Es usuario de aprobación?</span>
+      <select formControlName="usrApr">
+        <option value="S">Si</option>
+        <option value="N">No</option>
+      </select>
+    </label>
+
     <p *ngIf="errorMessage" class="usuario-edit__error">
       {{ errorMessage }}
     </p>

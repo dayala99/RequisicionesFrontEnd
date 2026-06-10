@@ -12,10 +12,11 @@ import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators
 })
 export class LoginPageComponent {
   loginError = '';
+  isSubmitting = false;
 
   readonly loginForm = this.formBuilder.nonNullable.group({
-    email: ['admin@demo.com', [Validators.required, Validators.email]],
-    password: ['123456', [Validators.required, noWhitespaceValidator()]]
+    userCode: ['', [Validators.required, noWhitespaceValidator()]],
+    password: ['', [Validators.required, noWhitespaceValidator()]]
   });
 
   constructor(
@@ -30,15 +31,26 @@ export class LoginPageComponent {
       return;
     }
 
-    const { email, password } = this.loginForm.getRawValue();
-    const isValid = this.authService.login(email, password);
+    const { userCode, password } = this.loginForm.getRawValue();
 
-    if (!isValid) {
-      this.loginError = 'Correo o contrasena incorrectos.';
-      return;
-    }
-
+    this.isSubmitting = true;
     this.loginError = '';
-    void this.router.navigate(['/']);
+
+    this.authService.login(userCode, password).subscribe({
+      next: (result) => {
+        this.isSubmitting = false;
+
+        if (!result.success) {
+          this.loginError = result.message;
+          return;
+        }
+
+        void this.router.navigate(['/']);
+      },
+      error: () => {
+        this.isSubmitting = false;
+        this.loginError = 'No se pudo validar el acceso. Intenta nuevamente.';
+      }
+    });
   }
 }
