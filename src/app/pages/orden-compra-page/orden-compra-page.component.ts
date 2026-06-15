@@ -7,6 +7,7 @@ import { switchMap } from 'rxjs/operators';
 
 import {
   AsignarOrdenCompraDetallePedidoRequest,
+  ActualizarDetallePedidoRequest,
   ActualizarOrdenCompraRequest,
   ApiService,
   DesAsignarOrdenCompraDetallePedidoRequest,
@@ -424,6 +425,30 @@ export class OrdenCompraPageComponent implements OnInit {
         ? { ...detalle, observacion }
         : detalle
     );
+  }
+
+  actualizarCostoUnitarioDetallePedido(item: OrdenCompraDetallePedidoRow, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = this.sanitizeDecimalInput(input.value);
+
+    if (sanitizedValue !== input.value) {
+      input.value = sanitizedValue;
+    }
+
+    const costoUnitario = this.parseMontoControlValue(sanitizedValue);
+    const subtotal = this.normalizeDecimal(item.cantidad * costoUnitario);
+
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, costoUnitario, subtotal }
+        : detalle
+    );
+    this.syncTotalesCalculados();
   }
 
   isDetallePendienteDesasignacion(item: OrdenCompraDetallePedidoRow): boolean {
@@ -929,6 +954,16 @@ export class OrdenCompraPageComponent implements OnInit {
         const detallesParaAsignar = this.isEditingOrdenCompra
           ? this.detallesPedidoSeleccionados.filter((item) => !this.isDetalleYaAsignadoAOrden(item, ordenCompraId))
           : this.detallesPedidoSeleccionados;
+        const actualizarDetalleRequests = this.detallesPedidoSeleccionados.map((item) =>
+          this.apiService.patchActualizarDetallePedido(
+            this.buildActualizarDetallePedidoPayload(item, currentUser)
+          ).pipe(
+            switchMap((patchResponse: unknown) => {
+              this.assertSuccessfulResponse(patchResponse, 'No se pudo actualizar el costo de un detalle del pedido.');
+              return of(patchResponse);
+            })
+          )
+        );
         const asignarRequests = detallesParaAsignar.map((item) =>
           this.apiService.patchAsignarOrdenCompraADetallePedido(
             this.buildAsignarOrdenCompraDetallePedidoPayload(item, ordenCompraId, currentUser)
@@ -952,7 +987,7 @@ export class OrdenCompraPageComponent implements OnInit {
           )
         );
 
-        const requests = [...asignarRequests, ...desAsignarRequests];
+        const requests = [...actualizarDetalleRequests, ...asignarRequests, ...desAsignarRequests];
 
         return requests.length ? forkJoin(requests) : of([]);
       }),
@@ -1410,6 +1445,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown): void {
     const centros = this.mapCentroCostoPedido(centrosCostoResponse);
+    const seleccionarDetalles = this.debeSeleccionarDetallesAlCargar();
 
     this.centrosCosto = centros.map((item) => ({
       ...item,
@@ -1417,7 +1453,11 @@ export class OrdenCompraPageComponent implements OnInit {
     }));
     this.pedidoDetalles = this.extractRecords(detalleResponse)
       .map((item) => this.mapDetallePedido(item))
-      .filter((item): item is OrdenCompraDetallePedidoRow => item !== null);
+      .filter((item): item is OrdenCompraDetallePedidoRow => item !== null)
+      .map((item) => ({
+        ...item,
+        selected: seleccionarDetalles
+      }));
     this.currentDetallePedidoPage = normalizePaginationPage(this.currentDetallePedidoPage, this.pedidoDetalles.length, this.pageSize);
     this.centrosCostoErrorMessage = this.centrosCosto.length
       ? ''
@@ -1431,6 +1471,11 @@ export class OrdenCompraPageComponent implements OnInit {
     this.syncTotalesCalculados();
     this.isLoadingPedidoCentrosCosto = false;
     this.isLoadingPedidoDetalle = false;
+  }
+
+  private debeSeleccionarDetallesAlCargar(): boolean {
+    const ordenCompraId = Number(this.form.controls['ordenCompraId'].value);
+    return this.isEditingOrdenCompra || (Number.isInteger(ordenCompraId) && ordenCompraId > 0);
   }
 
   private handlePedidoDataError(error: unknown): void {
@@ -1471,8 +1516,30 @@ export class OrdenCompraPageComponent implements OnInit {
     return {
       Ord_Com_Id: ordenCompraId,
       Ped_Det_Id: item.id,
+      Ped_Cos_Uni: this.normalizeDecimal(item.costoUnitario),
       Ped_Obs: observacion || undefined,
       Usr_Mod: currentUser || undefined
+    };
+  }
+
+  private buildActualizarDetallePedidoPayload(
+    item: OrdenCompraDetallePedidoRow,
+    currentUser: string
+  ): ActualizarDetallePedidoRequest {
+    const itemCodigo = Number(item.itemCodigo);
+    const unidadCodigo = Number(item.unidadCodigo);
+    const centroCostoCodigo = Number(item.centroCostoCodigo);
+
+    return {
+      Ped_Det_Id: item.id,
+      Ped_Cod_Itm: Number.isInteger(itemCodigo) && itemCodigo > 0 ? itemCodigo : 0,
+      Ped_Uni_Med: Number.isInteger(unidadCodigo) && unidadCodigo > 0 ? unidadCodigo : 0,
+      Ped_Cen_Cos_Asg: Number.isInteger(centroCostoCodigo) && centroCostoCodigo > 0 ? centroCostoCodigo : 0,
+      Ped_Can: this.normalizeDecimal(item.cantidad),
+      Ped_Cos_Uni: this.normalizeDecimal(item.costoUnitario),
+      Ped_Cos_Tot: this.normalizeDecimal(item.subtotal),
+      Usr_Mod: currentUser,
+      Ped_Obs_Ped: String(item.observacion || '').trim() || undefined
     };
   }
 
@@ -1665,6 +1732,19 @@ export class OrdenCompraPageComponent implements OnInit {
     const parsed = Number(normalized);
 
     return this.normalizeDecimal(parsed);
+  }
+
+  private sanitizeDecimalInput(value: string): string {
+    const sanitized = String(value || '')
+      .replace(/[^\d.]/g, '')
+      .replace(/(\..*)\./g, '$1');
+    const [integerPart, decimalPart] = sanitized.split('.');
+
+    if (decimalPart === undefined) {
+      return integerPart;
+    }
+
+    return `${integerPart}.${decimalPart.slice(0, 2)}`;
   }
 
   private reconciliarDescripcionCentrosCosto(): void {

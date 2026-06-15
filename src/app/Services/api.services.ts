@@ -619,6 +619,7 @@ export interface EliminarDetallePedidoRequest {
 export interface AsignarOrdenCompraDetallePedidoRequest {
     Ord_Com_Id: number;
     Ped_Det_Id: number;
+    Ped_Cos_Uni?: number;
     Ped_Obs?: string;
     Usr_Mod?: string;
 }

@@ -113,7 +113,7 @@
 }
 
 .editor-grid--materials {
-  grid-template-columns: minmax(16rem, 1.05fr) minmax(11rem, 0.55fr) minmax(16rem, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 

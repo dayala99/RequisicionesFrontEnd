@@ -397,25 +397,51 @@
         </div>
 
         <form class="editor-grid editor-grid--materials" [formGroup]="ingresoDirectoForm">
-          <div class="field field--material-selector">
-            <span>Material</span>
-            <div class="selector-pair selector-pair--material">
-              <button type="button" class="selector-code-button selector-code-button--wide" (click)="openMaterialDialog()">
-                {{ selectedMaterialLabel }}
-              </button>
-              <input type="text" formControlName="materialDescription" class="input--readonly" readonly>
-            </div>
-          </div>
+          <mat-form-field appearance="outline" class="field field--mat">
+            <mat-label>Material</mat-label>
+            <mat-select
+              formControlName="materialId"
+              [disabled]="!itemOptions.length || isLoadingCatalogos"
+              (selectionChange)="onMaterialChange($event.value)"
+              (openedChange)="onMaterialSelectOpened($event)">
+              <mat-option>
+                <input
+                  type="text"
+                  class="mat-select-search"
+                  placeholder="Buscar material..."
+                  [formControl]="materialSearchControl"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()">
+              </mat-option>
+              <mat-option [value]="0">Seleccionar material</mat-option>
+              <mat-option *ngFor="let option of filteredMaterialOptions" [value]="option.id">
+                {{ option.description }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
 
-          <div class="field">
-            <span>Unidad</span>
-            <div class="selector-pair selector-pair--unit">
-              <button type="button" class="selector-code-button selector-code-button--wide" (click)="openUnidadDialog()">
-                {{ selectedUnidadLabel }}
-              </button>
-              <input type="text" formControlName="unidadDescription" class="input--readonly" readonly>
-            </div>
-          </div>
+          <mat-form-field appearance="outline" class="field field--mat">
+            <mat-label>Unidad</mat-label>
+            <mat-select
+              formControlName="unidadId"
+              [disabled]="!unidadOptions.length || isLoadingCatalogos"
+              (selectionChange)="onUnidadChange($event.value)"
+              (openedChange)="onUnidadSelectOpened($event)">
+              <mat-option>
+                <input
+                  type="text"
+                  class="mat-select-search"
+                  placeholder="Buscar unidad..."
+                  [formControl]="unidadSearchControl"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()">
+              </mat-option>
+              <mat-option [value]="0">Seleccionar unidad</mat-option>
+              <mat-option *ngFor="let option of filteredUnidadOptions" [value]="option.id">
+                {{ option.description }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
 
           <mat-form-field appearance="outline" class="field field--mat field--full">
             <mat-label>Proveedor</mat-label>

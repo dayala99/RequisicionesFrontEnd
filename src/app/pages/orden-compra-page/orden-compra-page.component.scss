@@ -461,6 +461,12 @@
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
+.detalle-pedido-table__input--amount {
+  min-width: 7rem;
+  max-width: 8rem;
+  text-align: right;
+}
+
 .empty-row {
   color: var(--text-secondary);
 }

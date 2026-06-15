@@ -593,7 +593,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     const referencia = String(this.detalleForm.controls['referencia'].value || '').trim();
     const tipoServicio = String(this.detalleForm.controls['oc'].value || '').trim();
     const moneda = Number(this.detalleForm.controls['moneda'].value);
-    const fechaEntrega = this.normalizePedidoBFechaEntrega(String(this.detalleForm.controls['fechaEntrega'].value || '').trim());
+    const fechaEntrega = this.normalizePedidoBFechaEntrega(this.detalleForm.controls['fechaEntrega'].value);
     const proveedorReferencia = String(this.detalleForm.controls['proveedorReferencia'].value || '').trim();
     const usuarioRegistro = this.pedidosBAuthService.getCurrentUser().trim();
     const attachmentName = this.archivoAdjunto !== 'Sin archivo adjunto' ? this.archivoAdjunto : '';
@@ -865,18 +865,45 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     return Number(value.toFixed(2));
   }
 
-  private normalizePedidoBFechaEntrega(value: string): string {
+  private normalizePedidoBFechaEntrega(value: unknown): string {
     if (!value) {
       return '';
     }
 
-    const date = new Date(`${value}T00:00:00`);
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) {
+        return '';
+      }
+
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    const rawValue = String(value).trim();
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(rawValue);
+
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    }
+
+    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(rawValue);
+
+    if (separatedMatch) {
+      return `${separatedMatch[3]}-${separatedMatch[2].padStart(2, '0')}-${separatedMatch[1].padStart(2, '0')}`;
+    }
+
+    const date = new Date(rawValue);
 
     if (Number.isNaN(date.getTime())) {
       return '';
     }
 
-    return value;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private extractPedidoBPedId(response: unknown): number | null {

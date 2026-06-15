@@ -254,6 +254,16 @@ export class RequisicionesPageComponent implements OnInit {
     return this.getPedidoFechaEntregaMinima();
   }
 
+  get pedidoFechaEntregaMinimaDate(): Date {
+    const [year, month, day] = this.getPedidoFechaEntregaMinima().split('-').map((value) => Number(value));
+
+    if (!year || !month || !day) {
+      return new Date();
+    }
+
+    return new Date(year, month - 1, day);
+  }
+
   private getPedidoFechaEntregaMinima(): string {
     const minDate = new Date();
     minDate.setHours(0, 0, 0, 0);

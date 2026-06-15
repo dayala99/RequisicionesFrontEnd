@@ -324,11 +324,18 @@
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['oc'].touched && detalleForm.controls['oc'].hasError('required')">Campo Tipo de Servicio obligatorio.</small>
           </label>
 
-          <label class="field">
-            <span>Fecha Entrega</span>
-            <input type="date" [min]="pedidoFechaEntregaMinima" formControlName="fechaEntrega">
+          <mat-form-field appearance="outline" class="field field--mat">
+            <mat-label>Fecha Entrega</mat-label>
+            <input
+              matInput
+              [matDatepicker]="pedidoBFechaEntregaPicker"
+              [min]="pedidoFechaEntregaMinimaDate"
+              formControlName="fechaEntrega"
+              readonly>
+            <mat-datepicker-toggle matSuffix [for]="pedidoBFechaEntregaPicker"></mat-datepicker-toggle>
+            <mat-datepicker #pedidoBFechaEntregaPicker></mat-datepicker>
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['fechaEntrega'].touched && detalleForm.controls['fechaEntrega'].hasError('required')">Campo Fecha Entrega obligatorio.</small>
-          </label>
+          </mat-form-field>
         </div>
       </section>
 
