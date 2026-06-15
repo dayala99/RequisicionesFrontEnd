@@ -5,6 +5,7 @@ export interface ApprovalUserOption {
   id: number;
   code: string;
   name: string;
+  email: string;
 }
 
 interface ApprovalUserDialogData {

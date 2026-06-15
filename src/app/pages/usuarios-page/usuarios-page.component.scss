@@ -44,7 +44,6 @@
 }
 
 .usuarios-card__create,
-.usuarios-card__reload,
 .usuarios-filters__search,
 .usuarios-filters__clear {
   min-height: 2.75rem;
@@ -57,25 +56,15 @@
 }
 
 .usuarios-card__create {
-  border: 1px solid var(--line-strong);
-  background: var(--surface-accent);
-  color: var(--accent-strong);
-}
-
-.usuarios-card__create:hover {
   border-color: var(--accent);
-  background: var(--surface-accent-strong);
-}
-
-.usuarios-card__reload {
-  border: 1px solid var(--accent);
   background: var(--accent);
   color: #ffffff;
 }
 
-.usuarios-card__reload:disabled {
-  cursor: wait;
-  opacity: 0.7;
+.usuarios-card__create:disabled,
+.usuarios-filters__search:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .usuarios-filters {

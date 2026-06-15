@@ -22,6 +22,11 @@
           <small class="login-error" *ngIf="loginForm.controls.password.touched && (loginForm.controls.password.hasError('required') || loginForm.controls.password.hasError('whitespace'))">Campo Contraseña obligatorio.</small>
       </label>
 
+      <label class="login-remember">
+        <input type="checkbox" formControlName="rememberCredentials" />
+        <span>Recordar credenciales</span>
+      </label>
+
       <p *ngIf="loginError" class="login-error">{{ loginError }}</p>
 
       <button type="submit" class="login-submit" [disabled]="isSubmitting">{{ isSubmitting ? 'Validando...' : 'Entrar al portal' }}</button>

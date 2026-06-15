@@ -58,6 +58,23 @@
   cursor: pointer;
 }
 
+.item-dialog__field .mat-select-search {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.item-dialog__field .mat-select-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
 .item-dialog__field mat-select ::ng-deep .mat-select-trigger {
   width: 100%;
   min-height: 1.35rem;

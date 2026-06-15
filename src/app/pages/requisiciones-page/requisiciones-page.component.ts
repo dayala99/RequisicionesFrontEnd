@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, forkJoin, from, of } from 'rxjs';
 import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
-import { ActualizarDetallePedidoRequest, ActualizarPedidoEstadoRequest, ActualizarPedidoRequest, ApiService, CatalogoNumeroOption, CatalogoTextoOption, EliminarDetallePedidoRequest, PedidosFiltro, RegistrarCentroCostoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
+import { ActualizarDetallePedidoRequest, ActualizarPedidoEstadoRequest, ActualizarPedidoRequest, ApiService, CatalogoNumeroOption, CatalogoTextoOption, EliminarDetallePedidoRequest, EnviarCorreoPedidoAprobadoRequest, EnviarCorreoPedidoRechazadoRequest, PedidosFiltro, RechazarPedidoRequest, RegistrarCentroCostoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ApprovalUserOption, ApprovalUserSelectorDialogComponent } from './approval-user-selector-dialog.component';
 import { CentroCostoOption, CentroCostoSelectorDialogComponent } from './centro-costo-selector-dialog.component';
@@ -13,6 +13,7 @@ import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
 import { PedidoDetalleDialogValue, PedidoDetalleItemOption, PedidoDetalleUnidadOption } from './pedido-detalle-dialog.models';
+import { PedidoRechazoDialogComponent, PedidoRechazoDialogResult } from './pedido-rechazo-dialog.component';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { formatDateInputValue, formatDisplayDate } from 'src/app/shared/utils/date.utils';
 import { createPedidoReportPdf, mapPedidoReportDisplayDate, PedidoReportePdfData, PedidoReporteDetallePdf } from 'src/app/shared/utils/pedido-report-pdf.utils';
@@ -84,11 +85,11 @@ export class RequisicionesPageComponent implements OnInit {
   readonly detalleForm: FormGroup;
   readonly detallePedidoForm: FormGroup;
   readonly pageSize = DEFAULT_GRID_PAGE_SIZE;
-  readonly estadoOptions = ['Pendiente', 'Aprobado', 'Cancelado'];
+  readonly estadoOptions = ['Pendiente', 'Aprobado', 'Cancelado', 'Rechazado'];
   tipoOptions: CatalogoTextoOption[] = [
     { codigo: '', descripcion: 'Todos' }
   ];
-  readonly actionButtons = ['Nuevo', 'Modificar', 'Eliminar', 'Aprobar'];
+  readonly actionButtons = ['Nuevo', 'Modificar', 'Rechazar', 'Eliminar', 'Aprobar'];
   tipoServicioOptions: CatalogoTextoOption[] = [];
   tipoMoneda: CatalogoNumeroOption[] = [];
   requisiciones: RequisitionRow[] = [];
@@ -202,6 +203,10 @@ export class RequisicionesPageComponent implements OnInit {
 
   get canModifyPedido(): boolean {
     return this.selectedPedidoId !== null && !this.isLoadingPedidoDetalle;
+  }
+
+  get canApprovePedido(): boolean {
+    return this.canModifyPedido && this.isSelectedPedidoAssignedToCurrentUser();
   }
 
   get canManagePedidoDetalle(): boolean {
@@ -333,6 +338,11 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
+    if (action === 'Rechazar') {
+      this.abrirDialogoRechazoPedido();
+      return;
+    }
+
     if (action === 'Eliminar') {
       this.actualizarEstadoPedidoSeleccionado('C', 'No se pudo cancelar el pedido seleccionado.');
       return;
@@ -345,7 +355,15 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   isActionDisabled(action: string): boolean {
-    if (action === 'Modificar' || action === 'Eliminar' || action === 'Aprobar') {
+    if (action === 'Aprobar' || action === 'Rechazar') {
+      if (this.isUpdatingPedidoEstado) {
+        return true;
+      }
+
+      return !this.canApprovePedido;
+    }
+
+    if (action === 'Modificar' || action === 'Eliminar') {
       if (this.isUpdatingPedidoEstado) {
         return true;
       }
@@ -370,6 +388,122 @@ export class RequisicionesPageComponent implements OnInit {
 
   isPedidoSeleccionado(item: RequisitionRow): boolean {
     return this.selectedPedidoId === item.requisicion;
+  }
+
+  private getSelectedPedidoRow(): RequisitionRow | null {
+    if (this.selectedPedidoId === null) {
+      return null;
+    }
+
+    return this.requisiciones.find((item) => item.requisicion === this.selectedPedidoId) ?? null;
+  }
+
+  private isSelectedPedidoAssignedToCurrentUser(): boolean {
+    const selectedPedido = this.getSelectedPedidoRow();
+
+    if (!selectedPedido) {
+      return false;
+    }
+
+    const usuarioAprobacion = this.normalizeUsuarioComparacion(selectedPedido.usrAprobacion);
+    const usuarioActual = this.normalizeUsuarioComparacion(this.authService.getCurrentUser());
+
+    return !!usuarioAprobacion && usuarioAprobacion === usuarioActual;
+  }
+
+  private normalizeUsuarioComparacion(value: string): string {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  private abrirDialogoRechazoPedido(): void {
+    if (this.selectedPedidoId === null || this.isUpdatingPedidoEstado || !this.canApprovePedido) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(PedidoRechazoDialogComponent, {
+      autoFocus: false,
+      width: 'min(34rem, 92vw)'
+    });
+
+    dialogRef.afterClosed().subscribe((result?: PedidoRechazoDialogResult) => {
+      if (!result?.motivo) {
+        return;
+      }
+
+      this.rechazarPedidoSeleccionado(result.motivo);
+    });
+  }
+
+  private rechazarPedidoSeleccionado(motivo: string): void {
+    if (this.selectedPedidoId === null || this.isUpdatingPedidoEstado) {
+      return;
+    }
+
+    const selectedPedido = this.getSelectedPedidoRow();
+
+    this.isUpdatingPedidoEstado = true;
+    this.errorMessage = '';
+
+    this.apiService.patchRechazarPedido({
+      Ped_Id: this.selectedPedidoId,
+      Ped_Mot_Rch: motivo
+    } as RechazarPedidoRequest).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo rechazar el pedido seleccionado.');
+          if (selectedPedido) {
+            this.enviarCorreoPedidoRechazadoARegistrador(selectedPedido, motivo);
+          }
+          this.isUpdatingPedidoEstado = false;
+          this.cargarPedidos();
+          window.dispatchEvent(new CustomEvent('pedido-notifications-refresh'));
+        } catch (error) {
+          this.errorMessage = this.resolveErrorMessage(error, 'No se pudo rechazar el pedido seleccionado.');
+          this.isUpdatingPedidoEstado = false;
+        }
+      },
+      error: (error: unknown) => {
+        console.error('Error rechazando pedido:', error);
+        this.errorMessage = this.resolveErrorMessage(error, 'No se pudo rechazar el pedido seleccionado.');
+        this.isUpdatingPedidoEstado = false;
+      }
+    });
+  }
+
+  private enviarCorreoPedidoRechazadoARegistrador(pedido: RequisitionRow, motivo: string): void {
+    const usuarioRegistro = String(pedido.codigoUsr || '').trim();
+
+    if (!usuarioRegistro || usuarioRegistro === '-') {
+      return;
+    }
+
+    this.apiService.getListarUsuarioActivo({ Usr_Cod: usuarioRegistro }).pipe(
+      switchMap((response: unknown) => {
+        const usuario = this.extractRecords(response)[0];
+        const correoDestino = usuario
+          ? this.getTextValue(usuario, ['Usr_Corr', 'usr_Corr', 'usrCorr', 'Correo', 'correo', 'Email', 'email'])
+          : '';
+
+        if (!correoDestino) {
+          return of(null);
+        }
+
+        const correoPayload: EnviarCorreoPedidoRechazadoRequest = {
+          Ped_Id: pedido.requisicion,
+          CorreoDestino: correoDestino,
+          UsuarioRegistro: this.getTextValue(usuario, ['Usr_Nom', 'usr_Nom', 'usrNom']) || usuarioRegistro,
+          UsuarioAprobacion: this.authService.getCurrentUserName().trim() || this.authService.getCurrentUser().trim(),
+          TipoServicio: pedido.tipo,
+          MotivoRechazo: motivo
+        };
+
+        return this.apiService.postEnviarCorreoPedidoRechazado(correoPayload);
+      })
+    ).subscribe({
+      error: (error: unknown) => {
+        console.warn('No se pudo enviar el correo de pedido rechazado al usuario registrador:', error);
+      }
+    });
   }
 
   toggleDetallePedido(item: RequisitionRow): void {
@@ -716,6 +850,13 @@ export class RequisicionesPageComponent implements OnInit {
       return;
     }
 
+    const selectedPedido = this.getSelectedPedidoRow();
+
+    if (flgEst === 'A' && !this.isSelectedPedidoAssignedToCurrentUser()) {
+      this.errorMessage = 'Solo el usuario de aprobacion asignado puede aprobar este pedido.';
+      return;
+    }
+
     this.isUpdatingPedidoEstado = true;
     this.errorMessage = '';
 
@@ -726,8 +867,12 @@ export class RequisicionesPageComponent implements OnInit {
       next: (response: unknown) => {
         try {
           this.assertSuccessfulResponse(response, fallbackMessage);
+          if (flgEst === 'A' && selectedPedido) {
+            this.enviarCorreoPedidoAprobadoARegistrador(selectedPedido);
+          }
           this.isUpdatingPedidoEstado = false;
           this.cargarPedidos();
+          window.dispatchEvent(new CustomEvent('pedido-notifications-refresh'));
         } catch (error) {
           this.errorMessage = this.resolveErrorMessage(error, fallbackMessage);
           this.isUpdatingPedidoEstado = false;
@@ -737,6 +882,41 @@ export class RequisicionesPageComponent implements OnInit {
         console.error('Error actualizando estado del pedido:', error);
         this.errorMessage = this.resolveErrorMessage(error, fallbackMessage);
         this.isUpdatingPedidoEstado = false;
+      }
+    });
+  }
+
+  private enviarCorreoPedidoAprobadoARegistrador(pedido: RequisitionRow): void {
+    const usuarioRegistro = String(pedido.codigoUsr || '').trim();
+
+    if (!usuarioRegistro || usuarioRegistro === '-') {
+      return;
+    }
+
+    this.apiService.getListarUsuarioActivo({ Usr_Cod: usuarioRegistro }).pipe(
+      switchMap((response: unknown) => {
+        const usuario = this.extractRecords(response)[0];
+        const correoDestino = usuario
+          ? this.getTextValue(usuario, ['Usr_Corr', 'usr_Corr', 'usrCorr', 'Correo', 'correo', 'Email', 'email'])
+          : '';
+
+        if (!correoDestino) {
+          return of(null);
+        }
+
+        const correoPayload: EnviarCorreoPedidoAprobadoRequest = {
+          Ped_Id: pedido.requisicion,
+          CorreoDestino: correoDestino,
+          UsuarioRegistro: this.getTextValue(usuario, ['Usr_Nom', 'usr_Nom', 'usrNom']) || usuarioRegistro,
+          UsuarioAprobacion: this.authService.getCurrentUserName().trim() || this.authService.getCurrentUser().trim(),
+          TipoServicio: pedido.tipo
+        };
+
+        return this.apiService.postEnviarCorreoPedidoAprobado(correoPayload);
+      })
+    ).subscribe({
+      error: (error: unknown) => {
+        console.warn('No se pudo enviar el correo de pedido aprobado al usuario registrador:', error);
       }
     });
   }
@@ -1390,7 +1570,7 @@ export class RequisicionesPageComponent implements OnInit {
   private buildPedidoPayloadBase(): Omit<RegistrarPedidoRequest, 'Usr_Reg'> | null {
     const requisicionCompra = Number(this.cabeceraForm.controls['requisicionCompra'].value);
     const usuarioAprobacion = String(this.cabeceraForm.controls['usuarioAprobacion'].value || '').trim();
-    const lugarEntrega = String(this.detalleForm.controls['lugarEntrega'].value || '').trim();
+    const lugarEntrega = Number(this.detalleForm.controls['lugarEntrega'].value);
     const referencia = String(this.detalleForm.controls['referencia'].value || '').trim();
     const tipoServicio = String(this.detalleForm.controls['oc'].value || '').trim();
     const moneda = Number(this.detalleForm.controls['moneda'].value);
@@ -1410,9 +1590,9 @@ export class RequisicionesPageComponent implements OnInit {
       return null;
     }
 
-    if (!lugarEntrega) {
+    if (!Number.isInteger(lugarEntrega) || lugarEntrega <= 0) {
       this.detalleForm.controls['lugarEntrega'].markAsTouched();
-      this.saveErrorMessage = 'Ingresa un lugar de entrega antes de guardar.';
+      this.saveErrorMessage = 'Selecciona un lugar de entrega antes de guardar.';
       return null;
     }
 
@@ -1714,6 +1894,8 @@ export class RequisicionesPageComponent implements OnInit {
         return 'A';
       case 'Cancelado':
         return 'C';
+      case 'Rechazado':
+        return 'R';
       default:
         return '';
     }
@@ -1810,6 +1992,8 @@ export class RequisicionesPageComponent implements OnInit {
       case 'C':
       case 'O':
         return 'Cancelado';
+      case 'R':
+        return 'Rechazado';
       default:
         return '-';
     }
@@ -1881,7 +2065,8 @@ export class RequisicionesPageComponent implements OnInit {
     return {
       id: this.getNumberValue(item, ['Usr_Id', 'usr_Id', 'usrId', 'id', 'Id']) ?? 0,
       code: this.getTextValue(item, ['Usr_Cod', 'usr_Cod', 'usrCod']),
-      name: this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom'])
+      name: this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom']),
+      email: this.getTextValue(item, ['Usr_Corr', 'usr_Corr', 'usrCorr', 'Correo', 'correo', 'Email', 'email'])
     };
   }
 
@@ -2125,6 +2310,8 @@ export class RequisicionesPageComponent implements OnInit {
   private mapDetalleItemOption(item: DataRecord): PedidoDetalleItemOption | null {
     const id = this.getNumberValue(item, ['Itm_Id', 'itm_Id', 'itmId', 'id', 'Id']);
     const description = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes', 'descripcion', 'Descripcion']);
+    const unitId = this.getNumberValue(item, ['Uni_Med_Id', 'uni_Med_Id', 'uniMedId']);
+    const unitDescription = this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']);
 
     if (!id || !description) {
       return null;
@@ -2134,7 +2321,10 @@ export class RequisicionesPageComponent implements OnInit {
       id,
       code: String(id),
       description,
-      groupDescription: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes', 'grupo', 'Grupo']) || 'Sin grupo'
+      groupDescription: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes', 'grupo', 'Grupo']) || 'Sin grupo',
+      unitId: unitId ?? undefined,
+      unitCode: unitId ? String(unitId) : undefined,
+      unitDescription: unitDescription || undefined
     };
   }
 

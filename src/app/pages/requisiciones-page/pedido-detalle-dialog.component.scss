@@ -32,6 +32,17 @@
   align-items: start;
 }
 
+.pedido-detalle-dialog__selector-row--pedido-b {
+  grid-template-columns: minmax(12rem, 1.45fr) minmax(7rem, 0.75fr) minmax(7rem, 0.75fr) minmax(8rem, 0.85fr);
+}
+
+.pedido-detalle-dialog__selector-row--pedido-b .pedido-detalle-dialog__field > span,
+.pedido-detalle-dialog__selector-row--pedido-b .pedido-detalle-dialog__field--full > span {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.4rem;
+}
+
 .pedido-detalle-dialog__numbers {
   grid-template-columns: repeat(3, minmax(10rem, 1fr));
 }
@@ -71,6 +82,28 @@
 
 .pedido-detalle-dialog__material-field {
   width: 100%;
+}
+
+.pedido-detalle-dialog__search-option {
+  height: auto;
+  cursor: default;
+}
+
+.pedido-detalle-dialog__search-option input {
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.pedido-detalle-dialog__search-option input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
 .pedido-detalle-dialog__field--full {

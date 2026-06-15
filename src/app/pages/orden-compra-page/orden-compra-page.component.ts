@@ -15,12 +15,10 @@ import {
   RegistrarOrdenCompraRequest
 } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
-import { PaymentSelectorDialogComponent } from 'src/app/features/provider-form/dialogs/payment-selector-dialog.component';
 import { ProviderSelectorDialogComponent } from 'src/app/features/provider-form/dialogs/provider-selector-dialog.component';
 import { PaymentOption, ProviderRecord } from 'src/app/features/provider-form/provider-form.models';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
-
 import { OrdenCompraParcialDialogComponent } from './orden-compra-parcial-dialog.component';
 
 type DataRecord = Record<string, unknown>;
@@ -118,6 +116,7 @@ export class OrdenCompraPageComponent implements OnInit {
   centrosCosto: OrdenCompraCentroCostoRow[] = [];
   pedidoDetalles: OrdenCompraDetallePedidoRow[] = [];
   detracciones: DetraccionOption[] = [];
+  formaPagoSearch = '';
   detraccionSearch = '';
   currentOrdenesCompraPage = 1;
   currentPedidosPendientesPage = 1;
@@ -168,9 +167,9 @@ export class OrdenCompraPageComponent implements OnInit {
       ruc: [''],
       formaPagoId: [0],
       formaPago: ['', [Validators.required, noWhitespaceValidator()]],
-      referenciaObra: ['', [Validators.required, noWhitespaceValidator()]],
-      referencia: ['', [Validators.required, noWhitespaceValidator()]],
-      observacion: ['', [Validators.required, noWhitespaceValidator()]],
+      referenciaObra: [''],
+      referencia: [''],
+      observacion: [''],
       archivo: ['Sin archivo adjunto'],
       detraccionId: [null],
       montoDetraccion: [0],
@@ -242,6 +241,19 @@ export class OrdenCompraPageComponent implements OnInit {
       item.label.toLowerCase().includes(search) ||
       item.descripcion.toLowerCase().includes(search) ||
       String(item.porcentaje).includes(search)
+    );
+  }
+
+  get filteredFormasPago(): PaymentOption[] {
+    const search = this.formaPagoSearch.trim().toLowerCase();
+
+    if (!search) {
+      return this.formasPago;
+    }
+
+    return this.formasPago.filter((item) =>
+      item.description.toLowerCase().includes(search) ||
+      String(item.code).includes(search)
     );
   }
 
@@ -317,17 +329,15 @@ export class OrdenCompraPageComponent implements OnInit {
       return;
     }
 
-    this.openParcialDialog((esParcial) => {
-      this.isEditingOrdenCompra = false;
-      this.resetEditor();
-      this.esParcial = esParcial;
-      this.aplicarModoCentrosCosto(esParcial);
-      this.form.patchValue({
-        pedidoIdAtencion: item.pedidoId
-      });
-      this.mostrarEditor = true;
-      this.cargarCentrosCostoDesdePedido();
+    this.isEditingOrdenCompra = false;
+    this.resetEditor();
+    this.esParcial = false;
+    this.aplicarModoCentrosCosto();
+    this.form.patchValue({
+      pedidoIdAtencion: item.pedidoId
     });
+    this.mostrarEditor = true;
+    this.cargarCentrosCostoDesdePedido();
   }
 
   ejecutarAccion(action: string): void {
@@ -452,7 +462,12 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   openProveedorDialog(): void {
-    if (this.isLoadingProveedores || !this.proveedores.length) {
+    if (this.isLoadingProveedores) {
+      return;
+    }
+
+    if (!this.proveedores.length) {
+      this.saveErrorMessage = 'No hay proveedores activos disponibles.';
       return;
     }
 
@@ -480,36 +495,15 @@ export class OrdenCompraPageComponent implements OnInit {
     });
   }
 
-  openFormaPagoDialog(): void {
-    if (this.isLoadingFormasPago || !this.formasPago.length) {
-      return;
-    }
+  onFormaPagoChange(formaPagoId: number | null): void {
+    const selectedFormaPago = this.formasPago.find((item) => item.code === Number(formaPagoId));
 
-    const dialogRef = this.dialog.open(PaymentSelectorDialogComponent, {
-      autoFocus: false,
-      width: '34rem',
-      data: {
-        paymentOptions: this.formasPago
-      }
-    });
-
-    dialogRef.afterClosed().subscribe((paymentOption?: PaymentOption) => {
-      if (!paymentOption) {
-        return;
-      }
-
-      this.form.patchValue({
-        formaPagoId: paymentOption.code,
-        formaPago: paymentOption.description
-      });
+    this.form.patchValue({
+      formaPago: selectedFormaPago?.description ?? ''
     });
   }
 
   toggleCentroCosto(item: OrdenCompraCentroCostoRow): void {
-    if (!this.esParcial) {
-      return;
-    }
-
     this.centrosCosto = this.centrosCosto.map((centroCosto) =>
       centroCosto.id === item.id
         ? { ...centroCosto, selected: !centroCosto.selected }
@@ -518,7 +512,7 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   toggleTodosLosCentrosCosto(): void {
-    if (!this.esParcial || !this.centrosCosto.length) {
+    if (!this.centrosCosto.length) {
       return;
     }
 
@@ -531,10 +525,6 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   toggleDetallePedido(item: OrdenCompraDetallePedidoRow): void {
-    if (!this.esParcial) {
-      return;
-    }
-
     this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
       detalle.id === item.id
         ? { ...detalle, selected: !detalle.selected }
@@ -544,7 +534,7 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   toggleTodosLosDetallesPedido(): void {
-    if (!this.esParcial || !this.pedidoDetalles.length) {
+    if (!this.pedidoDetalles.length) {
       return;
     }
 
@@ -590,6 +580,15 @@ export class OrdenCompraPageComponent implements OnInit {
   guardarOrdenCompra(): void {
     this.saveErrorMessage = '';
 
+    if (this.debeConfirmarRegistroParcial()) {
+      this.confirmarRegistroParcial();
+      return;
+    }
+
+    this.ejecutarGuardarOrdenCompra();
+  }
+
+  private ejecutarGuardarOrdenCompra(): void {
     const request$ = this.isEditingOrdenCompra
       ? this.buildActualizarOrdenCompraRequest()
       : this.buildRegistrarOrdenCompraRequest();
@@ -610,10 +609,35 @@ export class OrdenCompraPageComponent implements OnInit {
         this.isSavingOrdenCompra = false;
         this.cerrarEditor();
         this.cargarListadoSeleccionado();
+        window.dispatchEvent(new CustomEvent('process-notifications-refresh'));
       },
       error: (error: unknown) => {
         this.isSavingOrdenCompra = false;
         this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo guardar la orden de compra.');
+      }
+    });
+  }
+
+  private debeConfirmarRegistroParcial(): boolean {
+    if (this.isEditingOrdenCompra || !this.pedidoDetalles.length) {
+      return false;
+    }
+
+    const totalDetalles = this.pedidoDetalles.length;
+    const totalSeleccionados = this.detallesPedidoSeleccionados.length;
+
+    return totalSeleccionados > 0 && totalSeleccionados < totalDetalles;
+  }
+
+  private confirmarRegistroParcial(): void {
+    const dialogRef = this.dialog.open(OrdenCompraParcialDialogComponent, {
+      autoFocus: false,
+      width: '28rem'
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado?: boolean) => {
+      if (confirmado) {
+        this.ejecutarGuardarOrdenCompra();
       }
     });
   }
@@ -687,13 +711,11 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   private iniciarNuevaOrdenCompra(): void {
-    this.openParcialDialog((esParcial) => {
-      this.isEditingOrdenCompra = false;
-      this.resetEditor();
-      this.esParcial = esParcial;
-      this.aplicarModoCentrosCosto(esParcial);
-      this.mostrarEditor = true;
-    });
+    this.isEditingOrdenCompra = false;
+    this.resetEditor();
+    this.esParcial = false;
+    this.aplicarModoCentrosCosto();
+    this.mostrarEditor = true;
   }
 
   private iniciarEdicionOrdenCompra(): void {
@@ -707,19 +729,6 @@ export class OrdenCompraPageComponent implements OnInit {
     this.isEditingOrdenCompra = true;
     this.errorMessage = '';
     this.cargarOrdenCompraParaModificar(ordenCompra);
-  }
-
-  private openParcialDialog(onConfirm: (esParcial: boolean) => void): void {
-    const dialogRef = this.dialog.open(OrdenCompraParcialDialogComponent, {
-      autoFocus: false,
-      width: '28rem'
-    });
-
-    dialogRef.afterClosed().subscribe((esParcial?: boolean) => {
-      if (typeof esParcial === 'boolean') {
-        onConfirm(esParcial);
-      }
-    });
   }
 
   private cerrarVistaActual(): void {
@@ -774,14 +783,14 @@ export class OrdenCompraPageComponent implements OnInit {
     this.syncTotalesCalculados();
   }
 
-  private aplicarModoCentrosCosto(esParcial: boolean): void {
+  private aplicarModoCentrosCosto(): void {
     this.centrosCosto = this.centrosCosto.map((item) => ({
       ...item,
-      selected: esParcial ? false : true
+      selected: false
     }));
     this.pedidoDetalles = this.pedidoDetalles.map((item) => ({
       ...item,
-      selected: esParcial ? false : true
+      selected: false
     }));
     this.syncTotalesCalculados();
   }
@@ -884,28 +893,8 @@ export class OrdenCompraPageComponent implements OnInit {
       return null;
     }
 
-    if (!referenciaObra) {
-      this.form.controls['referenciaObra'].markAsTouched();
-      this.saveErrorMessage = 'Ingresa una referencia de obra valida.';
-      return null;
-    }
-
-    if (!referencia) {
-      this.form.controls['referencia'].markAsTouched();
-      this.saveErrorMessage = 'Ingresa una referencia valida.';
-      return null;
-    }
-
-    if (!observacion) {
-      this.form.controls['observacion'].markAsTouched();
-      this.saveErrorMessage = 'Ingresa una observacion valida.';
-      return null;
-    }
-
     if (!this.detallesPedidoSeleccionados.length && !(this.isEditingOrdenCompra && this.detallesPendientesDesasignacion.length)) {
-      this.saveErrorMessage = this.esParcial
-        ? 'Selecciona al menos una fila del detalle para la orden parcial.'
-        : 'No hay filas del detalle seleccionadas para la orden de compra.';
+      this.saveErrorMessage = 'Selecciona al menos una fila del detalle para la orden de compra.';
       return null;
     }
 
@@ -1145,7 +1134,7 @@ export class OrdenCompraPageComponent implements OnInit {
   private abrirEditorOrdenCompra(ordenCompra: OrdenCompraRow): void {
     this.populateForm(ordenCompra);
     this.esParcial = false;
-    this.aplicarModoCentrosCosto(false);
+    this.aplicarModoCentrosCosto();
     this.mostrarEditor = true;
 
     if (ordenCompra.pedidoIdAtencion) {
@@ -1402,7 +1391,7 @@ export class OrdenCompraPageComponent implements OnInit {
       costoUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']),
       subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']),
       observacion: this.getTextValue(item, ['Ped_Obs', 'ped_Obs', 'pedObs', 'Observacion', 'observacion']),
-      selected: !this.esParcial
+      selected: false
     };
   }
 
@@ -1424,7 +1413,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
     this.centrosCosto = centros.map((item) => ({
       ...item,
-      selected: this.esParcial ? false : true
+      selected: false
     }));
     this.pedidoDetalles = this.extractRecords(detalleResponse)
       .map((item) => this.mapDetallePedido(item))

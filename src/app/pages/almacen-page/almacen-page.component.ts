@@ -773,6 +773,7 @@ export class AlmacenPageComponent implements OnInit {
     this.saveErrorMessage = '';
     this.isIngresoOrdenEditMode = false;
     this.cargarListadoSeleccionado();
+    window.dispatchEvent(new CustomEvent('process-notifications-refresh'));
   }
 
   trackBySolicitante(_: number, item: AlmacenSolicitanteOption): number {

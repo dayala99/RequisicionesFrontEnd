@@ -3,6 +3,9 @@ export interface PedidoDetalleItemOption {
   code: string;
   description: string;
   groupDescription: string;
+  unitId?: number;
+  unitCode?: string;
+  unitDescription?: string;
 }
 
 export interface PedidoDetalleUnidadOption {
@@ -22,4 +25,5 @@ export interface PedidoDetalleDialogValue {
   centroCostoCantidadRequerida: number;
   quantity: number;
   unitPrice: number;
+  subtotal?: number;
 }

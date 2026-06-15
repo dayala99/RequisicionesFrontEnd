@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 import { ActualizarUsuarioRequest, ApiService } from 'src/app/Services/api.services';
@@ -13,16 +13,23 @@ interface UsuarioEditData {
     usrId: number;
     usrCod: string;
     usrNom: string;
+    usrCorr: string;
     usrDocNro: string;
     usrCenCosId: number;
     usrPass: string;
     usrApr: string;
+    usrPrf: string;
     flgEst: string;
   };
 }
 
 interface CentroCostoOption {
   id: number;
+  descripcion: string;
+}
+
+interface PerfilOption {
+  codigo: string;
   descripcion: string;
 }
 
@@ -33,9 +40,13 @@ interface CentroCostoOption {
 })
 export class UsuarioEditDialogComponent implements OnInit {
   readonly form: FormGroup;
+  readonly centroCostoSearchControl = new FormControl('', { nonNullable: true });
+  readonly perfilSearchControl = new FormControl('', { nonNullable: true });
   centroCostoOptions: CentroCostoOption[] = [];
+  perfilOptions: PerfilOption[] = [];
   isSaving = false;
   isLoadingCentrosCosto = false;
+  isLoadingPerfiles = false;
   errorMessage = '';
 
   constructor(
@@ -48,16 +59,43 @@ export class UsuarioEditDialogComponent implements OnInit {
     this.form = this.formBuilder.group({
       usrCod: [data.usuario.usrCod, [Validators.required, noWhitespaceValidator(), Validators.maxLength(50), optionalPatternValidator(/^[A-Za-z0-9._-]+$/)]],
       usrNom: [data.usuario.usrNom, [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
+      usrCorr: [data.usuario.usrCorr, [Validators.required, noWhitespaceValidator(), Validators.email, Validators.maxLength(120)]],
       usrDocNro: [data.usuario.usrDocNro, [Validators.required, noWhitespaceValidator(), Validators.maxLength(20), optionalPatternValidator(/^[0-9]+$/)]],
       usrPass: [data.usuario.usrPass, [Validators.required, noWhitespaceValidator(), Validators.maxLength(55)]],
       usrCenCosId: [data.usuario.usrCenCosId || 0, [Validators.required, Validators.min(1)]],
       usrApr: [data.usuario.usrApr || 'N', Validators.required],
+      usrPrf: [data.usuario.usrPrf || '', [Validators.required, noWhitespaceValidator()]],
       flgEst: [data.usuario.flgEst || 'A', Validators.required]
     });
   }
 
   ngOnInit(): void {
     this.cargarCentrosCosto();
+    this.cargarPerfiles();
+  }
+
+  get filteredPerfilOptions(): PerfilOption[] {
+    const search = this.perfilSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.perfilOptions;
+    }
+
+    return this.perfilOptions.filter((perfil) =>
+      perfil.codigo.toLowerCase().includes(search) || perfil.descripcion.toLowerCase().includes(search)
+    );
+  }
+
+  get filteredCentroCostoOptions(): CentroCostoOption[] {
+    const search = this.centroCostoSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.centroCostoOptions;
+    }
+
+    return this.centroCostoOptions.filter((centroCosto) =>
+      String(centroCosto.id).includes(search) || centroCosto.descripcion.toLowerCase().includes(search)
+    );
   }
 
   guardar(): void {
@@ -72,10 +110,12 @@ export class UsuarioEditDialogComponent implements OnInit {
     const values = this.form.value as {
       usrCod: string;
       usrNom: string;
+      usrCorr: string;
       usrDocNro: string;
       usrPass: string;
       usrCenCosId: number;
       usrApr: string;
+      usrPrf: string;
       flgEst: string;
     };
     const payload: ActualizarUsuarioRequest = {
@@ -87,7 +127,9 @@ export class UsuarioEditDialogComponent implements OnInit {
       Usr_Doc_Nro: values.usrDocNro.trim(),
       Usr_Cen_Cos_Id: Number(values.usrCenCosId),
       Usr_Pass: values.usrPass.trim(),
-      Usr_Apr: values.usrApr
+      Usr_Apr: values.usrApr,
+      Usr_Corr: values.usrCorr.trim(),
+      Usr_Prf: values.usrPrf.trim()
     };
 
     console.log('Payload actualizar usuario:', payload);
@@ -111,6 +153,18 @@ export class UsuarioEditDialogComponent implements OnInit {
     }
   }
 
+  onPerfilSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.perfilSearchControl.setValue('');
+    }
+  }
+
+  onCentroCostoSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.centroCostoSearchControl.setValue('');
+    }
+  }
+
   private cargarCentrosCosto(): void {
     this.isLoadingCentrosCosto = true;
     this.apiService.getListarCentroCostoActivo({ Flg_Est: 'A' }).subscribe({
@@ -125,6 +179,25 @@ export class UsuarioEditDialogComponent implements OnInit {
         this.centroCostoOptions = [];
         this.errorMessage = 'No se pudieron cargar los centros de costo.';
         this.isLoadingCentrosCosto = false;
+      }
+    });
+  }
+
+  private cargarPerfiles(): void {
+    this.isLoadingPerfiles = true;
+    this.apiService.getListarPerfil({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.perfilOptions = this.extractRecords(response)
+          .map((item) => this.mapPerfilOption(item))
+          .filter((item): item is PerfilOption => item !== null)
+          .sort((left, right) => left.codigo.localeCompare(right.codigo));
+        this.isLoadingPerfiles = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando perfiles para usuario:', error);
+        this.perfilOptions = [];
+        this.errorMessage = 'No se pudieron cargar los perfiles.';
+        this.isLoadingPerfiles = false;
       }
     });
   }
@@ -219,6 +292,17 @@ export class UsuarioEditDialogComponent implements OnInit {
     }
 
     return { id, descripcion };
+  }
+
+  private mapPerfilOption(item: Record<string, unknown>): PerfilOption | null {
+    const codigo = this.getTextValue(item, ['Prf_Cod', 'prf_Cod', 'prfCod', 'codigo', 'Codigo']);
+    const descripcion = this.getTextValue(item, ['Prf_Des', 'prf_Des', 'prfDes', 'descripcion', 'Descripcion']);
+
+    if (!codigo || !descripcion) {
+      return null;
+    }
+
+    return { codigo, descripcion };
   }
 
   private getTextValue(item: Record<string, unknown>, keys: string[]): string {

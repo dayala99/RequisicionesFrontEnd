@@ -12,10 +12,12 @@ interface UsuarioRow {
   usrId: number | null;
   usrCod: string;
   usrNom: string;
+  usrCorr: string;
   usrDocNro: string;
   usrCenCosId: number;
   usrPass: string;
   usrApr: string;
+  usrPrf: string;
   fecha: string;
   flgEst: string;
   estado: string;
@@ -215,10 +217,12 @@ export class UsuariosPageComponent implements OnInit {
       usrId,
       usrCod,
       usrNom,
+      usrCorr: this.getTextValue(item, ['Usr_Corr', 'usr_Corr', 'usrCorr']),
       usrDocNro: this.getTextValue(item, ['Usr_Doc_Nro', 'usr_Doc_Nro', 'usrDocNro']),
       usrCenCosId: this.getNumberValue(item, ['Usr_Cen_Cos_Id', 'usr_Cen_Cos_Id', 'usrCenCosId']) ?? 0,
       usrPass: this.getTextValue(item, ['Usr_Pass', 'usr_Pass', 'usrPass']),
       usrApr: this.getTextValue(item, ['Usr_Apr', 'usr_Apr', 'usrApr']) || 'N',
+      usrPrf: this.getTextValue(item, ['Usr_Prf', 'usr_Prf', 'usrPrf']),
       fecha,
       flgEst,
       estado: activo ? 'Activo' : 'Inactivo',

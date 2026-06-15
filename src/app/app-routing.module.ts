@@ -8,6 +8,7 @@ import { BancoPageComponent } from './pages/banco-page/banco-page.component';
 import { AlmacenPageComponent } from './pages/almacen-page/almacen-page.component';
 import { CentroCostosPageComponent } from './pages/centro-costos-page/centro-costos-page.component';
 import { DetraccionPageComponent } from './pages/detraccion-page/detraccion-page.component';
+import { DireccionEntregaPageComponent } from './pages/direccion-entrega-page/direccion-entrega-page.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { GrupoItemPageComponent } from './pages/grupo-item-page/grupo-item-page.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
@@ -15,8 +16,9 @@ import { ItemPageComponent } from './pages/item-page/item-page.component';
 import { ItemDetalleMaterialPageComponent } from './pages/item-detalle-material-page/item-detalle-material-page.component';
 import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
 import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra-page.component';
+import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page.component';
+import { PerfilPageComponent } from './pages/perfil-page/perfil-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
-import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { SubGrupoItemPageComponent } from './pages/sub-grupo-item-page/sub-grupo-item-page.component';
 import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
@@ -47,6 +49,10 @@ const routes: Routes = [
         component: FormaPagoPageComponent
       },
       {
+        path: 'perfil',
+        component: PerfilPageComponent
+      },
+      {
         path: 'detraccion',
         component: DetraccionPageComponent
       },
@@ -57,6 +63,10 @@ const routes: Routes = [
       {
         path: 'centro-costos',
         component: CentroCostosPageComponent
+      },
+      {
+        path: 'direccion-entrega',
+        component: DireccionEntregaPageComponent
       },
       {
         path: 'moneda',
@@ -88,7 +98,12 @@ const routes: Routes = [
       },
       {
         path: 'pedidos',
-        component: RequisicionesPageComponent
+        component: PedidosBPageComponent
+      },
+      {
+        path: 'pedidos-b',
+        redirectTo: 'pedidos',
+        pathMatch: 'full'
       },
       {
         path: 'orden-compra',
