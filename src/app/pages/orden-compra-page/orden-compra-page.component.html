@@ -14,42 +14,46 @@
 
     <section *ngIf="!mostrarEditor" class="panel panel--listing">
       <form class="filters-panel" [formGroup]="filtersForm" (ngSubmit)="aplicarFiltros()">
-        <label class="field field--list-mode">
-          <span>Listado</span>
-          <select formControlName="modoListado" (change)="onListadoModoChange()">
-            <option *ngFor="let option of listadoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
-          </select>
-        </label>
+        <div class="filters-panel__top">
+          <label class="field field--list-mode">
+            <span>Listado</span>
+            <select formControlName="modoListado" (change)="onListadoModoChange()">
+              <option *ngFor="let option of listadoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
+            </select>
+          </label>
 
-        <button type="button" class="button button--primary orden-compra-listing-new" (click)="ejecutarAccion('Nuevo')">
-          Nuevo
-        </button>
-
-        <label class="field" *ngIf="isListadoGenerados">
-          <span>Nro. O/C</span>
-          <input type="number" formControlName="ordenCompraId" min="1" step="1">
-        </label>
-
-        <label class="field" *ngIf="isListadoGenerados">
-          <span>Proveedor</span>
-          <input type="text" formControlName="proveedor">
-        </label>
-
-        <label class="field" *ngIf="isListadoGenerados">
-          <span>Estado</span>
-          <select formControlName="estado">
-            <option value="A">Activo</option>
-            <option value="I">Inactivo</option>
-          </select>
-        </label>
-
-        <div class="filters-panel__actions" *ngIf="isListadoGenerados">
-          <button type="submit" class="button button--primary" [disabled]="isLoadingOrdenesCompra">
-            {{ isLoadingOrdenesCompra ? 'Buscando...' : 'Buscar' }}
+          <button type="button" class="button button--primary orden-compra-listing-new" (click)="ejecutarAccion('Nuevo')">
+            Nuevo
           </button>
-          <button type="button" class="button button--secondary" (click)="limpiarFiltros()">
-            Limpiar
-          </button>
+        </div>
+
+        <div class="filters-panel__generated" *ngIf="isListadoGenerados">
+          <label class="field">
+            <span>Nro. O/C</span>
+            <input type="number" formControlName="ordenCompraId" min="1" step="1">
+          </label>
+
+          <label class="field">
+            <span>Proveedor</span>
+            <input type="text" formControlName="proveedor">
+          </label>
+
+          <label class="field">
+            <span>Estado</span>
+            <select formControlName="estado">
+              <option value="A">Activo</option>
+              <option value="I">Inactivo</option>
+            </select>
+          </label>
+
+          <div class="filters-panel__actions">
+            <button type="submit" class="button button--primary" [disabled]="isLoadingOrdenesCompra">
+              {{ isLoadingOrdenesCompra ? 'Buscando...' : 'Buscar' }}
+            </button>
+            <button type="button" class="button button--secondary" (click)="limpiarFiltros()">
+              Limpiar
+            </button>
+          </div>
         </div>
       </form>
 
