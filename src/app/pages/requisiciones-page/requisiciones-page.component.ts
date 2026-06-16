@@ -25,6 +25,7 @@ interface RequisitionRow {
   requisicion: number;
   codigo: string;
   archivo: string;
+  archivoNombre: string;
   gerencia: string;
   fecha: string;
   proveedor: string;
@@ -1324,6 +1325,28 @@ export class RequisicionesPageComponent implements OnInit {
     }
   }
 
+  verArchivoPedidoListado(item: RequisitionRow, event?: Event): void {
+    event?.stopPropagation();
+    this.saveErrorMessage = '';
+    const nombreArchivo = item.archivoNombre.trim();
+
+    if (!nombreArchivo) {
+      this.saveErrorMessage = 'El pedido seleccionado no tiene archivo adjunto.';
+      return;
+    }
+
+    this.apiService.getArchivoPedido(nombreArchivo).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: () => {
+        this.saveErrorMessage = 'No se pudo abrir el archivo del pedido.';
+      }
+    });
+  }
+
 
 
 
@@ -1947,6 +1970,7 @@ export class RequisicionesPageComponent implements OnInit {
       requisicion,
       codigo: this.getTextValue(item, ['Ped_Cod', 'ped_Cod', 'pedCod', 'codigo', 'Codigo']) || (requisicion > 0 ? `PED-${requisicion}` : '-'),
       archivo: this.resolveAttachmentLabel(archivoNombre),
+      archivoNombre,
       gerencia: this.getTextValue(item, ['Gerencia', 'gerencia', 'Are_Des', 'are_Des', 'area']) || '-',
       fecha: fechaRegistro || '-',
       proveedor,
@@ -1970,6 +1994,29 @@ export class RequisicionesPageComponent implements OnInit {
     const extension = archivoNombre.split('.').pop()?.trim().toUpperCase();
 
     return extension || 'ADJ';
+  }
+
+  private getMimeTypeFromFileName(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+
+    switch (extension) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'txt':
+      case 'sql':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   private resolveCurrency(item: DataRecord): string {

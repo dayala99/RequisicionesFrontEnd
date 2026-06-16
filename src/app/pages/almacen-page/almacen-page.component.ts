@@ -663,10 +663,9 @@ export class AlmacenPageComponent implements OnInit {
     }
 
     const cabecera = this.ingresoOrdenSeleccionada;
-    const cabeceraPayload = this.buildRegistrarIngresoAlmacenOrdenCompraPayload();
     const detallePayloads = this.esIngresoOrdenServicio ? [] : this.buildActualizarPedidoDetalleIngresoAlmacenPayloads();
 
-    if (!cabecera || !cabeceraPayload || (!this.esIngresoOrdenServicio && !detallePayloads.length)) {
+    if (!cabecera || (!this.esIngresoOrdenServicio && !detallePayloads.length)) {
       return;
     }
 
@@ -675,8 +674,15 @@ export class AlmacenPageComponent implements OnInit {
 
     if (this.esIngresoOrdenServicio) {
       this.cambiarEstadoOrdenCompraIngresada(cabecera, () => {
-        this.registrarIngresoOrdenCompra(cabeceraPayload, []);
+        this.finalizarGuardadoIngresoOrden();
       });
+      return;
+    }
+
+    const cabeceraPayload = this.buildRegistrarIngresoAlmacenOrdenCompraPayload();
+
+    if (!cabeceraPayload) {
+      this.isSavingIngreso = false;
       return;
     }
 

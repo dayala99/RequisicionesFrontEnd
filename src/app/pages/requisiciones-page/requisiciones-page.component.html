@@ -79,7 +79,15 @@
                 [class.requisiciones-table__row--selected]="isPedidoSeleccionado(item)"
                 (click)="seleccionarPedido(item)">
                 <td>{{ item.codigo }}</td>
-                <td><span class="file-badge">{{ item.archivo }}</span></td>
+                <td>
+                  <button
+                    type="button"
+                    class="file-badge file-badge--button"
+                    [disabled]="!item.archivoNombre"
+                    (click)="verArchivoPedidoListado(item, $event)">
+                    {{ item.archivo }}
+                  </button>
+                </td>
                 <td>{{ item.fecha }}</td>
                 <td>{{ item.moneda }}</td>
                 <td>{{ formatTotal(item.total, item.moneda) }}</td>

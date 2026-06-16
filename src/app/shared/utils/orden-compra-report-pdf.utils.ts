@@ -12,6 +12,7 @@ export interface OrdenCompraReporteDetallePdf {
 
 export interface OrdenCompraReportePdfData {
   ordenCompraId: number;
+  tipoServicio?: string;
   fecha: string;
   proveedor: string;
   ruc: string;
@@ -73,10 +74,14 @@ function buildPageContent(
   const addLine = createLineAdder(commands);
   const addRect = createRectAdder(commands);
   const addImage = createImageAdder(commands);
+  const isServicio = isOrdenServicio(report.tipoServicio);
+  const documentTitle = isServicio ? 'ORDEN DE SERVICIO' : 'ORDEN DE COMPRA';
+  const documentPrefix = isServicio ? 'OS' : 'OC';
+  const documentName = isServicio ? 'orden de servicio' : 'orden de compra';
 
   addRect(PAGE_LEFT, PAGE_TOP, PAGE_RIGHT - PAGE_LEFT, 74);
   if (hasLogo) {
-    addImage(PAGE_LEFT + 18, PAGE_TOP + 14, 146, 62);
+    addImage(PAGE_LEFT + 38, PAGE_TOP + 16, 112, 47);
   } else {
     addText(PAGE_LEFT + 20, PAGE_TOP + 30, 'ARCE', 24, true);
     addText(PAGE_LEFT + 20, PAGE_TOP + 50, 'MONTAJES E INGENIERIA ARCE PERU S.A.C.', 8, true);
@@ -87,8 +92,8 @@ function buildPageContent(
   addText(PAGE_RIGHT - 8, PAGE_TOP + 60, `Pagina ${pageNumber} de ${totalPages}`, 7, false, 'right');
 
   addRect(PAGE_RIGHT - 155, 116, 135, 42);
-  addText(PAGE_RIGHT - 87.5, 134, 'ORDEN DE COMPRA', 10, true, 'center');
-  addText(PAGE_RIGHT - 87.5, 150, `OC${report.ordenCompraId}`, 11, true, 'center');
+  addText(PAGE_RIGHT - 87.5, 134, documentTitle, 10, true, 'center');
+  addText(PAGE_RIGHT - 87.5, 150, `${documentPrefix}${report.ordenCompraId}`, 11, true, 'center');
 
   addRect(PAGE_LEFT, 174, PAGE_RIGHT - PAGE_LEFT, 72);
   addLabelValue(PAGE_LEFT + 6, 190, 'FECHA:', report.fecha, 8);
@@ -101,7 +106,7 @@ function buildPageContent(
   addLabelValue(310, 218, 'DIRECCION:', report.direccionProveedor, 8, 230);
 
   addText(PAGE_LEFT, 278, 'Muy Sres. Nuestros:', 8, true);
-  addText(PAGE_LEFT, 302, 'Sirvanse suministrarnos los materiales contenidos en la orden de compra, la misma que pasamos a detallar:', 8);
+  addText(PAGE_LEFT, 302, `Sirvanse suministrarnos los materiales contenidos en la ${documentName}, la misma que pasamos a detallar:`, 8);
 
   addRect(PAGE_LEFT, 318, PAGE_RIGHT - PAGE_LEFT, 64);
   addLabelValue(PAGE_LEFT + 6, 334, 'REFERENCIA OBRA:', report.referenciaObra, 8, PAGE_RIGHT - PAGE_LEFT - 12);
@@ -427,4 +432,13 @@ function formatGeneratedDate(value: Date): string {
   }).format(value);
 
   return `${date}, ${time}`;
+}
+
+function isOrdenServicio(value?: string): boolean {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .includes('servicio');
 }

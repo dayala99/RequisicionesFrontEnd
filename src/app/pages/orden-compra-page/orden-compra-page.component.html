@@ -285,6 +285,13 @@
               (click)="cargarCentrosCostoDesdePedido()">
               {{ isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle ? 'Cargando...' : 'Cargar pedido' }}
             </button>
+            <button
+              type="button"
+              class="button button--secondary pedido-pdf-button"
+              [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle"
+              (click)="verPedidoArchivo()">
+              PDF
+            </button>
           </div>
         </div>
 

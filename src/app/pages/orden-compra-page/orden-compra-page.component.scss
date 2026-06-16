@@ -505,6 +505,10 @@
   align-items: end;
 }
 
+.pedido-pdf-button {
+  margin-left: 5%;
+}
+
 .section-copy h3 {
   margin: 0;
   color: var(--text-primary);
@@ -560,6 +564,10 @@
   .button,
   .selector-code-button {
     width: 100%;
+  }
+
+  .pedido-pdf-button {
+    margin-left: 0;
   }
 
   .selector-pair {

@@ -37,6 +37,7 @@ interface OrdenCompraRow {
   pedidoIdAtencion: number | null;
   proveedorId: number;
   proveedor: string;
+  tipoServicio: string;
   formaPagoId: number;
   formaPago: string;
   referenciaObra: string;
@@ -150,6 +151,7 @@ export class OrdenCompraPageComponent implements OnInit {
   ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
   ordenCompraArchivoRuta = '';
   ordenCompraArchivoFile: File | null = null;
+  pedidoArchivoAdjunto = 'Sin archivo adjunto';
   detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
   private ordenCompraLogoBytes: Uint8Array | null | undefined;
 
@@ -643,11 +645,12 @@ export class OrdenCompraPageComponent implements OnInit {
     this.isLoadingPedidoDetalle = true;
     this.centrosCosto = [];
     this.pedidoDetalles = [];
+    this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
     this.currentDetallePedidoPage = 1;
 
     this.loadPedidoData(pedidoId).subscribe({
-      next: ({ centrosCostoResponse, detalleResponse }) => {
-        this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse);
+      next: ({ centrosCostoResponse, detalleResponse, pedidoResponse }) => {
+        this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse, pedidoResponse);
       },
       error: (error: unknown) => {
         this.handlePedidoDataError(error);
@@ -781,6 +784,28 @@ export class OrdenCompraPageComponent implements OnInit {
     this.saveErrorMessage = 'No hay archivo adjunto para visualizar.';
   }
 
+  verPedidoArchivo(): void {
+    this.saveErrorMessage = '';
+    const nombreArchivo = this.pedidoArchivoAdjunto.trim();
+
+    if (!nombreArchivo || nombreArchivo === 'Sin archivo adjunto') {
+      this.saveErrorMessage = 'El pedido seleccionado no tiene PDF adjunto para visualizar.';
+      return;
+    }
+
+    this.apiService.getArchivoPedido(nombreArchivo).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: (error: unknown) => {
+        console.error('Error abriendo archivo del pedido:', error);
+        this.saveErrorMessage = 'No se pudo abrir el PDF asignado al pedido.';
+      }
+    });
+  }
+
   formatCurrency(value: number): string {
     return new Intl.NumberFormat('es-PE', {
       minimumFractionDigits: 2,
@@ -858,6 +883,7 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = '';
     this.ordenCompraArchivoFile = null;
+    this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
     this.syncTotalesCalculados();
   }
 
@@ -1313,9 +1339,13 @@ export class OrdenCompraPageComponent implements OnInit {
     const fechaRequerida = pedido
       ? mapOrdenCompraReportDisplayDate(this.getTextValue(pedido, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt']))
       : '-';
+    const tipoServicio = pedido
+      ? this.getTextValue(pedido, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des'])
+      : '';
 
     return {
       ordenCompraId: ordenCompra.ordenCompraId ?? 0,
+      tipoServicio: tipoServicio || ordenCompra.tipoServicio,
       fecha: fechaRegistro,
       proveedor: proveedor?.name || ordenCompra.proveedor,
       ruc: proveedor?.ruc || '-',
@@ -1422,6 +1452,7 @@ export class OrdenCompraPageComponent implements OnInit {
       pedidoIdAtencion,
       proveedorId,
       proveedor: this.resolveProveedorNombre(proveedorId, proveedorFallback),
+      tipoServicio: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des']),
       formaPagoId,
       formaPago: this.resolveFormaPagoDescripcion(formaPagoId, formaPagoFallback),
       referenciaObra: this.getTextValue(item, ['Ord_Com_Ref_Obr', 'ord_Com_Ref_Obr', 'ordComRefObr']),
@@ -1557,7 +1588,7 @@ export class OrdenCompraPageComponent implements OnInit {
     };
   }
 
-  private loadPedidoData(pedidoId: number): Observable<{ centrosCostoResponse: unknown; detalleResponse: unknown }> {
+  private loadPedidoData(pedidoId: number): Observable<{ centrosCostoResponse: unknown; detalleResponse: unknown; pedidoResponse: unknown }> {
     const ordenCompraId = Number(this.form.controls['ordenCompraId'].value);
     const detalleRequest = this.isEditingOrdenCompra && Number.isInteger(ordenCompraId) && ordenCompraId > 0
       ? this.apiService.getListarItemsAsignadosPedidoCentroCostoModificar(ordenCompraId, pedidoId)
@@ -1566,13 +1597,15 @@ export class OrdenCompraPageComponent implements OnInit {
 
     return forkJoin({
       centrosCostoResponse: this.apiService.getListarPedidoRegistradoCentroCosto(pedidoId),
-      detalleResponse: detalleRequest
+      detalleResponse: detalleRequest,
+      pedidoResponse: this.apiService.getListarPedidoModificar(pedidoId)
     });
   }
 
-  private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown): void {
+  private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown, pedidoResponse?: unknown): void {
     const centros = this.mapCentroCostoPedido(centrosCostoResponse);
     const seleccionarDetalles = this.debeSeleccionarDetallesAlCargar();
+    this.pedidoArchivoAdjunto = this.resolvePedidoArchivoAdjunto(pedidoResponse);
 
     this.centrosCosto = centros.map((item) => ({
       ...item,
@@ -1608,12 +1641,33 @@ export class OrdenCompraPageComponent implements OnInit {
   private handlePedidoDataError(error: unknown): void {
     this.centrosCosto = [];
     this.pedidoDetalles = [];
+    this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
     this.currentDetallePedidoPage = 1;
     this.centrosCostoErrorMessage = this.resolveErrorMessage(error, 'No se pudieron cargar los centros de costo del pedido.');
     this.detallePedidoErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el detalle del pedido.');
     this.syncTotalesCalculados();
     this.isLoadingPedidoCentrosCosto = false;
     this.isLoadingPedidoDetalle = false;
+  }
+
+  private resolvePedidoArchivoAdjunto(pedidoResponse: unknown): string {
+    const record = this.extractRecords(pedidoResponse)[0];
+
+    if (!record) {
+      return 'Sin archivo adjunto';
+    }
+
+    const archivo = this.getTextValue(record, [
+      'Ped_Arc_Adj_Nom',
+      'ped_Arc_Adj_Nom',
+      'ped_arc_adj_nom',
+      'pedArcAdjNom',
+      'PedArcAdjNom',
+      'archivo',
+      'Archivo'
+    ]);
+
+    return archivo || 'Sin archivo adjunto';
   }
 
   private resolveOrdenCompraIdParaAsignacion(response: unknown): Observable<number> {
@@ -1708,8 +1762,8 @@ export class OrdenCompraPageComponent implements OnInit {
 
     return new Observable<unknown>((subscriber) => {
       this.loadPedidoData(pedidoId).subscribe({
-        next: ({ centrosCostoResponse, detalleResponse }) => {
-          this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse);
+        next: ({ centrosCostoResponse, detalleResponse, pedidoResponse }) => {
+          this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse, pedidoResponse);
           subscriber.next(null);
           subscriber.complete();
         },
