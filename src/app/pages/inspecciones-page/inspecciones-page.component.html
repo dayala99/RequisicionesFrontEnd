@@ -1,0 +1,142 @@
+<ng-container *ngIf="vistaActual === 'inspecciones'; else vistaObservaciones">
+  <section class="inspecciones-page">
+    <div class="page-header">
+      <div class="page-header__title-block">
+        <p class="eyebrow">PROCESOS</p>
+        <h1>Inspecciones</h1>
+        <p class="subtitle">
+          Desde aquí puedes acceder a las distintas vistas de inspección y control operativo manteniendo el mismo estilo visual del resto del sistema.
+        </p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button type="button" class="tab-button">Inspecciones de prevención</button>
+      <button type="button" class="tab-button">Inspecciones Medio Ambiente</button>
+      <button type="button" class="tab-button tab-button--active">Obvseraciones Planeadas</button>
+      <button type="button" class="tab-button">Stop Work</button>
+      <button type="button" class="tab-button">We Report</button>
+    </div>
+
+    <div class="filters">
+      <div class="date-field">
+        <label>Desde:</label>
+        <mat-form-field appearance="outline" class="date-field__control">
+          <input
+            matInput
+            [matDatepicker]="desdePicker"
+            [value]="filtroDesde"
+            (dateChange)="cambiarFiltroDesde($event.value)"
+          >
+          <mat-datepicker-toggle matSuffix [for]="desdePicker"></mat-datepicker-toggle>
+          <mat-datepicker #desdePicker></mat-datepicker>
+        </mat-form-field>
+      </div>
+
+      <div class="date-field">
+        <label>Hasta:</label>
+        <mat-form-field appearance="outline" class="date-field__control">
+          <input
+            matInput
+            [matDatepicker]="hastaPicker"
+            [value]="filtroHasta"
+            (dateChange)="cambiarFiltroHasta($event.value)"
+          >
+          <mat-datepicker-toggle matSuffix [for]="hastaPicker"></mat-datepicker-toggle>
+          <mat-datepicker #hastaPicker></mat-datepicker>
+        </mat-form-field>
+      </div>
+
+      <div class="date-field date-field--action">
+        <button type="button" class="btn-orange btn-search">Buscar</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn-orange" (click)="abrirObservacionesPlaneadas()">+ Nueva observación planeada</button>
+      <button type="button" class="btn-orange">Excel General</button>
+      <button type="button" class="btn-orange">Excel Específico</button>
+    </div>
+
+    <div class="content-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar__length">
+          Mostrar
+          <select
+            [value]="registrosPorPagina"
+            (change)="cambiarRegistrosPorPagina($any($event.target).value)">
+            <option *ngFor="let cantidad of opcionesRegistros" [value]="cantidad">
+              {{ cantidad === 0 ? 'Todos' : cantidad }}
+            </option>
+          </select>
+        </div>
+
+        <label class="table-toolbar__search">
+          Buscar:
+          <input
+            type="text"
+            [value]="busquedaGeneral"
+            (input)="cambiarBusqueda($any($event.target).value)"
+          >
+        </label>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="styled-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nro</th>
+              <th>Observador</th>
+              <th>Supervisor</th>
+              <th>Área Sup.</th>
+              <th>Cliente</th>
+              <th>Subestación</th>
+              <th>Motivo</th>
+              <th>Motivo Det.</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngIf="cargandoObservacionesPlaneadas">
+              <td colspan="10" class="table-empty">Cargando registros...</td>
+            </tr>
+
+            <tr *ngFor="let obs of observacionesPaginadas">
+              <td>{{ obs.Observacion_Id }}</td>
+              <td>{{ obs.Codigo_Obs || '-' }}</td>
+              <td>{{ obs.Usr_Nom || '-' }}</td>
+              <td>{{ obs.Jef_Nombre || '-' }}</td>
+              <td>{{ obs.Cen_Cos_Des || '-' }}</td>
+              <td>{{ obs.Cliente_Nombre || '-' }}</td>
+              <td>{{ obs.Subestacion_Nombre || '-' }}</td>
+              <td>{{ obs.Motivo_Nombre || '-' }}</td>
+              <td>{{ obs.Obs_Detalle || '-' }}</td>
+              <td class="td-acciones">
+                <button type="button" class="btn-accion btn-detalle">Detalle</button>
+                <button type="button" class="btn-accion btn-eliminar">Eliminar</button>
+              </td>
+            </tr>
+
+            <tr *ngIf="!cargandoObservacionesPlaneadas && observacionesPaginadas.length === 0">
+              <td colspan="10" class="table-empty">No se encontró ningún registro</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer">
+        <span>Mostrando del {{ desdeMostrado }} al {{ hastaMostrado }} de {{ totalFiltrados }} registros</span>
+        <div class="table-pagination">
+          <button type="button">Anterior</button>
+          <button type="button">Siguiente</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</ng-container>
+
+<ng-template #vistaObservaciones>
+  <app-observaciones-planeadas (volver)="volverAInspecciones()"></app-observaciones-planeadas>
+</ng-template>

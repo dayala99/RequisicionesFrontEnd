@@ -21,6 +21,7 @@ import { SubGrupoItemPageComponent } from './pages/sub-grupo-item-page/sub-grupo
 import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
+import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
 
 const routes: Routes = [
   {
@@ -97,6 +98,10 @@ const routes: Routes = [
       {
         path: 'almacen',
         component: AlmacenPageComponent
+      },
+      {
+        path: 'inspecciones',
+        component: InspeccionesPageComponent
       },
       {
         path: 'requisicion',
