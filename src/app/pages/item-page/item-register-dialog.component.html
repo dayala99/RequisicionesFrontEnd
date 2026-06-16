@@ -18,10 +18,31 @@
       </mat-select>
     </label>
     <label class="item-dialog__field"><span>Descripcion</span><input type="text" formControlName="itmDes" maxlength="120"></label>
+    <label class="item-dialog__field"><span>Unidad de Medida</span>
+      <mat-select
+        formControlName="uniMedId"
+        [placeholder]="isLoadingUnidades ? 'Cargando unidades...' : 'Seleccionar unidad de medida'"
+        [disabled]="isLoadingUnidades"
+        (openedChange)="onUnidadSelectOpened($event)">
+        <mat-option>
+          <input
+            type="text"
+            class="mat-select-search"
+            placeholder="Buscar unidad..."
+            [formControl]="unidadSearchControl"
+            (click)="$event.stopPropagation()"
+            (keydown)="$event.stopPropagation()">
+        </mat-option>
+        <mat-option *ngFor="let unidad of filteredUnidadesMedida; trackBy: trackByOption" [value]="unidad.id">
+          {{ unidad.descripcion }}
+        </mat-option>
+        <mat-option *ngIf="!filteredUnidadesMedida.length" disabled>No hay unidades activas.</mat-option>
+      </mat-select>
+    </label>
     <p *ngIf="errorMessage" class="item-dialog__error">{{ errorMessage }}</p>
   </mat-dialog-content>
   <mat-dialog-actions align="end" class="item-dialog__actions">
     <button mat-stroked-button type="button" (click)="cerrar()" [disabled]="isSaving">Cerrar</button>
-    <button mat-flat-button color="primary" type="submit" [disabled]="isSaving || isLoadingGroups || isLoadingSubGroups || isLoadingDetalles">{{ isSaving ? 'Confirmando...' : 'Confirmar' }}</button>
+    <button mat-flat-button color="primary" type="submit" [disabled]="isSaving || isLoadingGroups || isLoadingSubGroups || isLoadingDetalles || isLoadingUnidades">{{ isSaving ? 'Confirmando...' : 'Confirmar' }}</button>
   </mat-dialog-actions>
 </form>

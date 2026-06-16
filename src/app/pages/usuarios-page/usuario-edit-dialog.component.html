@@ -25,6 +25,13 @@
     </label>
 
     <label class="usuario-edit__field">
+      <span>Correo</span>
+      <input type="email" formControlName="usrCorr">
+      <small class="usuario-edit__error" *ngIf="form.controls['usrCorr'].touched && (form.controls['usrCorr'].hasError('required') || form.controls['usrCorr'].hasError('whitespace'))">Campo Correo obligatorio.</small>
+      <small class="usuario-edit__error" *ngIf="form.controls['usrCorr'].touched && form.controls['usrCorr'].hasError('email')">Ingresa un correo valido.</small>
+    </label>
+
+    <label class="usuario-edit__field">
       <span>Numero de documento</span>
       <input type="text" formControlName="usrDocNro">
       <small class="usuario-edit__error" *ngIf="form.controls['usrDocNro'].touched && (form.controls['usrDocNro'].hasError('required') || form.controls['usrDocNro'].hasError('whitespace'))">Campo Numero de documento obligatorio.</small>
@@ -39,11 +46,50 @@
 
     <label class="usuario-edit__field">
       <span>Centro de costo</span>
-      <select formControlName="usrCenCosId" [disabled]="isLoadingCentrosCosto">
-        <option [ngValue]="0">{{ isLoadingCentrosCosto ? 'Cargando centros de costo...' : 'Seleccionar centro de costo' }}</option>
-        <option *ngFor="let option of centroCostoOptions" [ngValue]="option.id">{{ option.descripcion }}</option>
-      </select>
+      <mat-form-field appearance="outline" class="usuario-edit__mat-select">
+        <mat-select
+          formControlName="usrCenCosId"
+          [disabled]="isLoadingCentrosCosto"
+          (openedChange)="onCentroCostoSelectOpened($event)">
+          <mat-option class="usuario-edit__search-option" disabled>
+            <input
+              type="text"
+              placeholder="Buscar centro de costo"
+              [formControl]="centroCostoSearchControl"
+              (click)="$event.stopPropagation()"
+              (keydown)="$event.stopPropagation()">
+          </mat-option>
+          <mat-option [value]="0">{{ isLoadingCentrosCosto ? 'Cargando centros de costo...' : 'Seleccionar centro de costo' }}</mat-option>
+          <mat-option *ngFor="let option of filteredCentroCostoOptions" [value]="option.id">{{ option.descripcion }}</mat-option>
+          <mat-option *ngIf="!filteredCentroCostoOptions.length && !isLoadingCentrosCosto" disabled>No hay centros de costo activos.</mat-option>
+        </mat-select>
+      </mat-form-field>
       <small class="usuario-edit__error" *ngIf="form.controls['usrCenCosId'].touched && form.controls['usrCenCosId'].hasError('min')">Campo Centro de costo obligatorio.</small>
+    </label>
+
+    <label class="usuario-edit__field">
+      <span>Perfil</span>
+      <mat-form-field appearance="outline" class="usuario-edit__mat-select">
+        <mat-select
+          formControlName="usrPrf"
+          [disabled]="isLoadingPerfiles"
+          (openedChange)="onPerfilSelectOpened($event)">
+          <mat-option class="usuario-edit__search-option" disabled>
+            <input
+              type="text"
+              placeholder="Buscar perfil"
+              [formControl]="perfilSearchControl"
+              (click)="$event.stopPropagation()"
+              (keydown)="$event.stopPropagation()">
+          </mat-option>
+          <mat-option value="">{{ isLoadingPerfiles ? 'Cargando perfiles...' : 'Seleccionar perfil' }}</mat-option>
+          <mat-option *ngFor="let perfil of filteredPerfilOptions" [value]="perfil.codigo">
+            {{ perfil.descripcion }}
+          </mat-option>
+          <mat-option *ngIf="!filteredPerfilOptions.length && !isLoadingPerfiles" disabled>No hay perfiles activos.</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <small class="usuario-edit__error" *ngIf="form.controls['usrPrf'].touched && (form.controls['usrPrf'].hasError('required') || form.controls['usrPrf'].hasError('whitespace'))">Campo Perfil obligatorio.</small>
     </label>
 
     <label class="usuario-edit__field">

@@ -30,6 +30,9 @@ import { CentroCostosPageComponent } from './pages/centro-costos-page/centro-cos
 import { DetraccionEditDialogComponent } from './pages/detraccion-page/detraccion-edit-dialog.component';
 import { DetraccionPageComponent } from './pages/detraccion-page/detraccion-page.component';
 import { DetraccionRegisterDialogComponent } from './pages/detraccion-page/detraccion-register-dialog.component';
+import { DireccionEntregaEditDialogComponent } from './pages/direccion-entrega-page/direccion-entrega-edit-dialog.component';
+import { DireccionEntregaPageComponent } from './pages/direccion-entrega-page/direccion-entrega-page.component';
+import { DireccionEntregaRegisterDialogComponent } from './pages/direccion-entrega-page/direccion-entrega-register-dialog.component';
 import { FormaPagoEditDialogComponent } from './pages/forma-pago-page/forma-pago-edit-dialog.component';
 import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.component';
 import { FormaPagoRegisterDialogComponent } from './pages/forma-pago-page/forma-pago-register-dialog.component';
@@ -48,17 +51,21 @@ import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
 import { MonedaRegisterDialogComponent } from './pages/moneda-page/moneda-register-dialog.component';
 import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra-page.component';
 import { OrdenCompraParcialDialogComponent } from './pages/orden-compra-page/orden-compra-parcial-dialog.component';
+import { PerfilAccesosDialogComponent } from './pages/perfil-page/perfil-accesos-dialog.component';
+import { PerfilPageComponent } from './pages/perfil-page/perfil-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
 import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
 import { ApprovalUserSelectorDialogComponent } from './pages/requisiciones-page/approval-user-selector-dialog.component';
 import { CentroCostoSelectorDialogComponent } from './pages/requisiciones-page/centro-costo-selector-dialog.component';
+import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page.component';
 import { PedidoApprovalDialogComponent } from './pages/requisiciones-page/pedido-approval-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pages/requisiciones-page/pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent } from './pages/requisiciones-page/pedido-detalle-dialog.component';
 import { PedidoDetalleItemSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-item-selector-dialog.component';
 import { PedidoDetalleUnidadSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-unidad-selector-dialog.component';
+import { PedidoRechazoDialogComponent } from './pages/requisiciones-page/pedido-rechazo-dialog.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { SubGrupoItemEditDialogComponent } from './pages/sub-grupo-item-page/sub-grupo-item-edit-dialog.component';
 import { SubGrupoItemPageComponent } from './pages/sub-grupo-item-page/sub-grupo-item-page.component';
@@ -103,6 +110,9 @@ const APP_DATE_FORMATS = {
     CentroCostosPageComponent,
     CentroCostoRegisterDialogComponent,
     CentroCostoEditDialogComponent,
+    DireccionEntregaPageComponent,
+    DireccionEntregaRegisterDialogComponent,
+    DireccionEntregaEditDialogComponent,
     DetraccionPageComponent,
     DetraccionRegisterDialogComponent,
     DetraccionEditDialogComponent,
@@ -111,6 +121,8 @@ const APP_DATE_FORMATS = {
     MonedaEditDialogComponent,
     OrdenCompraPageComponent,
     OrdenCompraParcialDialogComponent,
+    PerfilAccesosDialogComponent,
+    PerfilPageComponent,
     FormaPagoPageComponent,
     FormaPagoRegisterDialogComponent,
     FormaPagoEditDialogComponent,
@@ -141,7 +153,9 @@ const APP_DATE_FORMATS = {
     PedidoDetalleDialogComponent,
     PedidoDetalleItemSelectorDialogComponent,
     PedidoDetalleUnidadSelectorDialogComponent,
+    PedidoRechazoDialogComponent,
     RequisicionesPageComponent,
+    PedidosBPageComponent,
     TipoServicioPageComponent,
     TipoServicioRegisterDialogComponent,
     TipoServicioEditDialogComponent,

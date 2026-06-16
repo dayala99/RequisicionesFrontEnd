@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { ApiService, RegistrarItemRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
@@ -16,13 +16,16 @@ interface Option { id: number; descripcion: string; }
 })
 export class ItemRegisterDialogComponent {
   readonly form: FormGroup;
+  readonly unidadSearchControl = new FormControl('', { nonNullable: true });
   grupos: Option[] = [];
   subGrupos: Option[] = [];
   detallesMaterial: Option[] = [];
+  unidadesMedida: Option[] = [];
   isSaving = false;
   isLoadingGroups = true;
   isLoadingSubGroups = false;
   isLoadingDetalles = false;
+  isLoadingUnidades = true;
   errorMessage = '';
 
   constructor(private dialogRef: MatDialogRef<ItemRegisterDialogComponent>, fb: FormBuilder, private api: ApiService, private auth: AuthService) {
@@ -30,9 +33,22 @@ export class ItemRegisterDialogComponent {
       itmDes: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(120)]],
       itmGrp: [null, Validators.required],
       itmSubGrp: [null, Validators.required],
-      itmDetMat: [null, Validators.required]
+      itmDetMat: [null, Validators.required],
+      uniMedId: [null, Validators.required]
     });
     this.cargarGrupos();
+    this.cargarUnidadesMedida();
+  }
+
+  get filteredUnidadesMedida(): Option[] {
+    const search = this.unidadSearchControl.value.trim().toLowerCase();
+    if (!search) {
+      return this.unidadesMedida;
+    }
+
+    return this.unidadesMedida.filter((unidad) =>
+      String(unidad.id).includes(search) || unidad.descripcion.toLowerCase().includes(search)
+    );
   }
 
   onGrupoChange(): void {
@@ -67,6 +83,7 @@ export class ItemRegisterDialogComponent {
       Itm_Grp: Number(this.form.value.itmGrp),
       Itm_Sub_Grp: Number(this.form.value.itmSubGrp),
       Itm_Det_Mat_Id: Number(this.form.value.itmDetMat),
+      Uni_Med_Id: Number(this.form.value.uniMedId),
       Usr_Reg: this.auth.getCurrentUser() || 'sistemas'
     };
     this.api.registrarItem(payload).subscribe({
@@ -76,10 +93,32 @@ export class ItemRegisterDialogComponent {
   }
   cerrar(): void { if (!this.isSaving) this.dialogRef.close(false); }
 
+  onUnidadSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.unidadSearchControl.setValue('');
+    }
+  }
+
+  trackByOption(_index: number, option: Option): number {
+    return option.id;
+  }
+
   private cargarGrupos(): void {
     this.api.getListarGrupoItem({ Flg_Est: 'A' }).subscribe({
       next: (r) => { this.grupos = this.mapOptions(r, ['Grp_Id','grp_Id','grpId'], ['Grp_Des','grp_Des','grpDes']); this.isLoadingGroups = false; },
       error: () => { this.errorMessage = 'No se pudo cargar la lista de grupos.'; this.isLoadingGroups = false; }
+    });
+  }
+  private cargarUnidadesMedida(): void {
+    this.api.getListarUnidadMedida({ Flg_Est: 'A' }).subscribe({
+      next: (r) => {
+        this.unidadesMedida = this.mapOptions(r, ['Uni_Med_Id','uni_Med_Id','uniMedId'], ['Uni_Med_Des','uni_Med_Des','uniMedDes']);
+        this.isLoadingUnidades = false;
+      },
+      error: () => {
+        this.errorMessage = 'No se pudo cargar la lista de unidades de medida.';
+        this.isLoadingUnidades = false;
+      }
     });
   }
   private mapOptions(r: unknown, ids: string[], descriptions: string[]): Option[] {

@@ -1,5 +1,5 @@
 import { Component, Inject } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 
 import { CentroCostoOption } from './centro-costo-selector-dialog.component';
@@ -13,6 +13,8 @@ export interface PedidoDetalleDialogData {
   moneda: string;
   cantidadDisponible: number;
   isEditing: boolean;
+  omitirCentroCosto?: boolean;
+  modoPedidoB?: boolean;
   centrosCosto: CentroCostoOption[];
   items: PedidoDetalleItemOption[];
   units: PedidoDetalleUnidadOption[];
@@ -26,6 +28,9 @@ export interface PedidoDetalleDialogData {
 })
 export class PedidoDetalleDialogComponent {
   readonly form: FormGroup;
+  readonly itemSearchControl = new FormControl('', { nonNullable: true });
+  readonly unitSearchControl = new FormControl('', { nonNullable: true });
+  readonly centroCostoSearchControl = new FormControl('', { nonNullable: true });
   errorMessage = '';
 
   constructor(
@@ -55,6 +60,12 @@ export class PedidoDetalleDialogComponent {
     return this.normalizeDecimal(quantity * unitPrice);
   }
 
+  get pedidoBCostoTotal(): number {
+    const quantity = this.normalizeDecimal(Number(this.form.controls['quantity'].value));
+    const unitPrice = this.normalizeMoney(Number(this.form.controls['unitPrice'].value));
+    return this.normalizeMoney(quantity * unitPrice);
+  }
+
   get itemButtonLabel(): string {
     return String(this.form.controls['itemCode'].value ?? '').trim() || 'Seleccionar item';
   }
@@ -69,6 +80,57 @@ export class PedidoDetalleDialogComponent {
     return unitCode;
   }
 
+  get filteredItems(): PedidoDetalleItemOption[] {
+    const search = this.itemSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.data.items;
+    }
+
+    return this.data.items.filter((item) =>
+      [
+        item.code,
+        item.description,
+        item.groupDescription,
+        item.unitDescription,
+        item.unitCode,
+        String(item.unitId ?? '')
+      ].some((value) => String(value || '').toLowerCase().includes(search))
+    );
+  }
+
+  get filteredUnits(): PedidoDetalleUnidadOption[] {
+    const search = this.unitSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.data.units;
+    }
+
+    return this.data.units.filter((unit) =>
+      [
+        unit.code,
+        unit.description,
+        unit.abbreviation,
+        String(unit.id)
+      ].some((value) => String(value || '').toLowerCase().includes(search))
+    );
+  }
+
+  get filteredCentrosCosto(): CentroCostoOption[] {
+    const search = this.centroCostoSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.data.centrosCosto;
+    }
+
+    return this.data.centrosCosto.filter((centroCosto) =>
+      [
+        String(centroCosto.id),
+        centroCosto.descripcion
+      ].some((value) => String(value || '').toLowerCase().includes(search))
+    );
+  }
+
   formatNumber(value: number): string {
     return new Intl.NumberFormat('es-PE', {
       minimumFractionDigits: 0,
@@ -76,7 +138,18 @@ export class PedidoDetalleDialogComponent {
     }).format(value);
   }
 
+  formatMoney(value: number): string {
+    return new Intl.NumberFormat('es-PE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  }
+
   get cantidadRestanteCentroCosto(): number {
+    if (this.data.omitirCentroCosto) {
+      return this.data.cantidadDisponible;
+    }
+
     return this.normalizeDecimal(Number(this.form.controls['centroCostoCantidadRequerida'].value ?? 0));
   }
 
@@ -98,12 +171,80 @@ export class PedidoDetalleDialogComponent {
         return;
       }
 
-      this.form.patchValue({
+      const selectedValues: Partial<PedidoDetalleDialogValue> = {
         itemCode: selectedItem.code,
         itemDescription: selectedItem.description
-      });
+      };
+
+      if (this.data.modoPedidoB) {
+        selectedValues.unitCode = selectedItem.unitCode || String(selectedItem.unitId ?? '').trim();
+        selectedValues.unitDescription = selectedItem.unitDescription || '';
+      }
+
+      this.form.patchValue(selectedValues);
       this.errorMessage = '';
     });
+  }
+
+  onItemSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.itemSearchControl.setValue('');
+    }
+  }
+
+  onUnitSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.unitSearchControl.setValue('');
+    }
+  }
+
+  onCentroCostoSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.centroCostoSearchControl.setValue('');
+    }
+  }
+
+  onItemChange(itemCode: string): void {
+    const selectedItem = this.data.items.find((item) => item.code === String(itemCode || '').trim());
+
+    if (!selectedItem) {
+      this.form.patchValue({
+        itemCode: '',
+        itemDescription: ''
+      });
+      return;
+    }
+
+    const selectedValues: Partial<PedidoDetalleDialogValue> = {
+      itemCode: selectedItem.code,
+      itemDescription: selectedItem.description
+    };
+
+    if (this.data.modoPedidoB) {
+      selectedValues.unitCode = selectedItem.unitCode || String(selectedItem.unitId ?? '').trim();
+      selectedValues.unitDescription = selectedItem.unitDescription || '';
+    }
+
+    this.form.patchValue(selectedValues);
+    this.errorMessage = '';
+  }
+
+  onUnitChange(unitCode: string): void {
+    const selectedUnit = this.data.units.find((unit) => unit.code === String(unitCode || '').trim());
+
+    if (!selectedUnit) {
+      this.form.patchValue({
+        unitCode: '',
+        unitDescription: ''
+      });
+      return;
+    }
+
+    this.form.patchValue({
+      unitCode: selectedUnit.code,
+      unitDescription: selectedUnit.description
+    });
+    this.errorMessage = '';
   }
 
   openUnitSelectorDialog(): void {
@@ -146,6 +287,21 @@ export class PedidoDetalleDialogComponent {
     this.errorMessage = '';
   }
 
+  onCostoInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const normalizedValue = this.limitToTwoDecimals(input.value);
+
+    if (normalizedValue !== input.value) {
+      input.value = normalizedValue;
+      this.form.controls['unitPrice'].setValue(normalizedValue, { emitEvent: false });
+    }
+  }
+
   save(): void {
     const itemCode = String(this.form.controls['itemCode'].value ?? '').trim();
     const itemDescription = String(this.form.controls['itemDescription'].value ?? '').trim();
@@ -157,7 +313,10 @@ export class PedidoDetalleDialogComponent {
       || String(this.form.controls['centroCostoDescripcion'].value ?? '').trim();
     const centroCostoCantidadRequerida = this.normalizeDecimal(Number(centroCostoSeleccionado?.cantidadRequerida ?? this.form.controls['centroCostoCantidadRequerida'].value ?? 0));
     const quantity = this.normalizeDecimal(Number(this.form.controls['quantity'].value));
-    const unitPrice = this.normalizeDecimal(Number(this.form.controls['unitPrice'].value));
+    const unitPriceRaw = String(this.form.controls['unitPrice'].value ?? '').trim();
+    const unitPrice = this.data.modoPedidoB
+      ? this.normalizeMoney(Number(unitPriceRaw))
+      : this.normalizeDecimal(Number(this.form.controls['unitPrice'].value));
 
     if (!itemCode) {
       this.errorMessage = 'Selecciona un item.';
@@ -169,17 +328,22 @@ export class PedidoDetalleDialogComponent {
       return;
     }
 
-    if (!this.data.isEditing && !this.data.centrosCosto.length) {
+    if (!this.data.omitirCentroCosto && !this.data.isEditing && !this.data.centrosCosto.length) {
       this.errorMessage = 'No hay centros de costo ligados al pedido seleccionado.';
       return;
     }
 
-    if (!this.data.isEditing && (!Number.isInteger(centroCostoId) || centroCostoId <= 0)) {
+    if (this.data.modoPedidoB && (!Number.isInteger(centroCostoId) || centroCostoId <= 0)) {
+      this.errorMessage = 'Selecciona un centro de costo.';
+      return;
+    }
+
+    if (!this.data.modoPedidoB && !this.data.omitirCentroCosto && !this.data.isEditing && (!Number.isInteger(centroCostoId) || centroCostoId <= 0)) {
       this.errorMessage = 'Selecciona un centro de costo ligado al pedido.';
       return;
     }
 
-    if (!this.data.isEditing && centroCostoCantidadRequerida <= 0) {
+    if (!this.data.modoPedidoB && !this.data.omitirCentroCosto && !this.data.isEditing && centroCostoCantidadRequerida <= 0) {
       this.errorMessage = 'El centro de costo seleccionado no tiene cantidad restante disponible.';
       return;
     }
@@ -189,13 +353,39 @@ export class PedidoDetalleDialogComponent {
       return;
     }
 
-    if (!this.data.isEditing && quantity > centroCostoCantidadRequerida) {
+    if (!this.data.modoPedidoB && !this.data.omitirCentroCosto && !this.data.isEditing && quantity > centroCostoCantidadRequerida) {
       this.errorMessage = `La cantidad no puede ser mayor a la cantidad restante del centro de costo: ${this.formatNumber(centroCostoCantidadRequerida)}.`;
       return;
     }
 
     if (quantity > this.data.cantidadDisponible) {
       this.errorMessage = `La cantidad no puede ser mayor a ${this.formatNumber(this.data.cantidadDisponible)}.`;
+      return;
+    }
+
+    if (this.data.modoPedidoB) {
+      if (!this.isMoneyWithMaxTwoDecimals(unitPriceRaw)) {
+        this.errorMessage = 'El campo Costo debe tener como maximo 2 decimales.';
+        return;
+      }
+
+      if (unitPrice < 0) {
+        this.errorMessage = 'El costo no puede ser menor a cero.';
+        return;
+      }
+
+      this.dialogRef.close({
+        itemCode,
+        itemDescription,
+        unitCode,
+        unitDescription,
+        centroCostoId,
+        centroCostoDescripcion,
+        centroCostoCantidadRequerida,
+        quantity,
+        unitPrice,
+        subtotal: this.normalizeMoney(quantity * unitPrice)
+      } as PedidoDetalleDialogValue);
       return;
     }
 
@@ -269,5 +459,27 @@ export class PedidoDetalleDialogComponent {
     }
 
     return Number(value.toFixed(3));
+  }
+
+  private normalizeMoney(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+
+    return Number(value.toFixed(2));
+  }
+
+  private isMoneyWithMaxTwoDecimals(value: string): boolean {
+    return /^\d+(\.\d{1,2})?$/.test(value);
+  }
+
+  private limitToTwoDecimals(value: string): string {
+    const [integerPart, decimalPart] = value.split('.');
+
+    if (decimalPart === undefined) {
+      return value;
+    }
+
+    return `${integerPart}.${decimalPart.slice(0, 2)}`;
   }
 }

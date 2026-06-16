@@ -72,7 +72,7 @@
 }
 
 .filters-panel {
-  grid-template-columns: minmax(10rem, 0.8fr) minmax(16rem, 1.5fr) minmax(10rem, 0.8fr) auto;
+  grid-template-columns: minmax(10rem, 16rem) auto minmax(16rem, 1.5fr) minmax(10rem, 0.8fr) auto;
   align-items: end;
 }
 
@@ -113,12 +113,15 @@
 }
 
 .field--list-mode {
-  grid-column: 1 / -1;
   max-width: 16rem;
 }
 
 .field--list-mode select {
   width: 100%;
+}
+
+.orden-compra-listing-new {
+  min-width: 6rem;
 }
 
 .field--provider-wide {
@@ -145,6 +148,7 @@
 .field input,
 .field select,
 .field textarea,
+.forma-pago-select,
 .detraccion-select {
   min-height: 3rem;
   padding: 0.7rem 0.85rem;
@@ -163,6 +167,7 @@
 .field input:focus,
 .field select:focus,
 .field textarea:focus,
+.forma-pago-select:focus,
 .detraccion-select:focus,
 .selector-code-button:focus {
   outline: none;
@@ -170,16 +175,19 @@
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
+.forma-pago-select,
 .detraccion-select {
   display: flex;
   align-items: center;
 }
 
+.select-search-option,
 .detraccion-search-option {
   height: auto;
   padding: 0.45rem 0.65rem;
 }
 
+.select-search-input,
 .detraccion-search-input {
   width: 100%;
   min-height: 2.5rem;
@@ -192,22 +200,30 @@
   outline: none;
 }
 
+.select-search-input:focus,
 .detraccion-search-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
 }
 
 .input--readonly {
-  background: #eef1f4;
-  color: var(--text-secondary);
+  background: #e2e6ea;
+  color: var(--text-primary);
   cursor: default;
   pointer-events: none;
 }
 
 .input--readonly:disabled {
-  border-color: var(--line-soft);
+  border-color: #c7cdd4;
   opacity: 1;
-  -webkit-text-fill-color: var(--text-secondary);
+  -webkit-text-fill-color: var(--text-primary);
+}
+
+.field input.input--autofilled-provider {
+  border-color: #aeb6c1;
+  background: #d0d5dc;
+  color: var(--text-primary);
+  -webkit-text-fill-color: var(--text-primary);
 }
 
 .selector-code-button {
@@ -443,6 +459,12 @@
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);
+}
+
+.detalle-pedido-table__input--amount {
+  min-width: 7rem;
+  max-width: 8rem;
+  text-align: right;
 }
 
 .empty-row {

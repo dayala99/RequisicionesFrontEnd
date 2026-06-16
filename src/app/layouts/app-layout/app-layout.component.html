@@ -48,7 +48,7 @@
 
     <nav class="sidebar_menu">
       <a
-        *ngFor="let item of menuItems"
+        *ngFor="let item of visibleMenuItems"
         [routerLink]="item.route"
         [routerLinkActiveOptions]="{ exact: item.route === '/' }"
         routerLinkActive="active"
@@ -57,7 +57,7 @@
         {{ item.label }}
       </a>
 
-      <div class="sidebar_group" [class.sidebar_group--open]="processOpen">
+      <div class="sidebar_group" *ngIf="visibleProcessItems.length" [class.sidebar_group--open]="processOpen">
         <button
           type="button"
           class="sidebar_group_toggle"
@@ -71,7 +71,7 @@
         <div class="sidebar_group_links" [class.sidebar_group_links--open]="processOpen">
           <div class="sidebar_group_links_inner">
             <a
-              *ngFor="let item of processItems"
+              *ngFor="let item of visibleProcessItems"
               [routerLink]="item.route"
               routerLinkActive="active"
               class="sidebar_link sidebar_link--nested"
@@ -81,7 +81,7 @@
                 <span
                   *ngIf="getProcessNotificationCount(item) > 0"
                   class="sidebar_notification_badge"
-                  [attr.aria-label]="getProcessNotificationCount(item) + ' pedidos pendientes por aprobar'">
+                  [attr.aria-label]="getProcessNotificationCount(item) + ' notificaciones pendientes'">
                   {{ getProcessNotificationCount(item) }}
                 </span>
               </span>
@@ -90,7 +90,7 @@
         </div>
       </div>
 
-      <div class="sidebar_group" [class.sidebar_group--open]="maintenanceOpen">
+      <div class="sidebar_group" *ngIf="visibleMaintenanceItems.length" [class.sidebar_group--open]="maintenanceOpen">
         <button
           type="button"
           class="sidebar_group_toggle"
@@ -104,7 +104,7 @@
         <div class="sidebar_group_links" [class.sidebar_group_links--open]="maintenanceOpen">
           <div class="sidebar_group_links_inner">
             <a
-              *ngFor="let item of maintenanceItems"
+              *ngFor="let item of visibleMaintenanceItems"
               [routerLink]="item.route"
               routerLinkActive="active"
               class="sidebar_link sidebar_link--nested"
@@ -122,6 +122,60 @@
   </aside>
 
   <section class="content">
+    <div class="top-notifications">
+      <button
+        type="button"
+        class="notification-bell"
+        [class.notification-bell--active]="notificationsOpen"
+        [class.notification-bell--ringing]="notificationBellRinging || totalNotifications > 0"
+        [attr.aria-expanded]="notificationsOpen"
+        aria-label="Ver notificaciones"
+        (click)="toggleNotifications()">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 0 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2z"/>
+        </svg>
+        <span *ngIf="totalNotifications > 0" class="notification-bell__badge">{{ totalNotifications }}</span>
+      </button>
+
+      <div *ngIf="notificationsOpen" class="notification-panel">
+        <header class="notification-panel__header">
+          <h3>Notificaciones</h3>
+          <button type="button" class="notification-panel__close" aria-label="Cerrar notificaciones" (click)="closeNotifications()">x</button>
+        </header>
+
+        <button
+          *ngIf="pedidosPendientesAprobacion > 0"
+          type="button"
+          class="notification-item"
+          (click)="goToPendingApprovals()">
+          <span class="notification-item__title">Pedidos pendientes por aprobar</span>
+          <span class="notification-item__meta">{{ pedidosPendientesAprobacion }} pendiente{{ pedidosPendientesAprobacion === 1 ? '' : 's' }}</span>
+        </button>
+
+        <button
+          *ngIf="pedidosPendientesOrdenCompra > 0"
+          type="button"
+          class="notification-item"
+          (click)="goToPendingPurchaseOrders()">
+          <span class="notification-item__title">Ordenes de compra pendientes por generar</span>
+          <span class="notification-item__meta">{{ pedidosPendientesOrdenCompra }} pendiente{{ pedidosPendientesOrdenCompra === 1 ? '' : 's' }}</span>
+        </button>
+
+        <button
+          *ngIf="ordenesCompraPendientesAlmacen > 0"
+          type="button"
+          class="notification-item"
+          (click)="goToPendingWarehouseEntries()">
+          <span class="notification-item__title">Ingresos de almacen pendientes</span>
+          <span class="notification-item__meta">{{ ordenesCompraPendientesAlmacen }} pendiente{{ ordenesCompraPendientesAlmacen === 1 ? '' : 's' }}</span>
+        </button>
+
+        <p *ngIf="totalNotifications === 0" class="notification-panel__empty">
+          No tienes notificaciones pendientes.
+        </p>
+      </div>
+    </div>
+
     <section class="shell__content">
       <router-outlet></router-outlet>
     </section>

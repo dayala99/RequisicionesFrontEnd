@@ -355,3 +355,48 @@ app-requisiciones-page .pedido-detalle-table__row--selected {
   }
 
 }
+
+@media screen and (min-width: 961px) {
+  .banco-card__create,
+  .usuarios-card__create,
+  .direccion-entrega-card__create,
+  .forma-pago-card__create,
+  .centro-costo-card__create,
+  .moneda-card__create,
+  .detraccion-card__create,
+  .unidad-medida-card__create,
+  .providers-card__create,
+  .item-card__create,
+  .tipo-servicio-card__create,
+  .sub-grupo-item-card__create,
+  .grupo-item-card__create {
+    min-height: 2.75rem;
+    margin-top: 3.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    background: var(--accent);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+  }
+
+  .banco-card__create:disabled,
+  .usuarios-card__create:disabled,
+  .direccion-entrega-card__create:disabled,
+  .forma-pago-card__create:disabled,
+  .centro-costo-card__create:disabled,
+  .moneda-card__create:disabled,
+  .detraccion-card__create:disabled,
+  .unidad-medida-card__create:disabled,
+  .providers-card__create:disabled,
+  .item-card__create:disabled,
+  .tipo-servicio-card__create:disabled,
+  .sub-grupo-item-card__create:disabled,
+  .grupo-item-card__create:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}

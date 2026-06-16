@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, CanActivateChild, Router, UrlTree } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivate, CanActivateChild, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
 
 import { AuthService } from '../services/auth.service';
 
@@ -12,11 +12,23 @@ export class AuthGuard implements CanActivate, CanActivateChild {
     private readonly router: Router
   ) {}
 
-  canActivate(): boolean | UrlTree {
-    return this.authService.isAuthenticated() ? true : this.router.createUrlTree(['/login']);
+  canActivate(_route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean | UrlTree {
+    return this.canAccess(state.url);
   }
 
-  canActivateChild(): boolean | UrlTree {
-    return this.canActivate();
+  canActivateChild(_route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean | UrlTree {
+    return this.canAccess(state.url);
+  }
+
+  private canAccess(url: string): boolean | UrlTree {
+    if (!this.authService.isAuthenticated()) {
+      return this.router.createUrlTree(['/login']);
+    }
+
+    if (this.authService.hasAccessToRoute(url)) {
+      return true;
+    }
+
+    return this.router.createUrlTree(['/']);
   }
 }

@@ -21,8 +21,6 @@ import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ProviderRecord } from 'src/app/features/provider-form/provider-form.models';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { formatDateRequestValue, formatDisplayDate } from 'src/app/shared/utils/date.utils';
-import { PedidoDetalleItemSelectorDialogComponent } from '../requisiciones-page/pedido-detalle-item-selector-dialog.component';
-import { PedidoDetalleUnidadSelectorDialogComponent } from '../requisiciones-page/pedido-detalle-unidad-selector-dialog.component';
 import { PedidoDetalleItemOption, PedidoDetalleUnidadOption } from '../requisiciones-page/pedido-detalle-dialog.models';
 
 type DataRecord = Record<string, unknown>;
@@ -132,6 +130,8 @@ export class AlmacenPageComponent implements OnInit {
   readonly proveedorSearchControl = new FormControl('', { nonNullable: true });
   readonly centroCostoSearchControl = new FormControl('', { nonNullable: true });
   readonly centrosCostoMaterialSearchControl = new FormControl('', { nonNullable: true });
+  readonly materialSearchControl = new FormControl('', { nonNullable: true });
+  readonly unidadSearchControl = new FormControl('', { nonNullable: true });
   readonly listadoControl = new FormControl<'P' | 'I'>('P', { nonNullable: true });
 
   almacenes: AlmacenRow[] = [];
@@ -275,6 +275,31 @@ export class AlmacenPageComponent implements OnInit {
     );
   }
 
+  get filteredMaterialOptions(): PedidoDetalleItemOption[] {
+    const search = this.materialSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.itemOptions;
+    }
+
+    return this.itemOptions.filter((item) =>
+      [item.description, item.code, item.groupDescription, item.unitDescription || '']
+        .some((value) => value.toLowerCase().includes(search))
+    );
+  }
+
+  get filteredUnidadOptions(): PedidoDetalleUnidadOption[] {
+    const search = this.unidadSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.unidadOptions;
+    }
+
+    return this.unidadOptions.filter((item) =>
+      [item.description, item.abbreviation, item.code].some((value) => value.toLowerCase().includes(search))
+    );
+  }
+
   get filteredCentrosCostoMaterialOptions(): AlmacenCentroCostoOption[] {
     const search = this.centrosCostoMaterialSearchControl.value.trim().toLowerCase();
 
@@ -387,55 +412,66 @@ export class AlmacenPageComponent implements OnInit {
     }
   }
 
-  openMaterialDialog(): void {
-    if (!this.itemOptions.length) {
+  onMaterialSelectOpened(opened: boolean): void {
+    if (!opened) {
+      this.materialSearchControl.setValue('', { emitEvent: false });
+    }
+  }
+
+  onUnidadSelectOpened(opened: boolean): void {
+    if (!opened) {
+      this.unidadSearchControl.setValue('', { emitEvent: false });
+    }
+  }
+
+  onMaterialChange(materialIdRaw: number | string): void {
+    const materialId = Number(materialIdRaw);
+    const selectedItem = this.itemOptions.find((item) => item.id === materialId);
+
+    if (!selectedItem) {
+      this.ingresoDirectoForm.patchValue({
+        materialId: 0,
+        materialCode: '',
+        materialDescription: '',
+        unidadId: 0,
+        unidadCode: '',
+        unidadDescription: ''
+      });
       return;
     }
 
-    const dialogRef = this.dialog.open(PedidoDetalleItemSelectorDialogComponent, {
-      autoFocus: false,
-      width: '42rem',
-      data: {
-        items: this.itemOptions
-      }
-    });
+    const unidadId = selectedItem.unitId ?? Number(selectedItem.unitCode || 0);
+    const selectedUnit = this.unidadOptions.find((unit) =>
+      unit.id === unidadId || unit.code === String(selectedItem.unitCode || '').trim()
+    );
 
-    dialogRef.afterClosed().subscribe((selectedItem?: PedidoDetalleItemOption) => {
-      if (!selectedItem) {
-        return;
-      }
-
-      this.ingresoDirectoForm.patchValue({
-        materialId: selectedItem.id,
-        materialCode: selectedItem.code,
-        materialDescription: selectedItem.description
-      });
+    this.ingresoDirectoForm.patchValue({
+      materialId: selectedItem.id,
+      materialCode: selectedItem.code,
+      materialDescription: selectedItem.description,
+      unidadId: selectedUnit?.id ?? unidadId ?? 0,
+      unidadCode: selectedUnit?.code ?? selectedItem.unitCode ?? '',
+      unidadDescription: selectedUnit?.description ?? selectedItem.unitDescription ?? ''
     });
   }
 
-  openUnidadDialog(): void {
-    if (!this.unidadOptions.length) {
+  onUnidadChange(unidadIdRaw: number | string): void {
+    const unidadId = Number(unidadIdRaw);
+    const selectedUnit = this.unidadOptions.find((unit) => unit.id === unidadId);
+
+    if (!selectedUnit) {
+      this.ingresoDirectoForm.patchValue({
+        unidadId: 0,
+        unidadCode: '',
+        unidadDescription: ''
+      });
       return;
     }
 
-    const dialogRef = this.dialog.open(PedidoDetalleUnidadSelectorDialogComponent, {
-      autoFocus: false,
-      width: '38rem',
-      data: {
-        units: this.unidadOptions
-      }
-    });
-
-    dialogRef.afterClosed().subscribe((selectedUnit?: PedidoDetalleUnidadOption) => {
-      if (!selectedUnit) {
-        return;
-      }
-
-      this.ingresoDirectoForm.patchValue({
-        unidadId: selectedUnit.id,
-        unidadCode: selectedUnit.code,
-        unidadDescription: selectedUnit.description
-      });
+    this.ingresoDirectoForm.patchValue({
+      unidadId: selectedUnit.id,
+      unidadCode: selectedUnit.code,
+      unidadDescription: selectedUnit.description
     });
   }
 
@@ -773,6 +809,7 @@ export class AlmacenPageComponent implements OnInit {
     this.saveErrorMessage = '';
     this.isIngresoOrdenEditMode = false;
     this.cargarListadoSeleccionado();
+    window.dispatchEvent(new CustomEvent('process-notifications-refresh'));
   }
 
   trackBySolicitante(_: number, item: AlmacenSolicitanteOption): number {
@@ -2010,7 +2047,10 @@ export class AlmacenPageComponent implements OnInit {
       id,
       code: String(id),
       description,
-      groupDescription: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes']) || 'Material'
+      groupDescription: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes']) || 'Material',
+      unitId: this.getNumberValue(item, ['Uni_Med_Id', 'uni_Med_Id', 'uniMedId']) ?? undefined,
+      unitCode: this.getTextValue(item, ['Uni_Med_Id', 'uni_Med_Id', 'uniMedId', 'Uni_Med_Cod', 'uni_Med_Cod', 'uniMedCod']),
+      unitDescription: this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr'])
     };
   }
 

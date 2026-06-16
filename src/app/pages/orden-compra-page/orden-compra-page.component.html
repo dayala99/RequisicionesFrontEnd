@@ -10,17 +10,6 @@
         </p>
       </div>
 
-      <div class="orden-compra-card__actions" *ngIf="!mostrarEditor">
-        <button
-          *ngFor="let action of actionButtons"
-          type="button"
-          class="button"
-          [class.button--primary]="action !== 'Cerrar'"
-          [class.button--secondary]="action === 'Cerrar'"
-          (click)="ejecutarAccion(action)">
-          {{ action }}
-        </button>
-      </div>
     </header>
 
     <section *ngIf="!mostrarEditor" class="panel panel--listing">
@@ -31,6 +20,10 @@
             <option *ngFor="let option of listadoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
           </select>
         </label>
+
+        <button type="button" class="button button--primary orden-compra-listing-new" (click)="ejecutarAccion('Nuevo')">
+          Nuevo
+        </button>
 
         <label class="field" *ngIf="isListadoGenerados">
           <span>Nro. O/C</span>
@@ -185,68 +178,10 @@
           <p class="orden-compra-card__eyebrow">Edicion</p>
           <h3>{{ isEditingOrdenCompra ? 'Actualizar orden de compra' : 'Nueva orden de compra' }}</h3>
           <p class="orden-compra-card__description">
-            {{ esParcial ? 'Modo parcial activo: selecciona solo los centros de costo que deben actualizarse.' : 'Modo completo activo: la orden aplicara a todos los centros de costo mostrados.' }}
+            Selecciona los items del pedido que deben incluirse en la orden de compra.
           </p>
         </div>
-
-        <div class="mode-chip" [class.mode-chip--partial]="esParcial">
-          {{ esParcial ? 'Parcial' : 'Completa' }}
-        </div>
       </header>
-
-      <form class="editor-grid" [formGroup]="form">
-        <label class="field">
-          <span>Nro. O/C</span>
-          <input type="number" formControlName="ordenCompraId" class="input--readonly" readonly placeholder="Auto">
-        </label>
-
-        <label class="field">
-          <span>Estado</span>
-          <ng-container *ngIf="isEditingOrdenCompra; else estadoInicialFijo">
-            <select formControlName="estado">
-              <option *ngFor="let option of estadoOptions" [value]="option.codigo">{{ option.descripcion }}</option>
-            </select>
-          </ng-container>
-          <ng-template #estadoInicialFijo>
-            <input type="text" class="input--readonly" value="Activo" readonly>
-          </ng-template>
-        </label>
-
-        <label class="field">
-          <span>Ref. Obra</span>
-          <input type="text" formControlName="referenciaObra">
-        </label>
-
-        <label class="field">
-          <span>Referencia</span>
-          <input type="text" formControlName="referencia">
-        </label>
-
-        <div class="editor-attachments-layout field--full">
-          <label class="field">
-            <span>Observacion</span>
-            <textarea formControlName="observacion"></textarea>
-          </label>
-
-          <div class="attachment-panel attachment-panel--orden-compra">
-            <input #ordenCompraFileInput type="file" style="display:none" (change)="onOrdenCompraFileSelected($event)">
-
-            <div class="attachment-panel__actions">
-              <button type="button" class="button button--secondary" (click)="ordenCompraFileInput.click()">Agregar</button>
-              <button type="button" class="button button--secondary" (click)="verOrdenCompraArchivo()">Ver</button>
-              <button type="button" class="button button--secondary" (click)="quitarOrdenCompraArchivo(ordenCompraFileInput)">Quitar</button>
-            </div>
-
-            <label class="field">
-              <span>Archivo</span>
-              <input type="text" formControlName="archivo" class="input--readonly" readonly>
-            </label>
-
-            <p class="attachment-panel__hint">{{ ordenCompraArchivoAdjunto }}</p>
-          </div>
-        </div>
-
-      </form>
 
       <section class="editor-section">
         <div class="section-copy">
@@ -260,7 +195,7 @@
             <button
               type="button"
               class="selector-code-button selector-code-button--wide selector-code-button--selector selector-code-button--accent"
-              [disabled]="isLoadingProveedores || !proveedores.length"
+              [disabled]="isLoadingProveedores"
               (click)="openProveedorDialog()">
               {{ isLoadingProveedores ? 'Cargando proveedores...' : proveedorButtonLabel }}
             </button>
@@ -268,40 +203,48 @@
 
           <label class="field">
             <span>Telefono</span>
-            <input type="text" formControlName="telefono" class="input--readonly" readonly>
+            <input type="text" formControlName="telefono" class="input--readonly input--autofilled-provider" readonly>
           </label>
 
           <label class="field field--provider-wide">
             <span>Direccion</span>
-            <input type="text" formControlName="direccion" class="input--readonly" readonly>
+            <input type="text" formControlName="direccion" class="input--readonly input--autofilled-provider" readonly>
           </label>
 
           <label class="field">
             <span>Contacto</span>
-            <input type="text" formControlName="contacto" class="input--readonly" readonly>
+            <input type="text" formControlName="contacto" class="input--readonly input--autofilled-provider" readonly>
           </label>
 
           <label class="field field--provider-wide">
             <span>RUC</span>
-            <input type="text" formControlName="ruc" class="input--readonly" readonly>
+            <input type="text" formControlName="ruc" class="input--readonly input--autofilled-provider" readonly>
           </label>
 
           <div class="field field--provider-selector">
             <span>Forma de Pago</span>
-            <div class="selector-pair">
-              <button
-                type="button"
-                class="selector-code-button selector-code-button--wide"
-                [disabled]="isLoadingFormasPago || !formasPago.length"
-                (click)="openFormaPagoDialog()">
-                {{ isLoadingFormasPago ? 'Cargando...' : formaPagoButtonLabel }}
-              </button>
-              <input
-                type="text"
-                formControlName="formaPago"
-                class="input--readonly"
-                readonly>
-            </div>
+            <mat-select
+              class="forma-pago-select"
+              formControlName="formaPagoId"
+              placeholder="Seleccionar forma de pago"
+              [disabled]="isLoadingFormasPago"
+              (selectionChange)="onFormaPagoChange($event.value)"
+              (openedChange)="formaPagoSearch = ''">
+              <mat-option class="select-search-option">
+                <input
+                  type="text"
+                  class="select-search-input"
+                  placeholder="Buscar forma de pago"
+                  [value]="formaPagoSearch"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                  (input)="formaPagoSearch = $any($event.target).value">
+              </mat-option>
+              <mat-option [value]="0">Seleccionar forma de pago</mat-option>
+              <mat-option *ngFor="let formaPago of filteredFormasPago" [value]="formaPago.code">
+                {{ formaPago.description }}
+              </mat-option>
+            </mat-select>
           </div>
         </form>
       </section>
@@ -347,7 +290,7 @@
                     <input
                       type="checkbox"
                       [checked]="estanTodosLosDetallesSeleccionados"
-                      [disabled]="!esParcial || !pedidoDetalles.length"
+                      [disabled]="!pedidoDetalles.length"
                       (change)="toggleTodosLosDetallesPedido()">
                   </div>
                 </th>
@@ -379,14 +322,21 @@
                   <input
                     type="checkbox"
                     [checked]="item.selected"
-                    [disabled]="!esParcial"
                     (change)="toggleDetallePedido(item)">
                 </td>
                 <td>{{ item.itemDescripcion }}</td>
                 <td>{{ item.unidadDescripcion }}</td>
                 <td>{{ item.centroCostoDescripcion }}</td>
                 <td>{{ formatCurrency(item.cantidad) }}</td>
-                <td>{{ formatCurrency(item.costoUnitario) }}</td>
+                <td>
+                  <input
+                    type="number"
+                    class="detalle-pedido-table__input detalle-pedido-table__input--amount"
+                    min="0"
+                    step="0.01"
+                    [value]="item.costoUnitario"
+                    (input)="actualizarCostoUnitarioDetallePedido(item, $event)">
+                </td>
                 <td>{{ formatCurrency(item.subtotal) }}</td>
                 <td>
                   <input
@@ -422,11 +372,6 @@
         </app-grid-pagination>
 
         <form class="totals-grid" [formGroup]="form">
-          <label class="field">
-            <span>Subtotal</span>
-            <input type="number" formControlName="subtotal" min="0" step="0.01">
-          </label>
-
           <label class="field">
             <span>IGV</span>
             <input type="number" formControlName="igv" min="0" step="0.01">
@@ -469,6 +414,32 @@
           </label>
         </form>
       </section>
+
+      <form class="editor-grid" [formGroup]="form">
+        <div class="editor-attachments-layout field--full">
+          <label class="field">
+            <span>Observacion</span>
+            <textarea formControlName="observacion"></textarea>
+          </label>
+
+          <div class="attachment-panel attachment-panel--orden-compra">
+            <input #ordenCompraFileInput type="file" style="display:none" (change)="onOrdenCompraFileSelected($event)">
+
+            <div class="attachment-panel__actions">
+              <button type="button" class="button button--secondary" (click)="ordenCompraFileInput.click()">Agregar</button>
+              <button type="button" class="button button--secondary" (click)="verOrdenCompraArchivo()">Ver</button>
+              <button type="button" class="button button--secondary" (click)="quitarOrdenCompraArchivo(ordenCompraFileInput)">Quitar</button>
+            </div>
+
+            <label class="field">
+              <span>Archivo</span>
+              <input type="text" formControlName="archivo" class="input--readonly" readonly>
+            </label>
+
+            <p class="attachment-panel__hint">{{ ordenCompraArchivoAdjunto }}</p>
+          </div>
+        </div>
+      </form>
 
       <div class="editor-actions">
         <p *ngIf="saveErrorMessage" class="editor-feedback editor-feedback--error">{{ saveErrorMessage }}</p>

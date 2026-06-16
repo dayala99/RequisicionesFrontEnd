@@ -16,14 +16,25 @@ export class LoginPageComponent {
 
   readonly loginForm = this.formBuilder.nonNullable.group({
     userCode: ['', [Validators.required, noWhitespaceValidator()]],
-    password: ['', [Validators.required, noWhitespaceValidator()]]
+    password: ['', [Validators.required, noWhitespaceValidator()]],
+    rememberCredentials: [false]
   });
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly authService: AuthService,
     private readonly router: Router
-  ) {}
+  ) {
+    const rememberedCredentials = this.authService.getRememberedCredentials();
+
+    if (rememberedCredentials.remember) {
+      this.loginForm.patchValue({
+        userCode: rememberedCredentials.userCode,
+        password: rememberedCredentials.password,
+        rememberCredentials: true
+      });
+    }
+  }
 
   submit(): void {
     if (this.loginForm.invalid) {
@@ -31,12 +42,12 @@ export class LoginPageComponent {
       return;
     }
 
-    const { userCode, password } = this.loginForm.getRawValue();
+    const { userCode, password, rememberCredentials } = this.loginForm.getRawValue();
 
     this.isSubmitting = true;
     this.loginError = '';
 
-    this.authService.login(userCode, password).subscribe({
+    this.authService.login(userCode, password, rememberCredentials).subscribe({
       next: (result) => {
         this.isSubmitting = false;
 

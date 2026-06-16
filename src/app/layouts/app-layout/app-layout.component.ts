@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subscription, filter } from 'rxjs';
+import { Subscription, catchError, filter, forkJoin, of } from 'rxjs';
 
 import { AuthService } from '../../features/auth/services/auth.service';
 import { ApiService } from 'src/app/Services/api.services';
@@ -15,9 +15,15 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
   sidebarCollapsed = false;
   maintenanceOpen: boolean;
   processOpen: boolean;
+  notificationsOpen = false;
+  notificationBellRinging = false;
   pedidosPendientesAprobacion = 0;
+  pedidosPendientesOrdenCompra = 0;
+  ordenesCompraPendientesAlmacen = 0;
   isLoadingNotifications = false;
   private routerSubscription?: Subscription;
+  private readonly refreshNotificationsHandler = () => this.cargarNotificaciones(true);
+  private hasPlayedInitialNotification = false;
 
   readonly menuItems = [
     { label: 'Inicio', route: '/' }
@@ -29,9 +35,11 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Inspecciones', route: '/inspecciones' }
   ];
   readonly maintenanceItems = [
+    { label: 'Perfil', route: '/perfil' },
     { label: 'Forma de Pagos', route: '/forma-pago' },
     { label: 'Banco', route: '/banco' },
     { label: 'Centro de Costos', route: '/centro-costos' },
+    { label: 'Direccion de Entrega', route: '/direccion-entrega' },
     { label: 'Moneda', route: '/moneda' },
     { label: 'Grupo de Item', route: '/grupo-item' },
     { label: 'Sub Grupo de Item', route: '/sub-grupo-item' },
@@ -44,6 +52,18 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Proveedor', route: '/proveedor' }
   ];
 
+  get visibleMenuItems(): { label: string; route: string }[] {
+    return this.menuItems.filter((item) => this.authService.hasAccessToRoute(item.route));
+  }
+
+  get visibleProcessItems(): { label: string; route: string }[] {
+    return this.processItems.filter((item) => this.authService.hasAccessToRoute(item.route));
+  }
+
+  get visibleMaintenanceItems(): { label: string; route: string }[] {
+    return this.maintenanceItems.filter((item) => this.authService.hasAccessToRoute(item.route));
+  }
+
   constructor(
     private readonly authService: AuthService,
     private readonly apiService: ApiService,
@@ -55,12 +75,16 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.cargarNotificaciones();
+    window.addEventListener('pedido-notifications-refresh', this.refreshNotificationsHandler);
+    window.addEventListener('process-notifications-refresh', this.refreshNotificationsHandler);
     this.routerSubscription = this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
-      .subscribe(() => this.cargarNotificaciones());
+      .subscribe(() => this.cargarNotificaciones(true));
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('pedido-notifications-refresh', this.refreshNotificationsHandler);
+    window.removeEventListener('process-notifications-refresh', this.refreshNotificationsHandler);
     this.routerSubscription?.unsubscribe();
   }
 
@@ -85,6 +109,29 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     this.sidebarOpen = false;
   }
 
+  toggleNotifications(): void {
+    this.notificationsOpen = !this.notificationsOpen;
+  }
+
+  closeNotifications(): void {
+    this.notificationsOpen = false;
+  }
+
+  goToPendingApprovals(): void {
+    this.closeNotifications();
+    void this.router.navigate(['/pedidos']);
+  }
+
+  goToPendingPurchaseOrders(): void {
+    this.closeNotifications();
+    void this.router.navigate(['/orden-compra']);
+  }
+
+  goToPendingWarehouseEntries(): void {
+    this.closeNotifications();
+    void this.router.navigate(['/almacen']);
+  }
+
   logout(): void {
     this.authService.logout();
     this.closeSidebar();
@@ -100,38 +147,66 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
   }
 
   getProcessNotificationCount(item: { label: string; route: string }): number {
-    return item.route === '/pedidos' ? this.pedidosPendientesAprobacion : 0;
+    switch (item.route) {
+      case '/pedidos':
+        return this.pedidosPendientesAprobacion;
+      case '/orden-compra':
+        return this.pedidosPendientesOrdenCompra;
+      case '/almacen':
+        return this.ordenesCompraPendientesAlmacen;
+      default:
+        return 0;
+    }
+  }
+
+  get totalNotifications(): number {
+    return this.pedidosPendientesAprobacion
+      + this.pedidosPendientesOrdenCompra
+      + this.ordenesCompraPendientesAlmacen;
   }
 
   isMaintenanceRouteActive(): boolean {
-    return this.maintenanceItems.some((item) => this.router.url.startsWith(item.route));
+    return this.visibleMaintenanceItems.some((item) => this.router.url.startsWith(item.route));
   }
 
   isProcessRouteActive(): boolean {
-    return this.processItems.some((item) => this.router.url.startsWith(item.route));
+    return this.visibleProcessItems.some((item) => this.router.url.startsWith(item.route));
   }
 
-  private cargarNotificaciones(): void {
+  private cargarNotificaciones(force = false): void {
     const currentUserCode = this.authService.getCurrentUser().trim();
     const currentUser = currentUserCode.toLowerCase();
 
-    if (!currentUser || this.isLoadingNotifications) {
+    if (!currentUser || (this.isLoadingNotifications && !force)) {
       return;
     }
 
     this.isLoadingNotifications = true;
-    this.apiService.getListarPedido({ Flg_Est: 'P', Usr_Cod: currentUserCode }).subscribe({
-      next: (response: unknown) => {
-        this.pedidosPendientesAprobacion = this.extractRecords(response)
-          .filter((item) => this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'Usr_Apr', 'usrApr']).toLowerCase() === currentUser)
-          .length;
+    forkJoin({
+      pedidosAprobacion: this.apiService.getListarPedido({ Flg_Est: 'P', Usr_Cod: currentUserCode }).pipe(catchError(() => of([]))),
+      pedidosOrdenCompra: this.apiService.getListarPedidoAprobadoParaOC({ Flg_Est: 'A' }).pipe(catchError(() => of([]))),
+      ordenesAlmacen: this.apiService.getListarOrdenCompraPendienteAlmacen().pipe(catchError(() => of([])))
+    }).subscribe({
+      next: ({ pedidosAprobacion, pedidosOrdenCompra, ordenesAlmacen }) => {
+        this.pedidosPendientesAprobacion = this.countPedidosPendientesAprobacion(pedidosAprobacion, currentUser);
+        this.pedidosPendientesOrdenCompra = this.extractRecords(pedidosOrdenCompra).length;
+        this.ordenesCompraPendientesAlmacen = this.extractRecords(ordenesAlmacen).length;
+        this.triggerInitialNotificationCue();
         this.isLoadingNotifications = false;
       },
       error: () => {
         this.pedidosPendientesAprobacion = 0;
+        this.pedidosPendientesOrdenCompra = 0;
+        this.ordenesCompraPendientesAlmacen = 0;
         this.isLoadingNotifications = false;
       }
     });
+  }
+
+  private countPedidosPendientesAprobacion(response: unknown, currentUser: string): number {
+    return this.extractRecords(response)
+      .filter((item) => this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'Usr_Apr', 'usrApr']).toLowerCase() === currentUser)
+      .length;
   }
 
   private extractRecords(response: unknown): Record<string, unknown>[] {
@@ -170,5 +245,50 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
 
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private triggerInitialNotificationCue(): void {
+    if (this.hasPlayedInitialNotification || this.pedidosPendientesAprobacion <= 0) {
+      return;
+    }
+
+    this.hasPlayedInitialNotification = true;
+    this.notificationBellRinging = true;
+    this.playNotificationSound();
+
+    window.setTimeout(() => {
+      this.notificationBellRinging = false;
+    }, 1400);
+  }
+
+  private playNotificationSound(): void {
+    const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextConstructor) {
+      return;
+    }
+
+    try {
+      const audioContext = new AudioContextConstructor();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.16, audioContext.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.32);
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.34);
+      oscillator.onended = () => {
+        void audioContext.close();
+      };
+    } catch {
+      // Some browsers block audio until the user interacts with the page.
+    }
   }
 }

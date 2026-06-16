@@ -49,6 +49,27 @@ export interface FormaPagoFiltro {
     Flg_Est?: string;
 }
 
+export interface PerfilFiltro {
+    Prf_Cod?: string;
+    Prf_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface RegistrarAccesoRequest {
+    Prf_Acc_Cod: string;
+    Prf_Acc_Des: string;
+    Usr_Reg: string;
+}
+
+export interface EliminarAccesoRequest {
+    Prf_Acc_Cod: string;
+    Prf_Acc_Des: string;
+}
+
+export interface AccesoFiltro {
+    Prf_Acc_Cod?: string;
+}
+
 export interface DetraccionFiltro {
     Det_Id?: number;
     Det_Des?: string;
@@ -199,6 +220,7 @@ export interface RegistrarItemRequest {
     Itm_Grp: number;
     Itm_Sub_Grp?: number;
     Itm_Det_Mat_Id?: number;
+    Uni_Med_Id?: number;
     Usr_Reg: string;
 }
 
@@ -208,6 +230,7 @@ export interface ActualizarItemRequest {
     Itm_Grp: number;
     Itm_Sub_Grp?: number;
     Itm_Det_Mat_Id?: number;
+    Uni_Med_Id?: number;
     Flg_Est: string;
     Usr_Mod: string;
 }
@@ -270,6 +293,26 @@ export interface CentroCostoFiltro {
     Cen_Cos_Id?: number;
     Cen_Cos_Des?: string;
     Flg_Est?: string;
+}
+
+export interface DireccionEntregaFiltro {
+    Dir_Id?: number;
+    Dir_Des?: string;
+    Flg_Est?: string;
+}
+
+export interface RegistrarDireccionEntregaRequest {
+    Dir_Des: string;
+    Dir_Ubi: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarDireccionEntregaRequest {
+    Dir_Id: number;
+    Dir_Des: string;
+    Dir_Ubi: string;
+    Flg_Est: string;
+    Usr_Mod: string;
 }
 
 export interface PedidosFiltro {
@@ -373,6 +416,8 @@ export interface ActualizarUsuarioRequest {
     Usr_Cen_Cos_Id: number;
     Usr_Pass: string;
     Usr_Apr: string;
+    Usr_Corr: string;
+    Usr_Prf: string;
 }
 
 export interface RegistrarUsuarioRequest {
@@ -388,6 +433,8 @@ export interface RegistrarUsuarioRequest {
     Usr_Cen_Cos_Id: number;
     Usr_Pass: string;
     Usr_Apr: string;
+    Usr_Corr: string;
+    Usr_Prf: string;
 }
 
 export interface RegistrarProveedorRequest {
@@ -424,7 +471,7 @@ export interface ActualizarProveedorRequest {
 export interface RegistrarPedidoRequest {
     Ped_Id: number;
     Ped_Usr_Apr: string;
-    Ped_Lug_Ent: string;
+    Ped_Lug_Ent: number;
     Ped_Ref: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
@@ -441,7 +488,7 @@ export interface RegistrarPedidoRequest {
 export interface ActualizarPedidoRequest {
     Ped_Id: number;
     Ped_Usr_Apr: string;
-    Ped_Lug_Ent: string;
+    Ped_Lug_Ent: number;
     Ped_Ref: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
@@ -458,6 +505,55 @@ export interface ActualizarPedidoRequest {
 export interface ActualizarPedidoEstadoRequest {
     Ped_Id: number;
     Flg_Est: string;
+}
+
+export interface RechazarPedidoRequest {
+    Ped_Id: number;
+    Ped_Mot_Rch: string;
+}
+
+export interface EnviarCorreoRequest {
+    Para: string;
+    Asunto: string;
+    CuerpoHtml?: string;
+    CuerpoTexto?: string;
+    Copias?: string[];
+    CopiasOcultas?: string[];
+}
+
+export interface EnviarCorreoPedidoGeneradoRequest {
+    Ped_Id: number;
+    CorreoDestino?: string;
+    UsuarioRegistro?: string;
+    Referencia?: string;
+    UsuarioAprobacion?: string;
+    TipoServicio?: string;
+    Productos?: EnviarCorreoPedidoGeneradoProductoRequest[];
+}
+
+export interface EnviarCorreoPedidoAprobadoRequest {
+    Ped_Id: number;
+    CorreoDestino?: string;
+    UsuarioRegistro?: string;
+    UsuarioAprobacion?: string;
+    TipoServicio?: string;
+}
+
+export interface EnviarCorreoPedidoRechazadoRequest {
+    Ped_Id: number;
+    CorreoDestino?: string;
+    UsuarioRegistro?: string;
+    UsuarioAprobacion?: string;
+    TipoServicio?: string;
+    MotivoRechazo?: string;
+}
+
+export interface EnviarCorreoPedidoGeneradoProductoRequest {
+    Item?: number;
+    DescripcionProducto?: string;
+    DescripcionUnidad?: string;
+    CentroCosto?: string;
+    Cantidad?: number;
 }
 
 export interface ActualizarPedidoDetalleCompletoRequest {
@@ -519,6 +615,7 @@ export interface RegistrarDetallePedidoRequest {
     Ped_Cos_Uni: number;
     Ped_Cos_Tot: number;
     Usr_Reg: string;
+    Ped_Obs_Ped?: string;
 }
 
 export interface ActualizarDetallePedidoRequest {
@@ -530,6 +627,7 @@ export interface ActualizarDetallePedidoRequest {
     Ped_Cos_Uni: number;
     Ped_Cos_Tot: number;
     Usr_Mod: string;
+    Ped_Obs_Ped?: string;
 }
 
 export interface EliminarDetallePedidoRequest {
@@ -539,6 +637,7 @@ export interface EliminarDetallePedidoRequest {
 export interface AsignarOrdenCompraDetallePedidoRequest {
     Ord_Com_Id: number;
     Ped_Det_Id: number;
+    Ped_Cos_Uni?: number;
     Ped_Obs?: string;
     Usr_Mod?: string;
 }
@@ -687,6 +786,36 @@ export class ApiService {
         }
 
         return this.http.get(this.baseUrl + 'FormaPago/getListarFormaPagoActivo', { headers, params });
+    }
+
+    getListarPerfil(filtros: PerfilFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        params = params.append('Prf_Cod', filtros.Prf_Cod || '__');
+        params = params.append('Prf_Des', filtros.Prf_Des || '%');
+        params = params.append('Flg_Est', filtros.Flg_Est ?? '');
+
+        return this.http.get(this.baseUrl + 'Perfil/getListarPerfil', { headers, params });
+    }
+
+    postRegistrarAcceso(acceso: RegistrarAccesoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Acceso/postRegistrarAcceso', acceso, { headers });
+    }
+
+    deleteEliminarAcceso(acceso: EliminarAccesoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.delete(this.baseUrl + 'Acceso/deleteEliminarAcceso', { headers, body: acceso });
+    }
+
+    getListarAcceso(filtros: AccesoFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        params = params.append('Prf_Acc_Cod', filtros.Prf_Acc_Cod ?? '');
+
+        return this.http.get(this.baseUrl + 'Acceso/getListarAcceso', { headers, params });
     }
 
     registrarFormaPago(formaPago: RegistrarFormaPagoRequest): Observable<any> {
@@ -1025,6 +1154,35 @@ export class ApiService {
         return this.http.patch(this.baseUrl + 'CentroCosto/patchActualizarCentroCosto', centroCosto, { headers });
     }
 
+    getListarDireccionEntregaActivo(filtros: DireccionEntregaFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Dir_Id !== undefined) {
+            params = params.append('Dir_Id', filtros.Dir_Id);
+        }
+
+        if (filtros.Dir_Des) {
+            params = params.append('Dir_Des', filtros.Dir_Des);
+        }
+
+        if (filtros.Flg_Est) {
+            params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        return this.http.get(this.baseUrl + 'DireccionEntrega/getListarDireccionEntregaActivo', { headers, params });
+    }
+
+    registrarDireccionEntrega(direccionEntrega: RegistrarDireccionEntregaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'DireccionEntrega/postRegistrarDireccionEntrega', direccionEntrega, { headers });
+    }
+
+    actualizarDireccionEntrega(direccionEntrega: ActualizarDireccionEntregaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'DireccionEntrega/patchActualizarDireccionEntrega', direccionEntrega, { headers });
+    }
+
     getListarPedido(filtros: PedidosFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -1281,6 +1439,26 @@ export class ApiService {
     return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', formData);
     }
 
+    postEnviarCorreo(correo: EnviarCorreoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'EnviarCorreo/postEnviarCorreo', correo, { headers });
+    }
+
+    postEnviarCorreoPedidoGenerado(correo: EnviarCorreoPedidoGeneradoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'EnviarCorreo/postEnviarCorreoPedidoGenerado', correo, { headers });
+    }
+
+    postEnviarCorreoPedidoAprobado(correo: EnviarCorreoPedidoAprobadoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'EnviarCorreo/postEnviarCorreoPedidoAprobado', correo, { headers });
+    }
+
+    postEnviarCorreoPedidoRechazado(correo: EnviarCorreoPedidoRechazadoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'EnviarCorreo/postEnviarCorreoPedidoRechazado', correo, { headers });
+    }
+
     patchActualizarPedido(pedido: ActualizarPedidoRequest, archivo?: File | null): Observable<any> {
         const formData = new FormData();
 
@@ -1369,6 +1547,11 @@ export class ApiService {
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedidoEstado', pedido, { headers });
     }
 
+    patchRechazarPedido(pedido: RechazarPedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Pedido/patchRechazarPedido', pedido, { headers });
+    }
+
     patchActualizarPedidoCuandoDetalleCompleto(pedido: ActualizarPedidoDetalleCompletoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedidoCuandoDetalleCompleto', pedido, { headers });
@@ -1386,7 +1569,7 @@ export class ApiService {
 
     deleteEliminarDetallePedido(detalle: EliminarDetallePedidoRequest): Observable<any> {
         const headers = this.Header;
-        return this.http.request('delete', this.baseUrl + 'Pedido/patchActualizarDetallePedido', { headers, body: detalle });
+        return this.http.request('delete', this.baseUrl + 'Pedido/deleteEliminarDetallePedido', { headers, body: detalle });
     }
 
     postRegistrarCentroCostoPedidoRegistrado(centroCosto: RegistrarCentroCostoPedidoRequest): Observable<any> {
