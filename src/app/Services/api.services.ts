@@ -711,14 +711,11 @@ export class ApiService {
     getListarCargo(filtros: CargoFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
+        const cargoId = filtros.Cargo_Id ?? 0;
+        const cargoNombre = filtros.Cargo_Nombre ?? '';
 
-        if (filtros.Cargo_Id !== undefined) {
-            params = params.append('Cargo_Id', filtros.Cargo_Id);
-        }
-
-        if (filtros.Cargo_Nombre) {
-            params = params.append('Cargo_Nombre', filtros.Cargo_Nombre);
-        }
+        params = params.append('Cargo_Id', cargoId);
+        params = params.append('Cargo_Nombre', cargoNombre);
 
         return this.http.get(this.baseUrl + 'Cargo/getListarCargo', { headers, params });
     }
