@@ -68,6 +68,31 @@
     </label>
 
     <label class="usuario-edit__field">
+      <span>Cargo</span>
+      <mat-form-field appearance="outline" class="usuario-edit__mat-select">
+        <mat-select
+          formControlName="usrCrg"
+          [disabled]="isLoadingCargos"
+          (openedChange)="onCargoSelectOpened($event)">
+          <mat-option class="usuario-edit__search-option" disabled>
+            <input
+              type="text"
+              placeholder="Buscar cargo"
+              [formControl]="cargoSearchControl"
+              (click)="$event.stopPropagation()"
+              (keydown)="$event.stopPropagation()">
+          </mat-option>
+          <mat-option [value]="0">{{ isLoadingCargos ? 'Cargando cargos...' : 'Seleccionar cargo' }}</mat-option>
+          <mat-option *ngFor="let cargo of filteredCargoOptions" [value]="cargo.id">
+            {{ cargo.nombre }}
+          </mat-option>
+          <mat-option *ngIf="!filteredCargoOptions.length && !isLoadingCargos" disabled>No hay cargos registrados.</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <small class="usuario-edit__error" *ngIf="form.controls['usrCrg'].touched && form.controls['usrCrg'].hasError('min')">Campo Cargo obligatorio.</small>
+    </label>
+
+    <label class="usuario-edit__field">
       <span>Perfil</span>
       <mat-form-field appearance="outline" class="usuario-edit__mat-select">
         <mat-select

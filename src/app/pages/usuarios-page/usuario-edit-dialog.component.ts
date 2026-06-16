@@ -16,6 +16,7 @@ interface UsuarioEditData {
     usrCorr: string;
     usrDocNro: string;
     usrCenCosId: number;
+    usrCrg: number;
     usrPass: string;
     usrApr: string;
     usrPrf: string;
@@ -33,6 +34,11 @@ interface PerfilOption {
   descripcion: string;
 }
 
+interface CargoOption {
+  id: number;
+  nombre: string;
+}
+
 @Component({
   selector: 'app-usuario-edit-dialog',
   templateUrl: './usuario-edit-dialog.component.html',
@@ -42,11 +48,14 @@ export class UsuarioEditDialogComponent implements OnInit {
   readonly form: FormGroup;
   readonly centroCostoSearchControl = new FormControl('', { nonNullable: true });
   readonly perfilSearchControl = new FormControl('', { nonNullable: true });
+  readonly cargoSearchControl = new FormControl('', { nonNullable: true });
   centroCostoOptions: CentroCostoOption[] = [];
   perfilOptions: PerfilOption[] = [];
+  cargoOptions: CargoOption[] = [];
   isSaving = false;
   isLoadingCentrosCosto = false;
   isLoadingPerfiles = false;
+  isLoadingCargos = false;
   errorMessage = '';
 
   constructor(
@@ -63,6 +72,7 @@ export class UsuarioEditDialogComponent implements OnInit {
       usrDocNro: [data.usuario.usrDocNro, [Validators.required, noWhitespaceValidator(), Validators.maxLength(20), optionalPatternValidator(/^[0-9]+$/)]],
       usrPass: [data.usuario.usrPass, [Validators.required, noWhitespaceValidator(), Validators.maxLength(55)]],
       usrCenCosId: [data.usuario.usrCenCosId || 0, [Validators.required, Validators.min(1)]],
+      usrCrg: [data.usuario.usrCrg || 0, [Validators.required, Validators.min(1)]],
       usrApr: [data.usuario.usrApr || 'N', Validators.required],
       usrPrf: [data.usuario.usrPrf || '', [Validators.required, noWhitespaceValidator()]],
       flgEst: [data.usuario.flgEst || 'A', Validators.required]
@@ -72,6 +82,7 @@ export class UsuarioEditDialogComponent implements OnInit {
   ngOnInit(): void {
     this.cargarCentrosCosto();
     this.cargarPerfiles();
+    this.cargarCargos();
   }
 
   get filteredPerfilOptions(): PerfilOption[] {
@@ -98,6 +109,18 @@ export class UsuarioEditDialogComponent implements OnInit {
     );
   }
 
+  get filteredCargoOptions(): CargoOption[] {
+    const search = this.cargoSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.cargoOptions;
+    }
+
+    return this.cargoOptions.filter((cargo) =>
+      String(cargo.id).includes(search) || cargo.nombre.toLowerCase().includes(search)
+    );
+  }
+
   guardar(): void {
     if (this.form.invalid || this.isSaving) {
       this.form.markAllAsTouched();
@@ -114,6 +137,7 @@ export class UsuarioEditDialogComponent implements OnInit {
       usrDocNro: string;
       usrPass: string;
       usrCenCosId: number;
+      usrCrg: number;
       usrApr: string;
       usrPrf: string;
       flgEst: string;
@@ -129,7 +153,8 @@ export class UsuarioEditDialogComponent implements OnInit {
       Usr_Pass: values.usrPass.trim(),
       Usr_Apr: values.usrApr,
       Usr_Corr: values.usrCorr.trim(),
-      Usr_Prf: values.usrPrf.trim()
+      Usr_Prf: values.usrPrf.trim(),
+      Usr_Crg: Number(values.usrCrg)
     };
 
     console.log('Payload actualizar usuario:', payload);
@@ -162,6 +187,12 @@ export class UsuarioEditDialogComponent implements OnInit {
   onCentroCostoSelectOpened(opened: boolean): void {
     if (opened) {
       this.centroCostoSearchControl.setValue('');
+    }
+  }
+
+  onCargoSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.cargoSearchControl.setValue('');
     }
   }
 
@@ -294,6 +325,25 @@ export class UsuarioEditDialogComponent implements OnInit {
     return { id, descripcion };
   }
 
+  private cargarCargos(): void {
+    this.isLoadingCargos = true;
+    this.apiService.getListarCargo().subscribe({
+      next: (response: unknown) => {
+        this.cargoOptions = this.extractRecords(response)
+          .map((item) => this.mapCargoOption(item))
+          .filter((item): item is CargoOption => item !== null)
+          .sort((left, right) => left.nombre.localeCompare(right.nombre));
+        this.isLoadingCargos = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando cargos para usuario:', error);
+        this.cargoOptions = [];
+        this.errorMessage = 'No se pudieron cargar los cargos.';
+        this.isLoadingCargos = false;
+      }
+    });
+  }
+
   private mapPerfilOption(item: Record<string, unknown>): PerfilOption | null {
     const codigo = this.getTextValue(item, ['Prf_Cod', 'prf_Cod', 'prfCod', 'codigo', 'Codigo']);
     const descripcion = this.getTextValue(item, ['Prf_Des', 'prf_Des', 'prfDes', 'descripcion', 'Descripcion']);
@@ -303,6 +353,17 @@ export class UsuarioEditDialogComponent implements OnInit {
     }
 
     return { codigo, descripcion };
+  }
+
+  private mapCargoOption(item: Record<string, unknown>): CargoOption | null {
+    const id = this.getNumberValue(item, ['Cargo_Id', 'cargo_Id', 'cargoId', 'id', 'Id']);
+    const nombre = this.getTextValue(item, ['Cargo_Nombre', 'cargo_Nombre', 'cargoNombre', 'nombre', 'Nombre']);
+
+    if (!id || !nombre) {
+      return null;
+    }
+
+    return { id, nombre };
   }
 
   private getTextValue(item: Record<string, unknown>, keys: string[]): string {

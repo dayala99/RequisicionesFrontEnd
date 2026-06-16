@@ -708,7 +708,6 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'Usuario/getObtenerUsuariosAprobacion', { headers, params });
     }
 
-<<<<<<< HEAD
     getListarCargo(filtros: CargoFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -722,14 +721,14 @@ export class ApiService {
         }
 
         return this.http.get(this.baseUrl + 'Cargo/getListarCargo', { headers, params });
-=======
+    }
+
     getConsultaDatosUsuario(filtros: ConsultaDatosUsuarioFiltro): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
         params = params.append('Usr_Cod', filtros.Usr_Cod);
 
         return this.http.get(this.baseUrl + 'Inspecciones/getConsultaDatosUsuario', { headers, params });
->>>>>>> 069b9b4fdca817e1fd5ba7dbe1fd2faeb0782499
     }
 
     private getUsuariosDesdeRuta(ruta: string, filtros: UsuariosFiltro): Observable<any> {
