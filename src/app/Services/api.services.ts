@@ -17,6 +17,24 @@ export interface ObtenerAccesoUsuarioFiltro {
     Usr_Pass: string;
 }
 
+export interface ConsultaDatosUsuarioFiltro {
+    Usr_Cod: string;
+}
+
+export interface RegistrarObservacionPlaneadaRequest {
+    Usr_Cod: string;
+    Cliente_Id: number;
+    Subestacion_Id: number;
+    SubContrata_Id: number;
+    Jefe_Id: number;
+    Motivo_Id: number;
+    Clima_Id: number;
+    Tarea_Id: number;
+    Obs_Detalle: string;
+    Obs_Actividad: string;
+    Usr_Reg: string;
+}
+
 export interface ProveedoresFiltro {
     Prv_Id?: number;
     Prv_Nom?: string;
@@ -636,6 +654,16 @@ export interface DesAsignarOrdenCompraDetallePedidoRequest {
     Ped_Det_Id: number;
 }
 
+// ─── Inspecciones ────────────────────────────────────────────────
+
+export interface InsClienteFiltro {
+    Cliente_Id?: number;
+}
+
+export interface InsSubEstacionFiltro {
+    Cliente_Id: number;
+}
+
 
 @Injectable({
     providedIn: 'root'
@@ -680,6 +708,7 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'Usuario/getObtenerUsuariosAprobacion', { headers, params });
     }
 
+<<<<<<< HEAD
     getListarCargo(filtros: CargoFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -693,6 +722,14 @@ export class ApiService {
         }
 
         return this.http.get(this.baseUrl + 'Cargo/getListarCargo', { headers, params });
+=======
+    getConsultaDatosUsuario(filtros: ConsultaDatosUsuarioFiltro): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Usr_Cod', filtros.Usr_Cod);
+
+        return this.http.get(this.baseUrl + 'Inspecciones/getConsultaDatosUsuario', { headers, params });
+>>>>>>> 069b9b4fdca817e1fd5ba7dbe1fd2faeb0782499
     }
 
     private getUsuariosDesdeRuta(ruta: string, filtros: UsuariosFiltro): Observable<any> {
@@ -1416,9 +1453,6 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'OrdenCompra/getArchivoOrdenCompra', { params, responseType: 'arraybuffer' });
     }
 
-
-
-
     // postRegistrarPedido(pedido: RegistrarPedidoRequest): Observable<any> {
     //     const headers = this.Header;
     //     return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', pedido, { headers });
@@ -1447,7 +1481,6 @@ export class ApiService {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'EnviarCorreo/postEnviarCorreoPedidoRechazado', correo, { headers });
     }
-
 
     patchActualizarPedido(pedido: ActualizarPedidoRequest, archivo?: File | null): Observable<any> {
         const formData = new FormData();
@@ -1603,4 +1636,52 @@ export class ApiService {
     params = params.append('Usr_Cod', Usr_Cod);
     return this.http.get(this.baseUrl + 'LbColaTrabajo/getLlenarDesplegable', { headers, params })
     }
+
+    // ─── Inspecciones ────────────────────────────────────────────────
+
+    getListarInsClientes(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarClientes', { headers });
+    }
+
+    getSubEstacionesPorCliente(Cliente_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Cliente_Id', String(Cliente_Id));
+        return this.http.get(this.baseUrl + 'Inspecciones/getSubEstacionesPorCliente', { headers, params });
+    }
+
+    getListarMotivos(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarMotivos', { headers });
+    }
+
+    getListarClimas(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarClimas', { headers });
+    }
+
+    getListarTareas(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarTareas', { headers });
+    }
+
+    getListarSubContratas(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarSubContratas', { headers });
+    }
+
+    registrarObservacionPlaneada(observacion: RegistrarObservacionPlaneadaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Inspecciones/postRegistrarObservacionPlaneada', observacion, { headers });
+    }
+
+    getListarJefesArea(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarJefesArea', { headers });
+    }
+    getListarObservacionesPlaneadas(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarObservacionesPlaneadas', { headers });
+    }
+
 }

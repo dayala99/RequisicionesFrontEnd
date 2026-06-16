@@ -1,0 +1,647 @@
+import { Component, ElementRef, EventEmitter, HostListener, OnInit, Output } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+
+import { ApiService, RegistrarObservacionPlaneadaRequest } from 'src/app/Services/api.services';
+import { AuthService } from 'src/app/features/auth/services/auth.service';
+
+interface ObservadorDatos {
+  nombre: string;
+  cargo: string;
+  area: string;
+  dni: string;
+}
+
+interface InsCliente {
+  Cliente_Id: number;
+  Cliente_Nombre: string;
+}
+
+interface InsSubEstacion {
+  Subestacion_Id: number;
+  Subestacion_Nombre: string;
+}
+
+interface InsMotivo {
+  Motivo_Id: number;
+  Motivo_Nombre: string;
+}
+
+interface InsClima {
+  Clima_Id: number;
+  Clima_Nombre: string;
+}
+
+interface InsTarea {
+  Tarea_Id: number;
+  Tarea_Nombre: string;
+}
+
+interface InsSubContrata {
+  SubContrata_Id: number;
+  SubContrata_Nombre: string;
+}
+
+interface InsJefeArea {
+  Jefe_Id: number;
+  Jef_Nombre: string;
+  Jef_DNI: string;
+  Cen_Cos_Id: number;
+  Cen_Cos_Des: string;
+}
+
+type ComboKey = 'cliente' | 'subestacion' | 'subcontrata' | 'jefeArea' | 'motivo' | 'clima' | 'tarea';
+
+@Component({
+  selector: 'app-observaciones-planeadas',
+  templateUrl: './observaciones-planeadas.component.html',
+  styleUrls: ['./observaciones-planeadas.component.scss']
+})
+export class ObservacionesPlaneadasComponent implements OnInit {
+  @Output() volver = new EventEmitter<void>();
+
+  observador: ObservadorDatos = {
+    nombre: '',
+    cargo: '',
+    area: '',
+    dni: ''
+  };
+
+  readonly observacionForm: FormGroup;
+
+  clientes: InsCliente[] = [];
+  subestaciones: InsSubEstacion[] = [];
+  motivos: InsMotivo[] = [];
+  climas: InsClima[] = [];
+  tareas: InsTarea[] = [];
+  subContratas: InsSubContrata[] = [];
+  jefesArea: InsJefeArea[] = [];
+
+  subestacionesFiltradas: InsSubEstacion[] = [];
+  clienteSeleccionado: InsCliente | null = null;
+  subestacionSeleccionada: InsSubEstacion | null = null;
+  motivoSeleccionado: InsMotivo | null = null;
+  climaSeleccionado: InsClima | null = null;
+  tareaSeleccionada: InsTarea | null = null;
+  subContrataSeleccionada: InsSubContrata | null = null;
+  jefeAreaSeleccionado: InsJefeArea | null = null;
+
+  comboOpen: Record<ComboKey, boolean> = {
+    cliente: false,
+    subestacion: false,
+    subcontrata: false,
+    jefeArea: false,
+    motivo: false,
+    clima: false,
+    tarea: false
+  };
+
+  comboSearch: Record<ComboKey, string> = {
+    cliente: '',
+    subestacion: '',
+    subcontrata: '',
+    jefeArea: '',
+    motivo: '',
+    clima: '',
+    tarea: ''
+  };
+
+  cargandoClientes = false;
+  cargandoSubestaciones = false;
+  cargandoMotivos = false;
+  cargandoClimas = false;
+  cargandoTareas = false;
+  cargandoSubContratas = false;
+  cargandoJefesArea = false;
+  registrandoObservacion = false;
+
+  constructor(
+    private readonly fb: FormBuilder,
+    private readonly apiService: ApiService,
+    private readonly authService: AuthService,
+    private readonly elementRef: ElementRef<HTMLElement>
+  ) {
+    this.observacionForm = this.fb.group({
+      cliente: [''],
+      subestacion: [''],
+      subcontrata: [''],
+      jefeEquipo: [''],
+      areaJefeEquipo: [''],
+      dniJefeEquipo: [''],
+      motivo: [''],
+      detalleMotivo: [''],
+      clima: [''],
+      tipoTarea: [''],
+      actividadObservada: ['']
+    });
+  }
+
+  ngOnInit(): void {
+    this.cargarDatosObservador();
+    this.cargarClientes();
+    this.cargarSubContratas();
+    this.cargarJefesArea();
+    this.cargarMotivos();
+    this.cargarClimas();
+    this.cargarTareas();
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as Node | null;
+    if (target && !this.elementRef.nativeElement.contains(target)) {
+      this.closeCombos();
+    }
+  }
+
+  retroceder(): void {
+    this.volver.emit();
+  }
+
+  toggleCombo(combo: ComboKey): void {
+    const willOpen = !this.comboOpen[combo];
+    this.closeCombos();
+    if (willOpen) {
+      this.comboOpen[combo] = true;
+      this.comboSearch[combo] = '';
+    }
+  }
+
+  closeCombos(): void {
+    this.comboOpen = {
+      cliente: false,
+      subestacion: false,
+      subcontrata: false,
+      jefeArea: false,
+      motivo: false,
+      clima: false,
+      tarea: false
+    };
+  }
+
+  onSearchChange(combo: ComboKey, event: Event): void {
+    this.comboSearch[combo] = (event.target as HTMLInputElement).value ?? '';
+  }
+
+  selectCliente(cliente: InsCliente | null): void {
+    this.clienteSeleccionado = cliente;
+    this.observacionForm.patchValue({ cliente: cliente?.Cliente_Id ?? '' });
+
+    this.subestacionSeleccionada = null;
+    this.subestaciones = [];
+    this.subestacionesFiltradas = [];
+    this.observacionForm.patchValue({ subestacion: '' });
+
+    this.comboSearch.cliente = '';
+    this.closeCombos();
+
+    if (cliente) {
+      this.cargarSubestaciones(cliente.Cliente_Id);
+    }
+  }
+
+  selectSubestacion(subestacion: InsSubEstacion | null): void {
+    this.subestacionSeleccionada = subestacion;
+    this.observacionForm.patchValue({ subestacion: subestacion?.Subestacion_Id ?? '' });
+    this.comboSearch.subestacion = '';
+    this.closeCombos();
+  }
+
+  selectSubContrata(subContrata: InsSubContrata | null): void {
+    this.subContrataSeleccionada = subContrata;
+    this.observacionForm.patchValue({ subcontrata: subContrata?.SubContrata_Id ?? '' });
+    this.comboSearch.subcontrata = '';
+    this.closeCombos();
+  }
+
+  selectJefeArea(jefe: InsJefeArea | null): void {
+    this.jefeAreaSeleccionado = jefe;
+
+    this.observacionForm.patchValue({
+      jefeEquipo: jefe?.Jefe_Id ?? '',
+      areaJefeEquipo: jefe?.Cen_Cos_Des ?? '',
+      dniJefeEquipo: jefe?.Jef_DNI ?? ''
+    });
+
+    this.comboSearch.jefeArea = '';
+    this.closeCombos();
+  }
+
+  selectMotivo(motivo: InsMotivo | null): void {
+    this.motivoSeleccionado = motivo;
+    this.observacionForm.patchValue({ motivo: motivo?.Motivo_Id ?? '' });
+    this.comboSearch.motivo = '';
+    this.closeCombos();
+  }
+
+  selectClima(clima: InsClima | null): void {
+    this.climaSeleccionado = clima;
+    this.observacionForm.patchValue({ clima: clima?.Clima_Id ?? '' });
+    this.comboSearch.clima = '';
+    this.closeCombos();
+  }
+
+  selectTarea(tarea: InsTarea | null): void {
+    this.tareaSeleccionada = tarea;
+    this.observacionForm.patchValue({ tipoTarea: tarea?.Tarea_Id ?? '' });
+    this.comboSearch.tarea = '';
+    this.closeCombos();
+  }
+
+  get clientesFiltrados(): InsCliente[] {
+    return this.filtrarLista(this.clientes, this.comboSearch.cliente, item => `${item.Cliente_Id} ${item.Cliente_Nombre}`);
+  }
+
+  get subestacionesFiltradasCombo(): InsSubEstacion[] {
+    return this.filtrarLista(this.subestaciones, this.comboSearch.subestacion, item => `${item.Subestacion_Id} ${item.Subestacion_Nombre}`);
+  }
+
+  get subContratasFiltradas(): InsSubContrata[] {
+    return this.filtrarLista(this.subContratas, this.comboSearch.subcontrata, item => `${item.SubContrata_Nombre} ${item.SubContrata_Id}`);
+  }
+
+  get jefesAreaFiltrados(): InsJefeArea[] {
+    return this.filtrarLista(this.jefesArea, this.comboSearch.jefeArea, item => `${item.Jefe_Id} ${item.Jef_Nombre} ${item.Jef_DNI} ${item.Cen_Cos_Id} ${item.Cen_Cos_Des}`);
+  }
+
+  get motivosFiltrados(): InsMotivo[] {
+    return this.filtrarLista(this.motivos, this.comboSearch.motivo, item => `${item.Motivo_Id} ${item.Motivo_Nombre}`);
+  }
+
+  get climasFiltrados(): InsClima[] {
+    return this.filtrarLista(this.climas, this.comboSearch.clima, item => `${item.Clima_Nombre} ${item.Clima_Id}`);
+  }
+
+  get tareasFiltradas(): InsTarea[] {
+    return this.filtrarLista(this.tareas, this.comboSearch.tarea, item => `${item.Tarea_Id} ${item.Tarea_Nombre}`);
+  }
+
+  get clienteDisplay(): string {
+    return this.clienteSeleccionado?.Cliente_Nombre || 'Seleccionar';
+  }
+
+  get subestacionDisplay(): string {
+    if (!this.clienteSeleccionado) {
+      return 'Primero seleccione cliente';
+    }
+    return this.subestacionSeleccionada?.Subestacion_Nombre || 'Seleccionar';
+  }
+
+  get subContrataDisplay(): string {
+    return this.subContrataSeleccionada?.SubContrata_Nombre || 'Seleccionar';
+  }
+
+  get jefeAreaDisplay(): string {
+    return this.jefeAreaSeleccionado?.Jef_Nombre || 'Seleccionar';
+  }
+
+  get motivoDisplay(): string {
+    return this.motivoSeleccionado?.Motivo_Nombre || 'Seleccionar';
+  }
+
+  get climaDisplay(): string {
+    return this.climaSeleccionado?.Clima_Nombre || 'Seleccionar';
+  }
+
+  get tareaDisplay(): string {
+    return this.tareaSeleccionada?.Tarea_Nombre || 'Seleccionar';
+  }
+
+  private filtrarLista<T>(items: T[], term: string, extractor: (item: T) => string): T[] {
+    const normalizedTerm = this.normalizarTexto(term.trim());
+    if (!normalizedTerm) {
+      return items;
+    }
+
+    return items.filter(item => this.normalizarTexto(extractor(item)).includes(normalizedTerm));
+  }
+
+  private normalizarTexto(value: string): string {
+    return value
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }
+
+  private cargarClientes(): void {
+    this.cargandoClientes = true;
+    this.apiService.getListarInsClientes().subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.clientes = raw.map(item => ({
+          Cliente_Id: this.toNumber(item['Cliente_Id'] ?? item['cliente_Id']),
+          Cliente_Nombre: this.getFirstNonEmptyText(item, ['Cliente_Nombre', 'cliente_Nombre', 'Cliente_Des', 'cliente_Des'])
+        })).filter(x => x.Cliente_Id > 0 || x.Cliente_Nombre !== '');
+        this.cargandoClientes = false;
+      },
+      error: () => {
+        this.clientes = [];
+        this.cargandoClientes = false;
+      }
+    });
+  }
+
+  private cargarSubestaciones(clienteId: number): void {
+    this.cargandoSubestaciones = true;
+    this.apiService.getSubEstacionesPorCliente(clienteId).subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.subestaciones = raw.map(item => ({
+          Subestacion_Id: this.toNumber(item['Subestacion_Id'] ?? item['subestacion_Id']),
+          Subestacion_Nombre: this.getFirstNonEmptyText(item, ['Subestacion_Nombre', 'subestacion_Nombre', 'Subestacion_Des', 'subestacion_Des'])
+        })).filter(x => x.Subestacion_Id > 0 || x.Subestacion_Nombre !== '');
+        this.subestacionesFiltradas = [...this.subestaciones];
+        this.cargandoSubestaciones = false;
+      },
+      error: () => {
+        this.subestaciones = [];
+        this.subestacionesFiltradas = [];
+        this.cargandoSubestaciones = false;
+      }
+    });
+  }
+
+  private cargarMotivos(): void {
+    this.cargandoMotivos = true;
+    this.apiService.getListarMotivos().subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.motivos = raw.map(item => ({
+          Motivo_Id: this.toNumber(item['Motivo_Id'] ?? item['motivo_Id']),
+          Motivo_Nombre: this.getFirstNonEmptyText(item, ['Motivo_Nombre', 'motivo_Nombre', 'Motivo_Des', 'motivo_Des'])
+        }));
+        this.cargandoMotivos = false;
+      },
+      error: () => {
+        this.motivos = [];
+        this.cargandoMotivos = false;
+      }
+    });
+  }
+
+  private cargarClimas(): void {
+    this.cargandoClimas = true;
+    this.apiService.getListarClimas().subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.climas = raw.map(item => ({
+          Clima_Id: this.toNumber(item['Clima_Id'] ?? item['clima_Id']),
+          Clima_Nombre: this.getFirstNonEmptyText(item, ['Clima_Nombre', 'clima_Nombre', 'Clima_Des', 'clima_Des', 'Clima', 'clima'])
+        }));
+        this.cargandoClimas = false;
+      },
+      error: () => {
+        this.climas = [];
+        this.cargandoClimas = false;
+      }
+    });
+  }
+
+  private cargarTareas(): void {
+    this.cargandoTareas = true;
+    this.apiService.getListarTareas().subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.tareas = raw.map(item => ({
+          Tarea_Id: this.toNumber(item['Tarea_Id'] ?? item['tarea_Id']),
+          Tarea_Nombre: this.getFirstNonEmptyText(item, ['Tarea_Nombre', 'tarea_Nombre', 'Tarea_Des', 'tarea_Des'])
+        }));
+        this.cargandoTareas = false;
+      },
+      error: () => {
+        this.tareas = [];
+        this.cargandoTareas = false;
+      }
+    });
+  }
+
+  private cargarSubContratas(): void {
+    this.cargandoSubContratas = true;
+    this.apiService.getListarSubContratas().subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.subContratas = raw.map(item => ({
+          SubContrata_Id: this.toNumber(item['SubContrata_Id'] ?? item['subContrata_Id'] ?? item['SubContrata'] ?? item['subContrata']),
+          SubContrata_Nombre: this.getFirstNonEmptyText(item, ['SubContrata_Nombre', 'subContrata_Nombre', 'SubContrata_Des', 'subContrata_Des', 'SubContrata'])
+        }));
+        this.cargandoSubContratas = false;
+      },
+      error: () => {
+        this.subContratas = [];
+        this.cargandoSubContratas = false;
+      }
+    });
+  }
+
+  private cargarJefesArea(): void {
+    this.cargandoJefesArea = true;
+    this.apiService.getListarJefesArea().subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.jefesArea = raw.map(item => ({
+          Jefe_Id: this.toNumber(item['Jefe_Id'] ?? item['jefe_Id']),
+          Jef_Nombre: this.getFirstNonEmptyText(item, ['Jef_Nombre', 'jef_Nombre', 'Jefe_Nombre', 'jefe_Nombre']),
+          Jef_DNI: this.getFirstNonEmptyText(item, ['Jef_DNI', 'jef_DNI', 'DNI', 'dni']),
+          Cen_Cos_Id: this.toNumber(item['Cen_Cos_Id'] ?? item['cen_Cos_Id']),
+          Cen_Cos_Des: this.getFirstNonEmptyText(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'Area_Des', 'area_Des'])
+        }));
+        this.cargandoJefesArea = false;
+      },
+      error: () => {
+        this.jefesArea = [];
+        this.cargandoJefesArea = false;
+      }
+    });
+  }
+
+  private cargarDatosObservador(): void {
+    const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
+    if (!usrCod) {
+      return;
+    }
+
+    this.apiService.getConsultaDatosUsuario({ Usr_Cod: usrCod }).subscribe({
+      next: (response: unknown) => {
+        const record = this.extractFirstRecord(response);
+        this.observador = {
+          nombre: usrCod,
+          cargo: this.getRecordValue(record, ['usr_Nom', 'Usr_Nom']) || this.authService.getCurrentUserName(),
+          area: this.getRecordValue(record, ['cen_Cos_Des', 'Cen_Cos_Des', 'areaDescripcion', 'Area_Des']),
+          dni: this.getRecordValue(record, ['usr_Doc_Nro', 'Usr_Doc_Nro', 'dni', 'DNI'])
+        };
+      },
+      error: () => {
+        this.observador = { nombre: usrCod, cargo: '', area: '', dni: '' };
+      }
+    });
+  }
+
+  registrarObservacion(): void {
+    if (this.registrandoObservacion) {
+      return;
+    }
+
+    const usrCodTexto = (this.observador.nombre.trim() || this.authService.getCurrentUser().trim());
+    const clienteId = this.clienteSeleccionado?.Cliente_Id ?? 0;
+    const subestacionId = this.subestacionSeleccionada?.Subestacion_Id ?? 0;
+    const subContrataId = this.subContrataSeleccionada?.SubContrata_Id ?? 0;
+    const jefeId = this.jefeAreaSeleccionado?.Jefe_Id ?? 0;
+    const motivoId = this.motivoSeleccionado?.Motivo_Id ?? 0;
+    const climaId = this.climaSeleccionado?.Clima_Id ?? 0;
+    const tareaId = this.tareaSeleccionada?.Tarea_Id ?? 0;
+    const obsDetalle = (this.observacionForm.get('detalleMotivo')?.value ?? '').toString().trim();
+    const obsActividad = (this.observacionForm.get('actividadObservada')?.value ?? '').toString().trim();
+
+    if (!usrCodTexto) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    if (!clienteId || !subestacionId || !subContrataId || !jefeId || !motivoId || !climaId || !tareaId || !obsDetalle || !obsActividad) {
+      alert('Completa todos los campos antes de registrar la observación planeada.');
+      return;
+    }
+
+    const payload: RegistrarObservacionPlaneadaRequest = {
+      Usr_Cod: usrCodTexto,
+      Cliente_Id: clienteId,
+      Subestacion_Id: subestacionId,
+      SubContrata_Id: subContrataId,
+      Jefe_Id: jefeId,
+      Motivo_Id: motivoId,
+      Clima_Id: climaId,
+      Tarea_Id: tareaId,
+      Obs_Detalle: obsDetalle,
+      Obs_Actividad: obsActividad,
+      Usr_Reg: usrCodTexto
+    };
+
+    this.registrandoObservacion = true;
+    this.apiService.registrarObservacionPlaneada(payload).subscribe({
+      next: (response: unknown) => {
+        this.registrandoObservacion = false;
+        const success = this.esRespuestaExitosa(response);
+        const message = this.getRespuestaMensaje(response) || (success ? 'Observación planeada registrada correctamente.' : 'No se pudo registrar la observación planeada.');
+        alert(message);
+
+        if (success) {
+          this.retroceder();
+        }
+      },
+      error: (error: unknown) => {
+        this.registrandoObservacion = false;
+        alert(this.getErrorMessage(error, 'No se pudo registrar la observación planeada.'));
+      }
+    });
+  }
+
+  private esRespuestaExitosa(response: unknown): boolean {
+    if (response && typeof response === 'object') {
+      const record = response as Record<string, unknown>;
+      if (record['success'] !== undefined) {
+        return record['success'] === true;
+      }
+      if (record['Success'] !== undefined) {
+        return record['Success'] === true;
+      }
+    }
+
+    return true;
+  }
+
+  private getRespuestaMensaje(response: unknown): string {
+    if (response && typeof response === 'object') {
+      const record = response as Record<string, unknown>;
+      for (const key of ['message', 'Message']) {
+        const value = record[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          return String(value);
+        }
+      }
+    }
+
+    return '';
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    if (error && typeof error === 'object') {
+      const record = error as Record<string, unknown>;
+      const errorBody = record['error'];
+      if (errorBody && typeof errorBody === 'object') {
+        const bodyRecord = errorBody as Record<string, unknown>;
+        for (const key of ['message', 'Message']) {
+          const value = bodyRecord[key];
+          if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value);
+          }
+        }
+      }
+
+      for (const key of ['message', 'Message']) {
+        const value = record[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          return String(value);
+        }
+      }
+    }
+
+    return fallback;
+  }
+
+  private extraerLista<T>(response: unknown): T[] {
+    if (Array.isArray(response)) {
+      return response as T[];
+    }
+
+    if (response && typeof response === 'object') {
+      const anyResponse = response as Record<string, unknown>;
+      const candidates = [
+        anyResponse['Elements'],
+        anyResponse['elements'],
+        anyResponse['Data'],
+        anyResponse['data'],
+        anyResponse['Result'],
+        anyResponse['result']
+      ];
+
+      for (const candidate of candidates) {
+        if (Array.isArray(candidate)) {
+          return candidate as T[];
+        }
+      }
+    }
+
+    return [];
+  }
+
+  private extractFirstRecord(response: unknown): Record<string, unknown> {
+    const lista = this.extraerLista<Record<string, unknown>>(response);
+    return lista.length > 0 ? lista[0] : {};
+  }
+
+  private getRecordValue(record: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+      const value = record[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return String(value);
+      }
+    }
+    return '';
+  }
+
+  private getFirstNonEmptyText(record: Record<string, unknown>, keys: string[]): string {
+    return this.getRecordValue(record, keys).trim();
+  }
+
+  private toString(value: unknown): string {
+    return value === undefined || value === null ? '' : String(value);
+  }
+
+  private toNumber(value: unknown): number {
+    if (value === undefined || value === null || value === '') {
+      return 0;
+    }
+    const numeric = Number(value);
+    return Number.isNaN(numeric) ? 0 : numeric;
+  }
+}

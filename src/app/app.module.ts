@@ -79,6 +79,8 @@ import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
 import { GridPaginationComponent } from './shared/components/grid-pagination/grid-pagination.component';
+import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
+import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -164,6 +166,8 @@ const APP_DATE_FORMATS = {
     UsuariosPageComponent,
     UsuarioEditDialogComponent,
     UsuarioRegisterDialogComponent,
+    InspeccionesPageComponent,
+    ObservacionesPlaneadasComponent,
     GridPaginationComponent
   ],
   imports: [
