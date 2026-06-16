@@ -18,6 +18,11 @@ interface PerfilOption {
   descripcion: string;
 }
 
+interface CargoOption {
+  id: number;
+  nombre: string;
+}
+
 @Component({
   selector: 'app-usuario-register-dialog',
   templateUrl: './usuario-register-dialog.component.html',
@@ -27,11 +32,14 @@ export class UsuarioRegisterDialogComponent implements OnInit {
   readonly form: FormGroup;
   readonly centroCostoSearchControl = new FormControl('', { nonNullable: true });
   readonly perfilSearchControl = new FormControl('', { nonNullable: true });
+  readonly cargoSearchControl = new FormControl('', { nonNullable: true });
   centroCostoOptions: CentroCostoOption[] = [];
   perfilOptions: PerfilOption[] = [];
+  cargoOptions: CargoOption[] = [];
   isSaving = false;
   isLoadingCentrosCosto = false;
   isLoadingPerfiles = false;
+  isLoadingCargos = false;
   errorMessage = '';
 
   constructor(
@@ -47,6 +55,7 @@ export class UsuarioRegisterDialogComponent implements OnInit {
       usrDocNro: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(20), optionalPatternValidator(/^[0-9]+$/)]],
       usrPass: ['', [Validators.required, noWhitespaceValidator(), Validators.maxLength(55)]],
       usrCenCosId: [0, [Validators.required, Validators.min(1)]],
+      usrCrg: [0, [Validators.required, Validators.min(1)]],
       usrApr: ['N', Validators.required],
       usrPrf: ['', [Validators.required, noWhitespaceValidator()]]
     });
@@ -55,6 +64,7 @@ export class UsuarioRegisterDialogComponent implements OnInit {
   ngOnInit(): void {
     this.cargarCentrosCosto();
     this.cargarPerfiles();
+    this.cargarCargos();
   }
 
   get filteredPerfilOptions(): PerfilOption[] {
@@ -81,6 +91,18 @@ export class UsuarioRegisterDialogComponent implements OnInit {
     );
   }
 
+  get filteredCargoOptions(): CargoOption[] {
+    const search = this.cargoSearchControl.value.trim().toLowerCase();
+
+    if (!search) {
+      return this.cargoOptions;
+    }
+
+    return this.cargoOptions.filter((cargo) =>
+      String(cargo.id).includes(search) || cargo.nombre.toLowerCase().includes(search)
+    );
+  }
+
   guardar(): void {
     if (this.form.invalid || this.isSaving) {
       this.form.markAllAsTouched();
@@ -97,6 +119,7 @@ export class UsuarioRegisterDialogComponent implements OnInit {
       usrDocNro: string;
       usrPass: string;
       usrCenCosId: number;
+      usrCrg: number;
       usrApr: string;
       usrPrf: string;
     };
@@ -116,7 +139,8 @@ export class UsuarioRegisterDialogComponent implements OnInit {
       Usr_Pass: values.usrPass.trim(),
       Usr_Apr: values.usrApr,
       Usr_Corr: values.usrCorr.trim(),
-      Usr_Prf: values.usrPrf.trim()
+      Usr_Prf: values.usrPrf.trim(),
+      Usr_Crg: Number(values.usrCrg)
     };
 
     console.log('Payload registrar usuario:', payload);
@@ -149,6 +173,12 @@ export class UsuarioRegisterDialogComponent implements OnInit {
   onCentroCostoSelectOpened(opened: boolean): void {
     if (opened) {
       this.centroCostoSearchControl.setValue('');
+    }
+  }
+
+  onCargoSelectOpened(opened: boolean): void {
+    if (opened) {
+      this.cargoSearchControl.setValue('');
     }
   }
 
@@ -185,6 +215,25 @@ export class UsuarioRegisterDialogComponent implements OnInit {
         this.perfilOptions = [];
         this.errorMessage = 'No se pudieron cargar los perfiles.';
         this.isLoadingPerfiles = false;
+      }
+    });
+  }
+
+  private cargarCargos(): void {
+    this.isLoadingCargos = true;
+    this.apiService.getListarCargo().subscribe({
+      next: (response: unknown) => {
+        this.cargoOptions = this.extractRecords(response)
+          .map((item) => this.mapCargoOption(item))
+          .filter((item): item is CargoOption => item !== null)
+          .sort((left, right) => left.nombre.localeCompare(right.nombre));
+        this.isLoadingCargos = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando cargos para usuario:', error);
+        this.cargoOptions = [];
+        this.errorMessage = 'No se pudieron cargar los cargos.';
+        this.isLoadingCargos = false;
       }
     });
   }
@@ -289,6 +338,17 @@ export class UsuarioRegisterDialogComponent implements OnInit {
     }
 
     return { codigo, descripcion };
+  }
+
+  private mapCargoOption(item: Record<string, unknown>): CargoOption | null {
+    const id = this.getNumberValue(item, ['Cargo_Id', 'cargo_Id', 'cargoId', 'id', 'Id']);
+    const nombre = this.getTextValue(item, ['Cargo_Nombre', 'cargo_Nombre', 'cargoNombre', 'nombre', 'Nombre']);
+
+    if (!id || !nombre) {
+      return null;
+    }
+
+    return { id, nombre };
   }
 
   private getTextValue(item: Record<string, unknown>, keys: string[]): string {

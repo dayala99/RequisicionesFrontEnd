@@ -269,6 +269,47 @@
   font: inherit;
 }
 
+.date-input-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.field .date-input-shell input {
+  width: 100%;
+  padding-right: 3rem;
+  cursor: pointer;
+}
+
+.date-input-shell__button {
+  position: absolute;
+  right: 0.45rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  width: 2.1rem;
+  height: 2.1rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.date-input-shell__button:hover {
+  background: rgba(255, 158, 49, 0.12);
+}
+
+.date-input-shell__button svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
+}
+
 .pedidos-b-approval-field mat-select {
   min-height: 3rem;
   padding: 0.7rem 0.85rem;

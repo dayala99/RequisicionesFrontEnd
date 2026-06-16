@@ -19,6 +19,12 @@ import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ProviderSelectorDialogComponent } from 'src/app/features/provider-form/dialogs/provider-selector-dialog.component';
 import { PaymentOption, ProviderRecord } from 'src/app/features/provider-form/provider-form.models';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
+import {
+  createOrdenCompraReportPdf,
+  mapOrdenCompraReportDisplayDate,
+  OrdenCompraReporteDetallePdf,
+  OrdenCompraReportePdfData
+} from 'src/app/shared/utils/orden-compra-report-pdf.utils';
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 import { OrdenCompraParcialDialogComponent } from './orden-compra-parcial-dialog.component';
 
@@ -43,6 +49,7 @@ interface OrdenCompraRow {
   montoDetraccion: number;
   archivo: string;
   archivoRuta: string;
+  fechaRegistro: string;
   estadoCodigo: string;
   estado: string;
   canEdit: boolean;
@@ -134,6 +141,7 @@ export class OrdenCompraPageComponent implements OnInit {
   isLoadingPedidoCentrosCosto = false;
   isLoadingPedidoDetalle = false;
   isSavingOrdenCompra = false;
+  isLoadingReporteOrdenCompraId: number | null = null;
   esParcial = false;
   errorMessage = '';
   saveErrorMessage = '';
@@ -143,6 +151,7 @@ export class OrdenCompraPageComponent implements OnInit {
   ordenCompraArchivoRuta = '';
   ordenCompraArchivoFile: File | null = null;
   detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
+  private ordenCompraLogoBytes: Uint8Array | null | undefined;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -353,6 +362,50 @@ export class OrdenCompraPageComponent implements OnInit {
   editarOrdenCompraDesdeFila(item: OrdenCompraRow): void {
     this.selectedOrdenCompraId = item.id;
     this.iniciarEdicionOrdenCompra();
+  }
+
+  verReporteOrdenCompra(item: OrdenCompraRow): void {
+    if (!item.ordenCompraId || this.isLoadingReporteOrdenCompraId === item.id) {
+      return;
+    }
+
+    this.isLoadingReporteOrdenCompraId = item.id;
+    this.errorMessage = '';
+
+    this.apiService.getListarOrdenCompraModificar(item.ordenCompraId).pipe(
+      switchMap((ordenCompraResponse: unknown) => {
+        const ordenCompra = this.extractRecords(ordenCompraResponse)
+          .map((record, index) => this.mapOrdenCompra(record, index))
+          .find((record): record is OrdenCompraRow => record !== null) ?? item;
+        const pedidoId = ordenCompra.pedidoIdAtencion ?? 0;
+
+        if (!pedidoId) {
+          return of({ ordenCompra, detalleResponse: [] as unknown, pedidoResponse: [] as unknown });
+        }
+
+        return forkJoin({
+          ordenCompra: of(ordenCompra),
+          detalleResponse: this.apiService.getListarItemsAsignadosPedidoCentroCostoModificar(item.ordenCompraId!, pedidoId),
+          pedidoResponse: this.apiService.getCargarReportePedido(String(pedidoId))
+        });
+      })
+    ).subscribe({
+      next: async ({ ordenCompra, detalleResponse, pedidoResponse }) => {
+        const logoBytes = await this.loadOrdenCompraLogoBytes();
+        const pdfBlob = createOrdenCompraReportPdf(
+          this.buildOrdenCompraReportePdfData(ordenCompra, detalleResponse, pedidoResponse),
+          { logoBytes }
+        );
+        const url = URL.createObjectURL(pdfBlob);
+        window.open(url, '_blank');
+        this.isLoadingReporteOrdenCompraId = null;
+      },
+      error: (error: unknown) => {
+        console.error('Error generando reporte de orden de compra:', error);
+        this.errorMessage = this.resolveErrorMessage(error, 'No se pudo generar el PDF de la orden de compra.');
+        this.isLoadingReporteOrdenCompraId = null;
+      }
+    });
   }
 
   seleccionarOrdenCompra(item: OrdenCompraRow): void {
@@ -1213,6 +1266,79 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.ordenesCompra.find((item) => item.id === this.selectedOrdenCompraId) ?? null;
   }
 
+  private async loadOrdenCompraLogoBytes(): Promise<Uint8Array | undefined> {
+    if (this.ordenCompraLogoBytes !== undefined) {
+      return this.ordenCompraLogoBytes ?? undefined;
+    }
+
+    try {
+      const response = await fetch('assets/ArceLogo.jpg');
+
+      if (!response.ok) {
+        this.ordenCompraLogoBytes = null;
+        return undefined;
+      }
+
+      this.ordenCompraLogoBytes = new Uint8Array(await response.arrayBuffer());
+      return this.ordenCompraLogoBytes;
+    } catch (error) {
+      console.warn('No se pudo cargar el logo para el PDF de orden de compra:', error);
+      this.ordenCompraLogoBytes = null;
+      return undefined;
+    }
+  }
+
+  private buildOrdenCompraReportePdfData(
+    ordenCompra: OrdenCompraRow,
+    detalleResponse: unknown,
+    pedidoResponse: unknown
+  ): OrdenCompraReportePdfData {
+    const proveedor = this.resolveProveedor(ordenCompra.proveedorId);
+    const pedido = this.extractRecords(pedidoResponse)[0];
+    const detalle = this.extractRecords(detalleResponse)
+      .map((item) => this.mapDetallePedido(item))
+      .filter((item): item is OrdenCompraDetallePedidoRow => item !== null)
+      .map((item, index): OrdenCompraReporteDetallePdf => ({
+        item: index + 1,
+        cantidad: item.cantidad,
+        unidad: item.unidadDescripcion,
+        especificacion: item.itemDescripcion,
+        centroCosto: item.centroCostoDescripcion,
+        precioUnitario: item.costoUnitario,
+        importe: item.subtotal
+      }));
+    const fechaRegistro = ordenCompra.fechaRegistro
+      ? mapOrdenCompraReportDisplayDate(ordenCompra.fechaRegistro)
+      : mapOrdenCompraReportDisplayDate(new Date().toISOString());
+    const fechaRequerida = pedido
+      ? mapOrdenCompraReportDisplayDate(this.getTextValue(pedido, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt']))
+      : '-';
+
+    return {
+      ordenCompraId: ordenCompra.ordenCompraId ?? 0,
+      fecha: fechaRegistro,
+      proveedor: proveedor?.name || ordenCompra.proveedor,
+      ruc: proveedor?.ruc || '-',
+      cuenta: proveedor?.bankAccountNumber || '-',
+      cci: proveedor?.bankCci || '-',
+      contacto: proveedor?.contact || '-',
+      email: proveedor?.email || '-',
+      direccionProveedor: proveedor?.address || '-',
+      referenciaObra: ordenCompra.referenciaObra || ordenCompra.referencia || '-',
+      observaciones: ordenCompra.observacion || '-',
+      fechaRequerida,
+      pedido: ordenCompra.pedidoIdAtencion ? `P${ordenCompra.pedidoIdAtencion}` : '-',
+      direccionEnvio: pedido ? this.getTextValue(pedido, ['Ped_Ref', 'ped_Ref', 'pedRef']) || '-' : '-',
+      solicitadoPor: pedido ? this.getTextValue(pedido, ['Usr_Reg', 'usr_Reg', 'usrReg']) || '-' : '-',
+      condicionPago: ordenCompra.formaPago || '-',
+      subtotal: ordenCompra.subtotal,
+      igv: ordenCompra.igv,
+      total: ordenCompra.total,
+      totalPagar: ordenCompra.total,
+      detalle
+    };
+  }
+
   private getArchivoAdjuntoActual(): string | undefined {
     const archivo = String(this.form.controls['archivo'].value || '').trim();
     return archivo && archivo !== 'Sin archivo adjunto' ? archivo : undefined;
@@ -1324,6 +1450,7 @@ export class OrdenCompraPageComponent implements OnInit {
         'archivoRuta',
         'ArchivoRuta'
       ]),
+      fechaRegistro: this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg']),
       estadoCodigo,
       estado: estadoCodigo ? this.mapEstadoDescripcion(estadoCodigo) : '-',
       canEdit: ordenCompraId !== null

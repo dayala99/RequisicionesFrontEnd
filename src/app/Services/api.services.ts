@@ -37,6 +37,11 @@ export interface PerfilFiltro {
     Flg_Est?: string;
 }
 
+export interface CargoFiltro {
+    Cargo_Id?: number;
+    Cargo_Nombre?: string;
+}
+
 export interface RegistrarAccesoRequest {
     Prf_Acc_Cod: string;
     Prf_Acc_Des: string;
@@ -400,6 +405,7 @@ export interface ActualizarUsuarioRequest {
     Usr_Apr: string;
     Usr_Corr: string;
     Usr_Prf: string;
+    Usr_Crg?: number;
 }
 
 export interface RegistrarUsuarioRequest {
@@ -417,6 +423,7 @@ export interface RegistrarUsuarioRequest {
     Usr_Apr: string;
     Usr_Corr: string;
     Usr_Prf: string;
+    Usr_Crg?: number;
 }
 
 export interface RegistrarProveedorRequest {
@@ -671,6 +678,21 @@ export class ApiService {
         params = params.append('Usr_Apr', Usr_Apr);
 
         return this.http.get(this.baseUrl + 'Usuario/getObtenerUsuariosAprobacion', { headers, params });
+    }
+
+    getListarCargo(filtros: CargoFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Cargo_Id !== undefined) {
+            params = params.append('Cargo_Id', filtros.Cargo_Id);
+        }
+
+        if (filtros.Cargo_Nombre) {
+            params = params.append('Cargo_Nombre', filtros.Cargo_Nombre);
+        }
+
+        return this.http.get(this.baseUrl + 'Cargo/getListarCargo', { headers, params });
     }
 
     private getUsuariosDesdeRuta(ruta: string, filtros: UsuariosFiltro): Observable<any> {
@@ -1456,7 +1478,7 @@ export class ApiService {
                 return;
             }
 
-            formData.append(key, String(value));
+            formData.append(key, this.formatOrdenCompraFormValue(key, value));
         });
 
         if (archivo) {
@@ -1476,7 +1498,7 @@ export class ApiService {
                 return;
             }
 
-            formData.append(key, String(value));
+            formData.append(key, this.formatOrdenCompraFormValue(key, value));
         });
 
         if (archivo) {
@@ -1493,6 +1515,21 @@ export class ApiService {
         console.log('PATCH OrdenCompra FormData:', formDataDebug);
 
         return this.http.patch(this.baseUrl + 'OrdenCompra/patchActualizarOdenCompra', formData);
+    }
+
+    private formatOrdenCompraFormValue(key: string, value: unknown): string {
+        const decimalKeys = new Set([
+            'Ord_Com_Sub_Tot',
+            'Ord_Com_Igv',
+            'Ord_Com_Tot',
+            'Ord_Com_Det_Mon'
+        ]);
+
+        if (decimalKeys.has(key) && typeof value === 'number') {
+            return value.toFixed(2).replace('.', ',');
+        }
+
+        return String(value);
     }
 
     patchAsignarOrdenCompraADetallePedido(detalle: AsignarOrdenCompraDetallePedidoRequest): Observable<any> {

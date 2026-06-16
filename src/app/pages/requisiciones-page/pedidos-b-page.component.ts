@@ -67,6 +67,9 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       this.normalizeLugarEntregaControlValue();
       this.syncDireccionEntregaControl(true);
     });
+    this.detalleForm.controls['fechaEntrega'].valueChanges.subscribe((value) => {
+      this.setPedidoBFechaEntregaLocalDate(value);
+    });
     this.detalleForm.controls['sustento'].valueChanges.subscribe((value) => {
       const providerReferenceControl = this.detalleForm.controls['proveedorReferencia'];
       const providerReference = String(providerReferenceControl.value ?? '');
@@ -77,6 +80,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       }
     });
     this.cargarDireccionesEntrega();
+    this.setPedidoBFechaEntregaLocalDate(this.detalleForm.controls['fechaEntrega'].value);
   }
 
   trackByApprovalUser(_: number, user: ApprovalUserOption): number {
@@ -585,6 +589,37 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
   private isDireccionEntregaOtro(direccion: DireccionEntregaOption): boolean {
     return direccion.descripcion.trim().toLowerCase() === 'otro';
+  }
+
+  private setPedidoBFechaEntregaLocalDate(value: unknown): void {
+    const localDate = this.parsePedidoBLocalDate(value);
+
+    if (!localDate) {
+      return;
+    }
+
+    this.detalleForm.controls['fechaEntrega'].setValue(localDate, { emitEvent: false });
+  }
+
+  private parsePedidoBLocalDate(value: unknown): Date | null {
+    if (!value || value instanceof Date) {
+      return null;
+    }
+
+    const rawValue = String(value).trim();
+    const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(rawValue);
+
+    if (isoMatch) {
+      return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+    }
+
+    const separatedMatch = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(rawValue);
+
+    if (separatedMatch) {
+      return new Date(Number(separatedMatch[3]), Number(separatedMatch[2]) - 1, Number(separatedMatch[1]));
+    }
+
+    return null;
   }
 
   private buildPedidoBPayload(): RegistrarPedidoRequest | null {

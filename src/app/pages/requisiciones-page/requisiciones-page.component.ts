@@ -265,12 +265,11 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   private getPedidoFechaEntregaMinima(): string {
-    const minDate = new Date();
-    minDate.setHours(0, 0, 0, 0);
-    minDate.setDate(minDate.getDate() + 3);
-    const month = String(minDate.getMonth() + 1).padStart(2, '0');
-    const day = String(minDate.getDate()).padStart(2, '0');
-    return `${minDate.getFullYear()}-${month}-${day}`;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${today.getFullYear()}-${month}-${day}`;
   }
 
   aplicarFiltros(): void {

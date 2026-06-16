@@ -324,18 +324,27 @@
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['oc'].touched && detalleForm.controls['oc'].hasError('required')">Campo Tipo de Servicio obligatorio.</small>
           </label>
 
-          <mat-form-field appearance="outline" class="field field--mat">
-            <mat-label>Fecha Entrega</mat-label>
-            <input
-              matInput
-              [matDatepicker]="pedidoBFechaEntregaPicker"
-              [min]="pedidoFechaEntregaMinimaDate"
-              formControlName="fechaEntrega"
-              readonly>
-            <mat-datepicker-toggle matSuffix [for]="pedidoBFechaEntregaPicker"></mat-datepicker-toggle>
+          <label class="field pedido-date-field">
+            <span>Fecha Entrega</span>
+            <div class="date-input-shell" (click)="pedidoBFechaEntregaPicker.open()">
+              <input
+                [matDatepicker]="pedidoBFechaEntregaPicker"
+                formControlName="fechaEntrega"
+                readonly
+                (click)="pedidoBFechaEntregaPicker.open()">
+              <button
+                type="button"
+                class="date-input-shell__button"
+                aria-label="Seleccionar fecha de entrega"
+                (click)="pedidoBFechaEntregaPicker.open(); $event.stopPropagation()">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1.5A2.5 2.5 0 0 1 22 6.5v12A2.5 2.5 0 0 1 19.5 21h-15A2.5 2.5 0 0 1 2 18.5v-12A2.5 2.5 0 0 1 4.5 4H6V3a1 1 0 0 1 1-1Zm12.5 8h-15v8.5a.5.5 0 0 0 .5.5h14a.5.5 0 0 0 .5-.5V10ZM5 6a.5.5 0 0 0-.5.5V8h15V6.5A.5.5 0 0 0 19 6H5Z"/>
+                </svg>
+              </button>
+            </div>
             <mat-datepicker #pedidoBFechaEntregaPicker></mat-datepicker>
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['fechaEntrega'].touched && detalleForm.controls['fechaEntrega'].hasError('required')">Campo Fecha Entrega obligatorio.</small>
-          </mat-form-field>
+          </label>
         </div>
       </section>
 
