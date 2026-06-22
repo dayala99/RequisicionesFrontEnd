@@ -35,6 +35,7 @@ interface RequisitionRow {
   codigoUsr: string;
   usrAprobacion: string;
   fechaUsrGa: string;
+  ordenCompraServicio: string;
   gn: string;
   tipo: string;
 }
@@ -166,6 +167,7 @@ export class RequisicionesPageComponent implements OnInit {
       oc: ['', Validators.required],
       moneda: [null, Validators.required],
       fechaEntrega: [this.getPedidoFechaEntregaMinima(), Validators.required],
+      referenciaGeneral: [''],
       sustento: ['', [Validators.required, noWhitespaceValidator()]],
       archivo: ['Sin archivo adjunto']
     });
@@ -1678,6 +1680,7 @@ export class RequisicionesPageComponent implements OnInit {
       Ped_Usr_Apr: usuarioAprobacion,
       Ped_Lug_Ent: lugarEntrega,
       Ped_Ref: referencia,
+      Ped_Ref_Gral: String(this.detalleForm.controls['referenciaGeneral'].value || '').trim(),
       Ped_Tip_Com: tipoServicio,
       Ped_Tip_Mon: moneda,
       Ped_Fec_Ent: fechaEntrega,
@@ -1980,6 +1983,7 @@ export class RequisicionesPageComponent implements OnInit {
       codigoUsr: this.getTextValue(item, ['Usr_Reg', 'usr_Reg', 'usrReg', 'Usr_Cod', 'usrCod']) || '-',
       usrAprobacion: this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'Usr_Apr', 'usrApr']) || '-',
       fechaUsrGa: fechaAprobacion || '-',
+      ordenCompraServicio: this.getTextValue(item, ['Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId']) || '-',
       gn: this.getTextValue(item, ['Gn', 'gn', 'Ped_Gn', 'ped_Gn']) || '-',
       tipo
     };
@@ -2263,6 +2267,7 @@ export class RequisicionesPageComponent implements OnInit {
       oc: '',
       moneda: null,
       fechaEntrega: this.getPedidoFechaEntregaMinima(),
+      referenciaGeneral: '',
       sustento: '',
       archivo: 'Sin archivo adjunto'
     });
@@ -2295,6 +2300,7 @@ export class RequisicionesPageComponent implements OnInit {
       oc: this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']),
       moneda: this.getNumberValue(item, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']),
       fechaEntrega: formatDateInputValue(this.getTextValue(item, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
+      referenciaGeneral: this.getTextValue(item, ['Ped_Ref_Gral', 'ped_Ref_Gral', 'pedRefGral']),
       sustento: this.getTextValue(item, ['Ped_Sus', 'ped_Sus', 'pedSus']),
       archivo: this.getTextValue(item, ['Ped_Arc_Adj_Nom', 'ped_Arc_Adj_Nom', 'pedArcAdjNom']) || 'Sin archivo adjunto'
     });

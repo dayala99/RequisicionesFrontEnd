@@ -629,6 +629,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     const tipoServicio = String(this.detalleForm.controls['oc'].value || '').trim();
     const moneda = Number(this.detalleForm.controls['moneda'].value);
     const fechaEntrega = this.normalizePedidoBFechaEntrega(this.detalleForm.controls['fechaEntrega'].value);
+    const referenciaGeneral = String(this.detalleForm.controls['referenciaGeneral'].value || '').trim();
     const proveedorReferencia = String(this.detalleForm.controls['proveedorReferencia'].value || '').trim();
     const usuarioRegistro = this.pedidosBAuthService.getCurrentUser().trim();
     const attachmentName = this.archivoAdjunto !== 'Sin archivo adjunto' ? this.archivoAdjunto : '';
@@ -690,6 +691,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Ped_Usr_Apr: usuarioAprobacion,
       Ped_Lug_Ent: lugarEntrega,
       Ped_Ref: referencia,
+      Ped_Ref_Gral: referenciaGeneral,
       Ped_Tip_Com: tipoServicio,
       Ped_Tip_Mon: moneda,
       Ped_Fec_Ent: fechaEntrega,
@@ -786,6 +788,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Ped_Usr_Apr: payload.Ped_Usr_Apr,
       Ped_Lug_Ent: payload.Ped_Lug_Ent,
       Ped_Ref: payload.Ped_Ref,
+      Ped_Ref_Gral: payload.Ped_Ref_Gral,
       Ped_Tip_Com: payload.Ped_Tip_Com,
       Ped_Tip_Mon: payload.Ped_Tip_Mon,
       Ped_Fec_Ent: payload.Ped_Fec_Ent,

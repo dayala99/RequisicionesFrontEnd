@@ -447,9 +447,9 @@ export interface RegistrarUsuarioRequest {
 export interface RegistrarProveedorRequest {
     Prv_Nom: string;
     Prv_Ruc: string;
-    Prv_Tel: string;
+    Prv_Tel?: string;
     Prv_Dir: string;
-    Prv_Nom_Con: string;
+    Prv_Nom_Con?: string;
     Prv_Email?: string;
     Prv_Nro_Cue_Ban?: string;
     Prv_Nro_Cue_Ban_CCI?: string;
@@ -461,9 +461,9 @@ export interface ActualizarProveedorRequest {
     Prv_Id: number;
     Prv_Nom: string;
     Prv_Ruc: string;
-    Prv_Tel: string;
+    Prv_Tel?: string;
     Prv_Dir: string;
-    Prv_Nom_Con: string;
+    Prv_Nom_Con?: string;
     Prv_Email?: string;
     Prv_Nro_Cue_Ban?: string;
     Prv_Nro_Cue_Ban_CCI?: string;
@@ -475,11 +475,46 @@ export interface ActualizarProveedorRequest {
     Fec_Mod: string;
 }
 
+export interface ProveedorBancoFiltro {
+    Prv_Ban_Id?: number;
+    Prv_Id?: number;
+}
+
+export interface RegistrarProveedorBancoRequest {
+    Prv_Id: number;
+    Ban_Id: number;
+    Tip_Mon: number;
+    Prv_Ban_Nro_Cta: string;
+    Prv_Ban_Nro_Cta_CCI: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarProveedorBancoRequest {
+    Prv_Ban_Id: number;
+    Prv_Id: number;
+    Ban_Id: number;
+    Tip_Mon: number;
+    Prv_Ban_Nro_Cta: string;
+    Prv_Ban_Nro_Cta_CCI: string;
+    Usr_Mod: string;
+}
+
+export interface EliminarProveedorBancoRequest {
+    Prv_Ban_Id: number;
+    Prv_Id: number;
+}
+
+export interface ActualizarCuentaBancariaProveedorRequest {
+    Prv_Ban_Id: number;
+    Prv_Id: number;
+}
+
 export interface RegistrarPedidoRequest {
     Ped_Id: number;
     Ped_Usr_Apr: string;
     Ped_Lug_Ent: number;
     Ped_Ref: string;
+    Ped_Ref_Gral: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
     Ped_Fec_Ent: string;
@@ -497,6 +532,7 @@ export interface ActualizarPedidoRequest {
     Ped_Usr_Apr: string;
     Ped_Lug_Ent: number;
     Ped_Ref: string;
+    Ped_Ref_Gral: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
     Ped_Fec_Ent: string;
@@ -567,6 +603,11 @@ export interface ActualizarPedidoDetalleCompletoRequest {
     Ped_Id: number;
 }
 
+export interface ActualizarReferenciaGeneralRequest {
+    Ped_Id: number;
+    Ped_Ref_Gral: string;
+}
+
 export interface RegistrarOrdenCompraRequest {
     Ord_Com_Prv: number;
     Ord_Com_For_Pag: number;
@@ -581,6 +622,8 @@ export interface RegistrarOrdenCompraRequest {
     Ord_Com_Arc_Adj_Rut?: string;
     Ord_Com_Det_Id?: number;
     Ord_Com_Det_Mon?: number;
+    Flg_Igv_Aut?: string;
+    Igv_Por?: number;
     Usr_Reg: string;
 }
 
@@ -599,6 +642,8 @@ export interface ActualizarOrdenCompraRequest {
     Ord_Com_Arc_Adj_Rut?: string;
     Ord_Com_Det_Id?: number;
     Ord_Com_Det_Mon?: number;
+    Flg_Igv_Aut?: string;
+    Igv_Por?: number;
     Flg_Est: string;
     Usr_Mod: string;
 }
@@ -1551,11 +1596,12 @@ export class ApiService {
             'Ord_Com_Sub_Tot',
             'Ord_Com_Igv',
             'Ord_Com_Tot',
-            'Ord_Com_Det_Mon'
+            'Ord_Com_Det_Mon',
+            'Igv_Por'
         ]);
 
         if (decimalKeys.has(key) && typeof value === 'number') {
-            return value.toFixed(2).replace('.', ',');
+            return value.toFixed(2);
         }
 
         return String(value);
@@ -1591,6 +1637,11 @@ export class ApiService {
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedidoCuandoDetalleCompleto', pedido, { headers });
     }
 
+    patchActualizarReferenciaGeneral(pedido: ActualizarReferenciaGeneralRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Pedido/patchActualizarReferenciaGeneral', pedido, { headers });
+    }
+
     postRegistrarDetallePedido(detalle: RegistrarDetallePedidoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'Pedido/postRegistrarDetallePedido', detalle, { headers });
@@ -1624,6 +1675,41 @@ export class ApiService {
     actualizarProveedor(proveedor: ActualizarProveedorRequest): Observable<any> {
         const headers = this.Header;
         return this.http.patch(this.baseUrl + 'Proveedor/patchActualizarProveedor', proveedor, { headers });
+    }
+
+    getListarProveedorBanco(filtros: ProveedorBancoFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Prv_Ban_Id !== undefined) {
+            params = params.append('Prv_Ban_Id', filtros.Prv_Ban_Id);
+        }
+
+        if (filtros.Prv_Id !== undefined) {
+            params = params.append('Prv_Id', filtros.Prv_Id);
+        }
+
+        return this.http.get(this.baseUrl + 'Proveedor/getListarProveedorBanco', { headers, params });
+    }
+
+    registrarProveedorBanco(proveedorBanco: RegistrarProveedorBancoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Proveedor/postRegistrarProveedorBanco', proveedorBanco, { headers });
+    }
+
+    actualizarProveedorBanco(proveedorBanco: ActualizarProveedorBancoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Proveedor/patchActualizarProveedorBanco', proveedorBanco, { headers });
+    }
+
+    eliminarProveedorBanco(proveedorBanco: EliminarProveedorBancoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.delete(this.baseUrl + 'Proveedor/deleteEliminarProveedorBanco', { headers, body: proveedorBanco });
+    }
+
+    actualizarCuentaBancariaProveedor(proveedorBanco: ActualizarCuentaBancariaProveedorRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Proveedor/patchActualizarCuentaBancariaProveedor', proveedorBanco, { headers });
     }
 
     getLlenarDesplegable(Usr_Cod: string){

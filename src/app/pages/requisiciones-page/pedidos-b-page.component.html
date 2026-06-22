@@ -64,6 +64,7 @@
               <th>Total</th>
               <th>Estado</th>
               <th>Tipo</th>
+              <th>Nro Orden Compra/Servicio</th>
               <th>Codigo Usr</th>
               <th>Usr Aprobacion</th>
               <th>Fecha Aprobacion</th>
@@ -94,6 +95,7 @@
                   <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
                 </td>
                 <td>{{ item.tipo }}</td>
+                <td>{{ item.ordenCompraServicio }}</td>
                 <td>{{ item.codigoUsr }}</td>
                 <td>{{ item.usrAprobacion }}</td>
                 <td>{{ item.fechaUsrGa }}</td>
@@ -110,15 +112,15 @@
             </ng-container>
 
             <tr *ngIf="isLoadingPedidos">
-              <td colspan="11" class="empty-row">Cargando pedidos registrados...</td>
+              <td colspan="12" class="empty-row">Cargando pedidos registrados...</td>
             </tr>
 
             <tr *ngIf="!isLoadingPedidos && errorMessage">
-              <td colspan="11" class="empty-row">{{ errorMessage }}</td>
+              <td colspan="12" class="empty-row">{{ errorMessage }}</td>
             </tr>
 
             <tr *ngIf="!isLoadingPedidos && !errorMessage && !requisiciones.length">
-              <td colspan="11" class="empty-row">No se han encontrado pedidos en la base de datos.</td>
+              <td colspan="12" class="empty-row">No se han encontrado pedidos en la base de datos.</td>
             </tr>
           </tbody>
         </table>
@@ -352,6 +354,11 @@
             </div>
             <mat-datepicker #pedidoBFechaEntregaPicker></mat-datepicker>
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['fechaEntrega'].touched && detalleForm.controls['fechaEntrega'].hasError('required')">Campo Fecha Entrega obligatorio.</small>
+          </label>
+
+          <label class="field">
+            <span>Referencia</span>
+            <input type="text" formControlName="referenciaGeneral" maxlength="160">
           </label>
         </div>
       </section>

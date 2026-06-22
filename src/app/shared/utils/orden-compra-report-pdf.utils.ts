@@ -16,6 +16,7 @@ export interface OrdenCompraReportePdfData {
   fecha: string;
   proveedor: string;
   ruc: string;
+  banco: string;
   cuenta: string;
   cci: string;
   contacto: string;
@@ -31,6 +32,8 @@ export interface OrdenCompraReportePdfData {
   subtotal: number;
   igv: number;
   total: number;
+  detraccionDescripcion: string;
+  montoDetraccion: number;
   totalPagar: number;
   detalle: OrdenCompraReporteDetallePdf[];
 }
@@ -81,44 +84,48 @@ function buildPageContent(
 
   addRect(PAGE_LEFT, PAGE_TOP, PAGE_RIGHT - PAGE_LEFT, 74);
   if (hasLogo) {
-    addImage(PAGE_LEFT + 38, PAGE_TOP + 16, 112, 47);
+    addImage(PAGE_LEFT + 18, PAGE_TOP + 12, 112, 47);
   } else {
-    addText(PAGE_LEFT + 20, PAGE_TOP + 30, 'ARCE', 24, true);
-    addText(PAGE_LEFT + 20, PAGE_TOP + 50, 'MONTAJES E INGENIERIA ARCE PERU S.A.C.', 8, true);
+    addText(PAGE_LEFT + 18, PAGE_TOP + 22, 'ARCE', 24, true);
+    addText(PAGE_LEFT + 18, PAGE_TOP + 42, 'MONTAJES E INGENIERIA ARCE PERU S.A.C.', 8, true);
   }
-  addText(PAGE_RIGHT - 8, PAGE_TOP + 20, 'Calle 3, Nro. 177 - Urb La Grimanesa - CALLAO', 8, false, 'right');
-  addText(PAGE_RIGHT - 8, PAGE_TOP + 32, 'Telef: 572-3220 ANEXO 11 - 12', 8, false, 'right');
-  addText(PAGE_RIGHT - 8, PAGE_TOP + 44, 'RUC: 20550259221', 8, false, 'right');
-  addText(PAGE_RIGHT - 8, PAGE_TOP + 60, `Pagina ${pageNumber} de ${totalPages}`, 7, false, 'right');
+  const headerRightX = PAGE_RIGHT - 12;
+  addText(headerRightX, PAGE_TOP + 16, 'Calle 3, Nro. 177 - Urb La Grimanesa - CALLAO', 8, false, 'right');
+  addText(headerRightX, PAGE_TOP + 30, 'Telef: 572-3220 ANEXO 11 - 12', 8, false, 'right');
+  addText(headerRightX, PAGE_TOP + 44, 'RUC: 20550259221', 8, false, 'right');
 
   addRect(PAGE_RIGHT - 155, 116, 135, 42);
   addText(PAGE_RIGHT - 87.5, 134, documentTitle, 10, true, 'center');
   addText(PAGE_RIGHT - 87.5, 150, `${documentPrefix}${report.ordenCompraId}`, 11, true, 'center');
 
-  addRect(PAGE_LEFT, 174, PAGE_RIGHT - PAGE_LEFT, 72);
+  addRect(PAGE_LEFT, 174, PAGE_RIGHT - PAGE_LEFT, 112);
   addLabelValue(PAGE_LEFT + 6, 190, 'FECHA:', report.fecha, 8);
   addLabelValue(PAGE_LEFT + 6, 204, 'PROVEEDOR:', report.proveedor, 8, 250);
   addLabelValue(PAGE_LEFT + 6, 218, 'RUC:', report.ruc, 8);
-  addLabelValue(PAGE_LEFT + 6, 232, 'CUENTA:', `${sanitizeValue(report.cuenta)} / CCI: ${sanitizeValue(report.cci)}`, 8, 265);
+  addLabelValue(PAGE_LEFT + 6, 232, 'BANCO:', report.banco, 8, 250);
+  addLabelValue(PAGE_LEFT + 6, 246, 'CUENTA:', report.cuenta, 8, 250);
+  addLabelValue(PAGE_LEFT + 6, 260, 'CCI:', report.cci, 8, 250);
 
   addLabelValue(310, 190, 'CONTACTO:', report.contacto, 8, 230);
   addLabelValue(310, 204, 'EMAIL:', report.email, 8, 230);
-  addLabelValue(310, 218, 'DIRECCION:', report.direccionProveedor, 8, 230);
+  addWrappedLabelValue(addText, 310, 218, 'DIRECCION:', report.direccionProveedor, 8, 230);
 
-  addText(PAGE_LEFT, 278, 'Muy Sres. Nuestros:', 8, true);
-  addText(PAGE_LEFT, 302, `Sirvanse suministrarnos los materiales contenidos en la ${documentName}, la misma que pasamos a detallar:`, 8);
+  addText(PAGE_LEFT, 318, 'Muy Sres. Nuestros:', 8, true);
+  addText(PAGE_LEFT, 342, `Sirvanse suministrarnos los materiales contenidos en la ${documentName}, la misma que pasamos a detallar:`, 8);
 
-  addRect(PAGE_LEFT, 318, PAGE_RIGHT - PAGE_LEFT, 64);
-  addLabelValue(PAGE_LEFT + 6, 334, 'REFERENCIA OBRA:', report.referenciaObra, 8, PAGE_RIGHT - PAGE_LEFT - 12);
-  addLabelValue(PAGE_LEFT + 6, 350, 'OBSERVACIONES:', report.observaciones, 8, PAGE_RIGHT - PAGE_LEFT - 12);
-  addLabelValue(PAGE_LEFT + 6, 366, 'FECHA REQ.:', report.fechaRequerida, 8);
+  addRect(PAGE_LEFT, 358, PAGE_RIGHT - PAGE_LEFT, 64);
+  addLabelValue(PAGE_LEFT + 6, 374, 'REFERENCIA:', report.referenciaObra, 8, PAGE_RIGHT - PAGE_LEFT - 12);
+  addLabelValue(PAGE_LEFT + 6, 390, 'FECHA REQ.:', report.fechaRequerida, 8);
 
-  const tableTop = 398;
+  const tableTop = 438;
   drawDetailTable(commands, addText, addLine, addRect, tableTop, detailRows, pageNumber);
   const tableBottom = tableTop + 24 + Math.max(detailRows.length, 1) * ROW_HEIGHT;
+  const totalsHeight = getTotalsRows(report).length * 20;
+  drawObservaciones(addText, addRect, tableBottom + 8, report.observaciones, totalsHeight);
   drawTotals(addText, addLine, addRect, tableBottom + 8, report);
 
-  const infoTop = Math.max(tableBottom + 108, 590);
+  const observationsHeight = totalsHeight;
+  const infoTop = Math.max(tableBottom + Math.max(totalsHeight, observationsHeight) + 36, 620);
   addRect(PAGE_LEFT, infoTop, PAGE_RIGHT - PAGE_LEFT, 86);
   addLabelValue(PAGE_LEFT + 6, infoTop + 16, 'PEDIDO:', report.pedido, 8);
   addLabelValue(PAGE_LEFT + 6, infoTop + 32, 'DIRECCION ENVIO:', report.direccionEnvio, 8, PAGE_RIGHT - PAGE_LEFT - 12);
@@ -188,23 +195,65 @@ function drawTotals(
   top: number,
   report: OrdenCompraReportePdfData
 ): void {
-  const x = 365;
+  const x = 315;
   const width = PAGE_RIGHT - x;
   const rowHeight = 20;
-  const labels = [
-    ['SUB TOTAL', report.subtotal],
-    ['IGV TOTAL', report.igv],
-    ['TOTAL CON IGV', report.total],
-    ['TOTAL A PAGAR', report.totalPagar]
-  ];
+  const labelWidth = 145;
+  const labels = getTotalsRows(report);
 
   labels.forEach(([label, value], index) => {
     const y = top + index * rowHeight;
     addRect(x, y, width, rowHeight);
-    addLine(x + 92, y, x + 92, y + rowHeight);
-    addText(x + 46, y + 13, String(label), 7, true, 'center');
-    addText((x + 92 + PAGE_RIGHT) / 2, y + 13, `S/. ${formatAmount(Number(value), 2)}`, 7, true, 'center');
+    addLine(x + labelWidth, y, x + labelWidth, y + rowHeight);
+    addText(x + 6, y + 13, String(label), String(label).startsWith('DETRACCION') ? 6 : 7, true, 'left', labelWidth - 12);
+    const numericValue = Number(value);
+    const formattedValue = numericValue < 0
+      ? `- S/. ${formatAmount(Math.abs(numericValue), 2)}`
+      : `S/. ${formatAmount(numericValue, 2)}`;
+    addText((x + labelWidth + PAGE_RIGHT) / 2, y + 13, formattedValue, 7, true, 'center');
   });
+}
+
+function drawObservaciones(
+  addText: ReturnType<typeof createTextAdder>,
+  addRect: ReturnType<typeof createRectAdder>,
+  top: number,
+  observaciones: string,
+  height: number
+): void {
+  const width = 245;
+  const x = PAGE_LEFT;
+  const y = top;
+  const textX = x + 8;
+  const textY = y + 16;
+  const label = 'Observaciones:';
+  const value = sanitizeValue(observaciones);
+
+  addRect(x, y, width, height);
+  addText(textX, textY, label, 8, true);
+
+  if (value && value !== '-') {
+    const lines = wrapTextToWidth(value, 8, width - 16);
+    lines.slice(0, 4).forEach((line, index) => {
+      addText(textX, textY + 14 + index * 12, line, 8, false, 'left', width - 16);
+    });
+  }
+}
+
+function getTotalsRows(report: OrdenCompraReportePdfData): Array<[string, number]> {
+  const rows: Array<[string, number]> = [
+    ['SUB TOTAL', report.subtotal],
+    ['IGV TOTAL', report.igv],
+    ['TOTAL CON IGV', report.total]
+  ];
+
+  if (report.montoDetraccion > 0) {
+    rows.push([sanitizeValue(report.detraccionDescripcion) || 'DETRACCION', -report.montoDetraccion]);
+  }
+
+  rows.push(['TOTAL A PAGAR', report.totalPagar]);
+
+  return rows;
 }
 
 function chunkRows(rows: OrdenCompraReporteDetallePdf[], firstPageRows: number, nextPageRows: number): OrdenCompraReporteDetallePdf[][] {
@@ -245,10 +294,32 @@ function createLabelValueAdder(addText: ReturnType<typeof createTextAdder>) {
   return (x: number, y: number, label: string, value: string, size = 8, maxWidth?: number) => {
     const safeLabel = sanitizePdfText(label);
     const safeValue = sanitizeValue(value);
-    const labelWidth = approximateTextWidth(safeLabel, size) + 4;
+    const labelWidth = approximateTextWidth(safeLabel, size) + 12;
     addText(x, y, safeLabel, size, true);
     addText(x + labelWidth, y, safeValue, size, false, 'left', maxWidth ? Math.max(maxWidth - labelWidth, 20) : undefined);
   };
+}
+
+function addWrappedLabelValue(
+  addText: ReturnType<typeof createTextAdder>,
+  x: number,
+  y: number,
+  label: string,
+  value: string,
+  size = 8,
+  maxWidth = 230,
+  lineHeight = 12
+): void {
+  const safeLabel = sanitizePdfText(label);
+  const safeValue = sanitizeValue(value);
+  const labelWidth = approximateTextWidth(safeLabel, size) + 12;
+  const valueWidth = Math.max(maxWidth - labelWidth, 20);
+  const lines = wrapTextToWidth(safeValue, size, valueWidth);
+
+  addText(x, y, safeLabel, size, true);
+  lines.forEach((line, index) => {
+    addText(x + labelWidth, y + index * lineHeight, line, size, false, 'left', valueWidth);
+  });
 }
 
 function createLineAdder(commands: string[]) {
@@ -359,7 +430,107 @@ function toPdfY(yFromTop: number): number {
 }
 
 function approximateTextWidth(text: string, fontSize: number): number {
-  return text.length * fontSize * 0.56;
+  const helveticaWidths: Record<string, number> = {
+    ' ': 0.278,
+    '!': 0.278,
+    '"': 0.355,
+    '#': 0.556,
+    '$': 0.556,
+    '%': 0.889,
+    '&': 0.667,
+    "'": 0.191,
+    '(': 0.333,
+    ')': 0.333,
+    '*': 0.389,
+    '+': 0.584,
+    ',': 0.278,
+    '-': 0.333,
+    '.': 0.278,
+    '/': 0.278,
+    '0': 0.556,
+    '1': 0.556,
+    '2': 0.556,
+    '3': 0.556,
+    '4': 0.556,
+    '5': 0.556,
+    '6': 0.556,
+    '7': 0.556,
+    '8': 0.556,
+    '9': 0.556,
+    ':': 0.278,
+    ';': 0.278,
+    '<': 0.584,
+    '=': 0.584,
+    '>': 0.584,
+    '?': 0.556,
+    '@': 1.015,
+    A: 0.667,
+    B: 0.667,
+    C: 0.722,
+    D: 0.722,
+    E: 0.667,
+    F: 0.611,
+    G: 0.778,
+    H: 0.722,
+    I: 0.278,
+    J: 0.5,
+    K: 0.667,
+    L: 0.556,
+    M: 0.833,
+    N: 0.722,
+    O: 0.778,
+    P: 0.667,
+    Q: 0.778,
+    R: 0.722,
+    S: 0.667,
+    T: 0.611,
+    U: 0.722,
+    V: 0.667,
+    W: 0.944,
+    X: 0.667,
+    Y: 0.667,
+    Z: 0.611,
+    '[': 0.278,
+    '\\': 0.278,
+    ']': 0.278,
+    '^': 0.469,
+    _: 0.556,
+    '`': 0.333,
+    a: 0.556,
+    b: 0.556,
+    c: 0.5,
+    d: 0.556,
+    e: 0.556,
+    f: 0.278,
+    g: 0.556,
+    h: 0.556,
+    i: 0.222,
+    j: 0.222,
+    k: 0.5,
+    l: 0.222,
+    m: 0.833,
+    n: 0.556,
+    o: 0.556,
+    p: 0.556,
+    q: 0.556,
+    r: 0.333,
+    s: 0.5,
+    t: 0.278,
+    u: 0.556,
+    v: 0.5,
+    w: 0.722,
+    x: 0.5,
+    y: 0.5,
+    z: 0.5,
+    '{': 0.334,
+    '|': 0.26,
+    '}': 0.334,
+    '~': 0.584
+  };
+
+  return text
+    .split('')
+    .reduce((total, character) => total + (helveticaWidths[character] ?? 0.556) * fontSize, 0);
 }
 
 function fitTextToWidth(text: string, fontSize: number, maxWidth?: number): string {
@@ -374,6 +545,33 @@ function fitTextToWidth(text: string, fontSize: number, maxWidth?: number): stri
   }
 
   return `${trimmed}...`;
+}
+
+function wrapTextToWidth(text: string, fontSize: number, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+
+    if (approximateTextWidth(candidate, fontSize) <= maxWidth) {
+      currentLine = candidate;
+      return;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    currentLine = word;
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length ? lines : ['-'];
 }
 
 function encodeText(value: string): Uint8Array {
