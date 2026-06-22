@@ -25,6 +25,7 @@ interface RequisitionRow {
   requisicion: number;
   codigo: string;
   archivo: string;
+  archivoNombre: string;
   gerencia: string;
   fecha: string;
   proveedor: string;
@@ -34,6 +35,7 @@ interface RequisitionRow {
   codigoUsr: string;
   usrAprobacion: string;
   fechaUsrGa: string;
+  ordenCompraServicio: string;
   gn: string;
   tipo: string;
 }
@@ -65,11 +67,21 @@ interface PedidoReporteCabeceraRow {
   pedidoId: number;
   fechaSolicitud: string;
   solicitante: string;
+  recepciona: string;
+  centroCosto: string;
+  ot: string;
   referencia: string;
+  referenciaGeneral: string;
   tipoServicio: string;
+  tipoCompra: string;
   moneda: string;
+  almacen: string;
+  oc: string;
+  telefono: string;
   lugarEntrega: string;
+  direccionEntrega: string;
   fechaEntrega: string;
+  proveedorReferencia: string;
   detalle: PedidoReporteDetallePdf[];
 }
 
@@ -124,6 +136,7 @@ export class RequisicionesPageComponent implements OnInit {
   isEditingPedidoDetalle = false;
   isSavingPedidoDetalle = false;
   isLoadingReportePedidoId: number | null = null;
+  private pedidoLogoBytes: Uint8Array | null | undefined;
   detallePedidoErrorMessage = '';
   detallePedidoCantidadLimite = 0;
   currentPedidosPage = 1;
@@ -165,6 +178,7 @@ export class RequisicionesPageComponent implements OnInit {
       oc: ['', Validators.required],
       moneda: [null, Validators.required],
       fechaEntrega: [this.getPedidoFechaEntregaMinima(), Validators.required],
+      referenciaGeneral: [''],
       sustento: ['', [Validators.required, noWhitespaceValidator()]],
       archivo: ['Sin archivo adjunto']
     });
@@ -310,7 +324,7 @@ export class RequisicionesPageComponent implements OnInit {
     this.errorMessage = '';
 
     this.apiService.getCargarReportePedido(String(item.requisicion)).subscribe({
-      next: (response: unknown) => {
+      next: async (response: unknown) => {
         try {
           this.assertSuccessfulResponse(response, 'No se pudo cargar el reporte del pedido.');
           const reporte = this.mapPedidoReporteCabecera(response, item);
@@ -319,7 +333,8 @@ export class RequisicionesPageComponent implements OnInit {
             throw new Error('No se encontro informacion para el reporte del pedido.');
           }
 
-          const pdfBlob = createPedidoReportPdf(this.buildPedidoReportePdfData(reporte, item));
+          const logoBytes = await this.loadPedidoLogoBytes();
+          const pdfBlob = createPedidoReportPdf(this.buildPedidoReportePdfData(reporte, item), { logoBytes });
           const url = URL.createObjectURL(pdfBlob);
           window.open(url, '_blank');
           this.isLoadingReportePedidoId = null;
@@ -1324,6 +1339,28 @@ export class RequisicionesPageComponent implements OnInit {
     }
   }
 
+  verArchivoPedidoListado(item: RequisitionRow, event?: Event): void {
+    event?.stopPropagation();
+    this.saveErrorMessage = '';
+    const nombreArchivo = item.archivoNombre.trim();
+
+    if (!nombreArchivo) {
+      this.saveErrorMessage = 'El pedido seleccionado no tiene archivo adjunto.';
+      return;
+    }
+
+    this.apiService.getArchivoPedido(nombreArchivo).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: () => {
+        this.saveErrorMessage = 'No se pudo abrir el archivo del pedido.';
+      }
+    });
+  }
+
 
 
 
@@ -1655,6 +1692,7 @@ export class RequisicionesPageComponent implements OnInit {
       Ped_Usr_Apr: usuarioAprobacion,
       Ped_Lug_Ent: lugarEntrega,
       Ped_Ref: referencia,
+      Ped_Ref_Gral: String(this.detalleForm.controls['referenciaGeneral'].value || '').trim(),
       Ped_Tip_Com: tipoServicio,
       Ped_Tip_Mon: moneda,
       Ped_Fec_Ent: fechaEntrega,
@@ -1947,6 +1985,7 @@ export class RequisicionesPageComponent implements OnInit {
       requisicion,
       codigo: this.getTextValue(item, ['Ped_Cod', 'ped_Cod', 'pedCod', 'codigo', 'Codigo']) || (requisicion > 0 ? `PED-${requisicion}` : '-'),
       archivo: this.resolveAttachmentLabel(archivoNombre),
+      archivoNombre,
       gerencia: this.getTextValue(item, ['Gerencia', 'gerencia', 'Are_Des', 'are_Des', 'area']) || '-',
       fecha: fechaRegistro || '-',
       proveedor,
@@ -1956,6 +1995,7 @@ export class RequisicionesPageComponent implements OnInit {
       codigoUsr: this.getTextValue(item, ['Usr_Reg', 'usr_Reg', 'usrReg', 'Usr_Cod', 'usrCod']) || '-',
       usrAprobacion: this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'Usr_Apr', 'usrApr']) || '-',
       fechaUsrGa: fechaAprobacion || '-',
+      ordenCompraServicio: this.getTextValue(item, ['Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId']) || '-',
       gn: this.getTextValue(item, ['Gn', 'gn', 'Ped_Gn', 'ped_Gn']) || '-',
       tipo
     };
@@ -1970,6 +2010,29 @@ export class RequisicionesPageComponent implements OnInit {
     const extension = archivoNombre.split('.').pop()?.trim().toUpperCase();
 
     return extension || 'ADJ';
+  }
+
+  private getMimeTypeFromFileName(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+
+    switch (extension) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'txt':
+      case 'sql':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   private resolveCurrency(item: DataRecord): string {
@@ -2020,6 +2083,27 @@ export class RequisicionesPageComponent implements OnInit {
     return option?.descripcion || '-';
   }
 
+  private async loadPedidoLogoBytes(): Promise<Uint8Array | undefined> {
+    if (this.pedidoLogoBytes !== undefined) {
+      return this.pedidoLogoBytes ?? undefined;
+    }
+
+    try {
+      const response = await fetch('assets/ArceLogo.jpg');
+
+      if (!response.ok) {
+        this.pedidoLogoBytes = null;
+        return undefined;
+      }
+
+      this.pedidoLogoBytes = new Uint8Array(await response.arrayBuffer());
+      return this.pedidoLogoBytes;
+    } catch {
+      this.pedidoLogoBytes = null;
+      return undefined;
+    }
+  }
+
   private mapPedidoReporteCabecera(response: unknown, pedido: RequisitionRow): PedidoReporteCabeceraRow | null {
     const cabecera = this.extractRecords(response)[0];
 
@@ -2028,31 +2112,81 @@ export class RequisicionesPageComponent implements OnInit {
     }
 
     const detalleValue = cabecera['Detalle_Reporte'] ?? cabecera['detalle_Reporte'] ?? cabecera['detalleReporte'];
-    const detalle = Array.isArray(detalleValue)
-      ? detalleValue.filter((item): item is DataRecord => this.isDataRecord(item)).map((item) => this.mapPedidoReporteDetalle(item))
+    const detalleRecords = Array.isArray(detalleValue)
+      ? detalleValue.filter((item): item is DataRecord => this.isDataRecord(item))
       : [];
+    const detalle = detalleRecords.map((item) => this.mapPedidoReporteDetalle(item));
 
     return {
       pedidoId: this.getNumberValue(cabecera, ['Ped_Id', 'ped_Id', 'pedId']) ?? pedido.requisicion,
       fechaSolicitud: mapPedidoReportDisplayDate(this.getTextValue(cabecera, ['Fec_Reg', 'fec_Reg', 'fecReg'])),
       solicitante: this.getTextValue(cabecera, ['Usr_Nom', 'usr_Nom', 'usrNom']) || pedido.codigoUsr,
+      recepciona: this.getTextValue(cabecera, ['Ped_Usr_Apr_Nom', 'ped_Usr_Apr_Nom', 'pedUsrAprNom', 'Usr_Apr_Nom', 'usrAprNom', 'Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr']) || pedido.usrAprobacion,
+      centroCosto: this.resolvePedidoReporteCentroCosto(detalleRecords),
+      ot: this.getTextValue(cabecera, ['Ped_Ot', 'ped_Ot', 'pedOt', 'Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId']) || pedido.ordenCompraServicio,
       referencia: this.getTextValue(cabecera, ['Ped_Ref', 'ped_Ref', 'pedRef']) || '-',
+      referenciaGeneral: this.getTextValue(cabecera, ['Ped_Ref_Gral', 'ped_Ref_Gral', 'pedRefGral']) || '-',
       tipoServicio: this.getTextValue(cabecera, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || pedido.tipo,
+      tipoCompra: this.getTextValue(cabecera, ['Ped_Tip_Com_Des', 'ped_Tip_Com_Des', 'pedTipComDes', 'Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes']) || pedido.tipo,
       moneda: this.getTextValue(cabecera, ['Mon_Abr', 'mon_Abr', 'monAbr']) || pedido.moneda,
-      lugarEntrega: this.getTextValue(cabecera, ['Ped_Lug_Ent', 'ped_Lug_Ent', 'pedLugEnt']) || '-',
+      almacen: this.getTextValue(cabecera, ['Alm_Des', 'alm_Des', 'almDes', 'Almacen', 'almacen']) || '-',
+      oc: this.getTextValue(cabecera, ['Ord_Com_Ped_Id', 'ord_Com_Ped_Id', 'ordComPedId']) || pedido.ordenCompraServicio,
+      telefono: this.getTextValue(cabecera, ['Usr_Tel', 'usr_Tel', 'usrTel', 'Prv_Tel', 'prv_Tel', 'prvTel', 'Telefono', 'telefono']) || '-',
+      lugarEntrega: this.getTextValue(cabecera, ['Dir_Des', 'dir_Des', 'dirDes', 'Ped_Lug_Ent_Des', 'ped_Lug_Ent_Des', 'Ped_Lug_Ent', 'ped_Lug_Ent', 'pedLugEnt']) || '-',
+      direccionEntrega: this.getTextValue(cabecera, ['Dir_Ubi', 'dir_Ubi', 'dirUbi', 'Ped_Ref', 'ped_Ref', 'pedRef']) || '-',
       fechaEntrega: mapPedidoReportDisplayDate(this.getTextValue(cabecera, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
+      proveedorReferencia: this.getTextValue(cabecera, ['Ped_Sus', 'ped_Sus', 'pedSus']) || '-',
       detalle
     };
   }
 
   private mapPedidoReporteDetalle(item: DataRecord): PedidoReporteDetallePdf {
+    const descripcion = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']) || '-';
+    const observacion = this.getTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs']);
+
     return {
-      descripcion: this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']) || '-',
-      unidad: this.getTextValue(item, ['Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr']) || '-',
+      descripcion: observacion ? `${descripcion} - ${observacion}` : descripcion,
+      unidad: this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr']) || '-',
       cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0,
-      precioUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']) ?? 0,
-      subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']) ?? 0
+      comentario: observacion,
+      centroCosto: this.getTextValue(item, [
+        'Cen_Cos_Des',
+        'cen_Cos_Des',
+        'cenCosDes',
+        'Ped_Cen_Cos_Des',
+        'ped_Cen_Cos_Des',
+        'pedCenCosDes',
+        'Cen_Cos_Cod',
+        'cen_Cos_Cod',
+        'cenCosCod',
+        'Ped_Cen_Cos_Asg',
+        'ped_Cen_Cos_Asg',
+        'pedCenCosAsg'
+      ]) || '-'
     };
+  }
+
+  private resolvePedidoReporteCentroCosto(detalle: DataRecord[]): string {
+    const firstRecord = detalle.find((item): item is DataRecord => this.isDataRecord(item));
+
+    if (!firstRecord) {
+      return '-';
+    }
+
+    return this.getTextValue(firstRecord, [
+      'Cen_Cos_Des',
+      'cen_Cos_Des',
+      'cenCosDes',
+      'Ped_Cen_Cos_Des',
+      'ped_Cen_Cos_Des',
+      'pedCenCosDes',
+      'Cen_Cos_Cod',
+      'cen_Cos_Cod',
+      'cenCosCod',
+      'Ped_Cen_Cos_Asg',
+      'ped_Cen_Cos_Asg',
+      'pedCenCosAsg'
+    ]) || '-';
   }
 
   private buildPedidoReportePdfData(reporte: PedidoReporteCabeceraRow, pedido: RequisitionRow): PedidoReportePdfData {
@@ -2061,11 +2195,21 @@ export class RequisicionesPageComponent implements OnInit {
       codigoPedido: pedido.codigo,
       fechaSolicitud: reporte.fechaSolicitud,
       solicitante: reporte.solicitante,
+      recepciona: reporte.recepciona,
+      centroCosto: reporte.centroCosto,
+      ot: reporte.ot,
       referencia: reporte.referencia,
+      referenciaGeneral: reporte.referenciaGeneral,
       tipoServicio: reporte.tipoServicio,
+      tipoCompra: reporte.tipoCompra,
       moneda: reporte.moneda,
+      almacen: reporte.almacen,
+      oc: reporte.oc,
+      telefono: reporte.telefono,
       lugarEntrega: reporte.lugarEntrega,
+      direccionEntrega: reporte.direccionEntrega,
       fechaEntrega: reporte.fechaEntrega,
+      proveedorReferencia: reporte.proveedorReferencia,
       detalle: reporte.detalle
     };
   }
@@ -2216,6 +2360,7 @@ export class RequisicionesPageComponent implements OnInit {
       oc: '',
       moneda: null,
       fechaEntrega: this.getPedidoFechaEntregaMinima(),
+      referenciaGeneral: '',
       sustento: '',
       archivo: 'Sin archivo adjunto'
     });
@@ -2248,6 +2393,7 @@ export class RequisicionesPageComponent implements OnInit {
       oc: this.getTextValue(item, ['Ped_Tip_Com', 'ped_Tip_Com', 'pedTipCom']),
       moneda: this.getNumberValue(item, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']),
       fechaEntrega: formatDateInputValue(this.getTextValue(item, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt'])),
+      referenciaGeneral: this.getTextValue(item, ['Ped_Ref_Gral', 'ped_Ref_Gral', 'pedRefGral']),
       sustento: this.getTextValue(item, ['Ped_Sus', 'ped_Sus', 'pedSus']),
       archivo: this.getTextValue(item, ['Ped_Arc_Adj_Nom', 'ped_Arc_Adj_Nom', 'pedArcAdjNom']) || 'Sin archivo adjunto'
     });

@@ -6,10 +6,12 @@ import { ApiService, ProveedoresFiltro } from 'src/app/Services/api.services';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { formatDisplayDate } from 'src/app/shared/utils/date.utils';
 import { ProviderEditDialogComponent } from './provider-edit-dialog.component';
+import { ProviderBanksDialogComponent } from './provider-banks-dialog.component';
 import { ProviderRegisterDialogComponent } from './provider-register-dialog.component';
 
 interface ProviderRow {
   prvId: number | null;
+  prvBanId: number | null;
   prvNom: string;
   prvRuc: string;
   prvTel: string;
@@ -140,6 +142,30 @@ export class ProviderPageComponent implements OnInit {
     });
   }
 
+  asignarBanco(proveedor: ProviderRow): void {
+    if (proveedor.prvId === null) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ProviderBanksDialogComponent, {
+      width: 'min(50rem, calc(100vw - 1rem))',
+      maxWidth: 'calc(100vw - 1rem)',
+      data: {
+        providerId: proveedor.prvId,
+        providerName: proveedor.prvNom,
+        providerRuc: proveedor.prvRuc,
+        selectedProviderBankId: proveedor.prvBanId,
+        selectedBankId: proveedor.prvBan,
+        selectedAccountNumber: proveedor.prvNroCueBan,
+        selectedCci: proveedor.prvNroCueBanCci
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(() => {
+      this.cargarProveedores();
+    });
+  }
+
   trackByProveedor(_index: number, proveedor: ProviderRow): string {
     return proveedor.prvId !== null ? String(proveedor.prvId) : proveedor.prvRuc;
   }
@@ -209,7 +235,7 @@ export class ProviderPageComponent implements OnInit {
       return [];
     }
 
-    const possibleArrayKeys = ['proveedores', 'Proveedores', 'providers', 'Providers', 'elements', 'data', 'Data', 'result', 'Result'];
+    const possibleArrayKeys = ['proveedores', 'Proveedores', 'providers', 'Providers', 'bancos', 'Bancos', 'elements', 'data', 'Data', 'result', 'Result'];
 
     for (const key of possibleArrayKeys) {
       const value = response[key];
@@ -253,6 +279,7 @@ export class ProviderPageComponent implements OnInit {
 
     return {
       prvId,
+      prvBanId: this.getNumberValue(item, ['Ban_Id', 'ban_Id', 'banId', 'Prv_Ban_Id', 'prv_Ban_Id', 'prvBanId', 'Prv_Ban', 'prv_Ban', 'prvBan']),
       prvNom,
       prvRuc,
       prvTel,

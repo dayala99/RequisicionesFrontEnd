@@ -64,6 +64,7 @@
               <th>Total</th>
               <th>Estado</th>
               <th>Tipo</th>
+              <th>Nro Orden Compra/Servicio</th>
               <th>Codigo Usr</th>
               <th>Usr Aprobacion</th>
               <th>Fecha Aprobacion</th>
@@ -79,7 +80,15 @@
                 [class.requisiciones-table__row--selected]="isPedidoSeleccionado(item)"
                 (click)="seleccionarPedido(item)">
                 <td>{{ item.codigo }}</td>
-                <td><span class="file-badge">{{ item.archivo }}</span></td>
+                <td>
+                  <button
+                    type="button"
+                    class="file-badge file-badge--button"
+                    [disabled]="!item.archivoNombre"
+                    (click)="verArchivoPedidoListado(item, $event)">
+                    {{ item.archivo }}
+                  </button>
+                </td>
                 <td>{{ item.fecha }}</td>
                 <td>{{ item.moneda }}</td>
                 <td>{{ formatTotal(item.total, item.moneda) }}</td>
@@ -87,6 +96,7 @@
                   <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
                 </td>
                 <td>{{ item.tipo }}</td>
+                <td>{{ item.ordenCompraServicio }}</td>
                 <td>{{ item.codigoUsr }}</td>
                 <td>{{ item.usrAprobacion }}</td>
                 <td>{{ item.fechaUsrGa }}</td>
@@ -111,15 +121,15 @@
             </ng-container>
 
             <tr *ngIf="isLoadingPedidos">
-              <td colspan="12" class="empty-row">Cargando pedidos registrados...</td>
+              <td colspan="13" class="empty-row">Cargando pedidos registrados...</td>
             </tr>
 
             <tr *ngIf="!isLoadingPedidos && errorMessage">
-              <td colspan="12" class="empty-row">{{ errorMessage }}</td>
+              <td colspan="13" class="empty-row">{{ errorMessage }}</td>
             </tr>
 
             <tr *ngIf="!isLoadingPedidos && !errorMessage && !requisiciones.length">
-              <td colspan="12" class="empty-row">No se han encontrado pedidos en la base de datos.</td>
+              <td colspan="13" class="empty-row">No se han encontrado pedidos en la base de datos.</td>
             </tr>
           </tbody>
         </table>

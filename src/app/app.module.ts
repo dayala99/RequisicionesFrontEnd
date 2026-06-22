@@ -54,6 +54,7 @@ import { OrdenCompraParcialDialogComponent } from './pages/orden-compra-page/ord
 import { PerfilAccesosDialogComponent } from './pages/perfil-page/perfil-accesos-dialog.component';
 import { PerfilPageComponent } from './pages/perfil-page/perfil-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
+import { ProviderBanksDialogComponent } from './pages/provider-page/provider-banks-dialog.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
 import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
@@ -147,6 +148,7 @@ const APP_DATE_FORMATS = {
     ItemDetalleMaterialEditDialogComponent,
     HomePageComponent,
     ProviderPageComponent,
+    ProviderBanksDialogComponent,
     ProviderEditDialogComponent,
     ProviderRegisterDialogComponent,
     ProviderFormComponent,

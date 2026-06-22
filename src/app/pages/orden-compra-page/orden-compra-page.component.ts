@@ -3,12 +3,13 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
 import { forkJoin, Observable, of } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { map, switchMap } from 'rxjs/operators';
 
 import {
   AsignarOrdenCompraDetallePedidoRequest,
   ActualizarDetallePedidoRequest,
   ActualizarOrdenCompraRequest,
+  ActualizarReferenciaGeneralRequest,
   ApiService,
   DesAsignarOrdenCompraDetallePedidoRequest,
   OrdenCompraFiltro,
@@ -37,6 +38,15 @@ interface OrdenCompraRow {
   pedidoIdAtencion: number | null;
   proveedorId: number;
   proveedor: string;
+  proveedorRuc: string;
+  proveedorBancoId: number;
+  proveedorBancoDescripcion: string;
+  proveedorCuenta: string;
+  proveedorCci: string;
+  proveedorContacto: string;
+  proveedorEmail: string;
+  proveedorDireccion: string;
+  tipoServicio: string;
   formaPagoId: number;
   formaPago: string;
   referenciaObra: string;
@@ -44,8 +54,11 @@ interface OrdenCompraRow {
   observacion: string;
   subtotal: number;
   igv: number;
+  flgIgvAut: string;
+  igvPor: number | null;
   total: number;
   detraccionId: number;
+  detraccionDescripcion: string;
   montoDetraccion: number;
   archivo: string;
   archivoRuta: string;
@@ -53,6 +66,15 @@ interface OrdenCompraRow {
   estadoCodigo: string;
   estado: string;
   canEdit: boolean;
+}
+
+interface OrdenCompraProveedorBancoReporte {
+  id: number;
+  providerId: number;
+  bankId: number;
+  accountNumber: string;
+  cci: string;
+  selected: boolean;
 }
 
 interface PedidoPendienteRow {
@@ -150,6 +172,7 @@ export class OrdenCompraPageComponent implements OnInit {
   ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
   ordenCompraArchivoRuta = '';
   ordenCompraArchivoFile: File | null = null;
+  pedidoArchivoAdjunto = 'Sin archivo adjunto';
   detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
   private ordenCompraLogoBytes: Uint8Array | null | undefined;
 
@@ -179,11 +202,14 @@ export class OrdenCompraPageComponent implements OnInit {
       formaPago: ['', [Validators.required, noWhitespaceValidator()]],
       referenciaObra: [''],
       referencia: [''],
+      pedidoReferenciaGeneral: [''],
       observacion: [''],
       archivo: ['Sin archivo adjunto'],
       detraccionId: [null],
       montoDetraccion: [0],
       subtotal: [0, Validators.min(0)],
+      usarIgv18: [true],
+      porcentajeIgv: [18, Validators.min(0)],
       igv: [0, Validators.min(0)],
       total: [0, Validators.min(0)],
       estado: ['A', Validators.required]
@@ -219,7 +245,7 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get igvCalculado(): number {
-    return this.normalizeDecimal(this.subtotalCalculado * 0.18);
+    return this.normalizeDecimal(this.subtotalCalculado * this.getPorcentajeIgv() / 100);
   }
 
   get totalCalculado(): number {
@@ -379,21 +405,51 @@ export class OrdenCompraPageComponent implements OnInit {
           .find((record): record is OrdenCompraRow => record !== null) ?? item;
         const pedidoId = ordenCompra.pedidoIdAtencion ?? 0;
 
-        if (!pedidoId) {
-          return of({ ordenCompra, detalleResponse: [] as unknown, pedidoResponse: [] as unknown });
-        }
-
         return forkJoin({
           ordenCompra: of(ordenCompra),
-          detalleResponse: this.apiService.getListarItemsAsignadosPedidoCentroCostoModificar(item.ordenCompraId!, pedidoId),
-          pedidoResponse: this.apiService.getCargarReportePedido(String(pedidoId))
-        });
+          detalleResponse: pedidoId
+            ? this.apiService.getListarItemsAsignadosPedidoCentroCostoModificar(item.ordenCompraId!, pedidoId)
+            : of([] as unknown),
+          pedidoResponse: pedidoId
+            ? this.apiService.getCargarReportePedido(String(pedidoId))
+            : of([] as unknown),
+          proveedorResponse: ordenCompra.proveedorId
+            ? this.apiService.getListarProveedorActivo({ Prv_Id: ordenCompra.proveedorId, Flg_Est: 'A' })
+            : of([] as unknown)
+        }).pipe(
+          switchMap((context) => {
+            const proveedorBancoId = this.resolveProveedorBancoIdFromProveedorResponse(context.proveedorResponse);
+            const proveedorBancoRequest = ordenCompra.proveedorId
+              ? this.apiService.getListarProveedorBanco({
+                  Prv_Ban_Id: proveedorBancoId,
+                  Prv_Id: ordenCompra.proveedorId
+                })
+              : of([] as unknown);
+
+            return proveedorBancoRequest.pipe(map((proveedorBancoResponse: unknown) => ({
+              ...context,
+              proveedorBancoResponse
+            })));
+          }),
+          switchMap((context) => {
+            const cuentaPrincipal = this.resolveProveedorBancoPrincipal(context.proveedorBancoResponse);
+            const bancoId = cuentaPrincipal?.bankId || ordenCompra.proveedorBancoId;
+            const bancoRequest = bancoId
+              ? this.apiService.getListarBanco({ Ban_Id: bancoId, Flg_Est: 'A' })
+              : of([] as unknown);
+
+            return bancoRequest.pipe(map((bancoResponse: unknown) => ({
+              ...context,
+              bancoResponse
+            })));
+          })
+        );
       })
     ).subscribe({
-      next: async ({ ordenCompra, detalleResponse, pedidoResponse }) => {
+      next: async ({ ordenCompra, detalleResponse, pedidoResponse, proveedorResponse, proveedorBancoResponse, bancoResponse }) => {
         const logoBytes = await this.loadOrdenCompraLogoBytes();
         const pdfBlob = createOrdenCompraReportPdf(
-          this.buildOrdenCompraReportePdfData(ordenCompra, detalleResponse, pedidoResponse),
+          this.buildOrdenCompraReportePdfData(ordenCompra, detalleResponse, pedidoResponse, proveedorResponse, proveedorBancoResponse, bancoResponse),
           { logoBytes }
         );
         const url = URL.createObjectURL(pdfBlob);
@@ -462,6 +518,36 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   onDetraccionChange(): void {
+    this.syncTotalesCalculados();
+  }
+
+  onIgv18Change(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const checked = !!input?.checked;
+
+    this.form.controls['usarIgv18'].setValue(checked, { emitEvent: false });
+
+    if (checked) {
+      this.form.controls['porcentajeIgv'].setValue(18, { emitEvent: false });
+    }
+
+    this.syncTotalesCalculados();
+  }
+
+  onPorcentajeIgvInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = this.sanitizeDecimalInput(input.value);
+
+    if (sanitizedValue !== input.value) {
+      input.value = sanitizedValue;
+    }
+
+    this.form.controls['porcentajeIgv'].setValue(sanitizedValue, { emitEvent: false });
     this.syncTotalesCalculados();
   }
 
@@ -643,11 +729,12 @@ export class OrdenCompraPageComponent implements OnInit {
     this.isLoadingPedidoDetalle = true;
     this.centrosCosto = [];
     this.pedidoDetalles = [];
+    this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
     this.currentDetallePedidoPage = 1;
 
     this.loadPedidoData(pedidoId).subscribe({
-      next: ({ centrosCostoResponse, detalleResponse }) => {
-        this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse);
+      next: ({ centrosCostoResponse, detalleResponse, pedidoResponse }) => {
+        this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse, pedidoResponse);
       },
       error: (error: unknown) => {
         this.handlePedidoDataError(error);
@@ -781,6 +868,28 @@ export class OrdenCompraPageComponent implements OnInit {
     this.saveErrorMessage = 'No hay archivo adjunto para visualizar.';
   }
 
+  verPedidoArchivo(): void {
+    this.saveErrorMessage = '';
+    const nombreArchivo = this.pedidoArchivoAdjunto.trim();
+
+    if (!nombreArchivo || nombreArchivo === 'Sin archivo adjunto') {
+      this.saveErrorMessage = 'El pedido seleccionado no tiene PDF adjunto para visualizar.';
+      return;
+    }
+
+    this.apiService.getArchivoPedido(nombreArchivo).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: (error: unknown) => {
+        console.error('Error abriendo archivo del pedido:', error);
+        this.saveErrorMessage = 'No se pudo abrir el PDF asignado al pedido.';
+      }
+    });
+  }
+
   formatCurrency(value: number): string {
     return new Intl.NumberFormat('es-PE', {
       minimumFractionDigits: 2,
@@ -839,11 +948,14 @@ export class OrdenCompraPageComponent implements OnInit {
         formaPago: '',
       referenciaObra: '',
       referencia: '',
+      pedidoReferenciaGeneral: '',
       observacion: '',
       archivo: 'Sin archivo adjunto',
       detraccionId: null,
       montoDetraccion: 0,
       subtotal: 0,
+      usarIgv18: true,
+      porcentajeIgv: 18,
       igv: 0,
       total: 0,
       estado: 'A'
@@ -858,6 +970,7 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = '';
     this.ordenCompraArchivoFile = null;
+    this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
     this.syncTotalesCalculados();
   }
 
@@ -952,6 +1065,8 @@ export class OrdenCompraPageComponent implements OnInit {
     const total = this.parseMontoControlValue(this.form.controls['total'].value);
     const detraccionId = this.getDetraccionIdSeleccionada();
     const montoDetraccion = this.parseMontoControlValue(this.form.controls['montoDetraccion'].value);
+    const usarIgvAutomatico = Boolean(this.form.controls['usarIgv18'].value);
+    const porcentajeIgv = this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value);
 
     if (!proveedorId || !proveedor) {
       this.form.controls['proveedor'].markAsTouched();
@@ -992,7 +1107,9 @@ export class OrdenCompraPageComponent implements OnInit {
       Ord_Com_Tot: total,
       Ord_Com_Ped_Id: pedidoIdAtencion,
       Ord_Com_Det_Id: Number.isInteger(detraccionId) && detraccionId > 0 ? detraccionId : 0,
-      Ord_Com_Det_Mon: montoDetraccion > 0 ? montoDetraccion : 0
+      Ord_Com_Det_Mon: montoDetraccion > 0 ? montoDetraccion : 0,
+      Flg_Igv_Aut: usarIgvAutomatico ? 'S' : 'N',
+      Igv_Por: porcentajeIgv >= 0 ? porcentajeIgv : 0
     };
   }
 
@@ -1045,6 +1162,7 @@ export class OrdenCompraPageComponent implements OnInit {
         return requests.length ? forkJoin(requests) : of([]);
       }),
       switchMap(() => this.actualizarPedidoCuandoDetalleCompleto()),
+      switchMap(() => this.actualizarReferenciaGeneralPedido()),
       switchMap(() => this.recargarDetallePedidoDespuesDeGuardar())
     );
   }
@@ -1059,6 +1177,27 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.apiService.patchActualizarPedidoCuandoDetalleCompleto({ Ped_Id: pedidoId }).pipe(
       switchMap((response: unknown) => {
         this.assertSuccessfulResponse(response, 'No se pudo actualizar el estado del pedido.');
+        return of(response);
+      })
+    );
+  }
+
+  private actualizarReferenciaGeneralPedido(): Observable<unknown> {
+    const pedidoId = Number(this.form.controls['pedidoIdAtencion'].value);
+
+    if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
+      return of(null);
+    }
+
+    const referenciaGeneral = String(this.form.controls['pedidoReferenciaGeneral'].value || '').trim();
+    const request: ActualizarReferenciaGeneralRequest = {
+      Ped_Id: pedidoId,
+      Ped_Ref_Gral: referenciaGeneral
+    };
+
+    return this.apiService.patchActualizarReferenciaGeneral(request).pipe(
+      switchMap((response: unknown) => {
+        this.assertSuccessfulResponse(response, 'No se pudo actualizar la referencia del pedido.');
         return of(response);
       })
     );
@@ -1249,6 +1388,8 @@ export class OrdenCompraPageComponent implements OnInit {
       detraccionId: item.detraccionId > 0 ? item.detraccionId : null,
       montoDetraccion: item.montoDetraccion,
       subtotal: item.subtotal,
+      usarIgv18: this.isIgv18Porcentaje(item),
+      porcentajeIgv: this.resolvePorcentajeIgv(item),
       igv: item.igv,
       total: item.total,
       estado: item.estadoCodigo
@@ -1291,9 +1432,18 @@ export class OrdenCompraPageComponent implements OnInit {
   private buildOrdenCompraReportePdfData(
     ordenCompra: OrdenCompraRow,
     detalleResponse: unknown,
-    pedidoResponse: unknown
+    pedidoResponse: unknown,
+    proveedorResponse: unknown = [],
+    proveedorBancoResponse: unknown = [],
+    bancoResponse: unknown = []
   ): OrdenCompraReportePdfData {
-    const proveedor = this.resolveProveedor(ordenCompra.proveedorId);
+    const proveedorDesdeRespuesta = this.extractRecords(proveedorResponse)
+      .map((item) => this.mapProveedor(item))
+      .find((item) => item.code === ordenCompra.proveedorId || item.code > 0) ?? null;
+    const proveedor = proveedorDesdeRespuesta ?? this.resolveProveedor(ordenCompra.proveedorId);
+    const cuentaPrincipal = this.resolveProveedorBancoPrincipal(proveedorBancoResponse);
+    const bancoId = cuentaPrincipal?.bankId || ordenCompra.proveedorBancoId;
+    const bancoDescripcion = this.resolveBancoDescripcion(bancoResponse, bancoId, ordenCompra.proveedorBancoDescripcion);
     const pedido = this.extractRecords(pedidoResponse)[0];
     const detalle = this.extractRecords(detalleResponse)
       .map((item) => this.mapDetallePedido(item))
@@ -1302,7 +1452,7 @@ export class OrdenCompraPageComponent implements OnInit {
         item: index + 1,
         cantidad: item.cantidad,
         unidad: item.unidadDescripcion,
-        especificacion: item.itemDescripcion,
+        especificacion: this.buildDetalleReporteEspecificacion(item),
         centroCosto: item.centroCostoDescripcion,
         precioUnitario: item.costoUnitario,
         importe: item.subtotal
@@ -1313,30 +1463,66 @@ export class OrdenCompraPageComponent implements OnInit {
     const fechaRequerida = pedido
       ? mapOrdenCompraReportDisplayDate(this.getTextValue(pedido, ['Ped_Fec_Ent', 'ped_Fec_Ent', 'pedFecEnt']))
       : '-';
+    const tipoServicio = pedido
+      ? this.getTextValue(pedido, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des'])
+      : '';
+    const subtotalReporte = detalle.length
+      ? this.normalizeDecimal(detalle.reduce((total, item) => total + item.importe, 0))
+      : ordenCompra.subtotal;
+    const igvReporte = this.normalizeDecimal(subtotalReporte * 0.18);
+    const totalReporte = this.normalizeDecimal(subtotalReporte + igvReporte);
+    const montoDetraccionReporte = this.normalizeDetraccionReporte(ordenCompra.montoDetraccion, totalReporte);
+    const totalPagarReporte = this.normalizeDecimal(totalReporte - montoDetraccionReporte);
 
     return {
       ordenCompraId: ordenCompra.ordenCompraId ?? 0,
+      tipoServicio: tipoServicio || ordenCompra.tipoServicio,
       fecha: fechaRegistro,
       proveedor: proveedor?.name || ordenCompra.proveedor,
-      ruc: proveedor?.ruc || '-',
-      cuenta: proveedor?.bankAccountNumber || '-',
-      cci: proveedor?.bankCci || '-',
-      contacto: proveedor?.contact || '-',
-      email: proveedor?.email || '-',
-      direccionProveedor: proveedor?.address || '-',
-      referenciaObra: ordenCompra.referenciaObra || ordenCompra.referencia || '-',
+      ruc: proveedor?.ruc || ordenCompra.proveedorRuc || '-',
+      banco: bancoDescripcion,
+      cuenta: cuentaPrincipal?.accountNumber || ordenCompra.proveedorCuenta || '-',
+      cci: cuentaPrincipal?.cci || ordenCompra.proveedorCci || '-',
+      contacto: proveedor?.contact || ordenCompra.proveedorContacto || '-',
+      email: proveedor?.email || ordenCompra.proveedorEmail || '-',
+      direccionProveedor: proveedor?.address || ordenCompra.proveedorDireccion || '-',
+      referenciaObra: pedido ? this.getTextValue(pedido, ['Ped_Ref_Gral', 'ped_Ref_Gral', 'pedRefGral']) || '-' : '-',
       observaciones: ordenCompra.observacion || '-',
       fechaRequerida,
       pedido: ordenCompra.pedidoIdAtencion ? `P${ordenCompra.pedidoIdAtencion}` : '-',
       direccionEnvio: pedido ? this.getTextValue(pedido, ['Ped_Ref', 'ped_Ref', 'pedRef']) || '-' : '-',
-      solicitadoPor: pedido ? this.getTextValue(pedido, ['Usr_Reg', 'usr_Reg', 'usrReg']) || '-' : '-',
+      solicitadoPor: this.resolvePedidoSolicitadoPor(pedido),
       condicionPago: ordenCompra.formaPago || '-',
-      subtotal: ordenCompra.subtotal,
-      igv: ordenCompra.igv,
-      total: ordenCompra.total,
-      totalPagar: ordenCompra.total,
+      subtotal: subtotalReporte,
+      igv: igvReporte,
+      total: totalReporte,
+      detraccionDescripcion: ordenCompra.detraccionDescripcion || this.resolveDetraccionDescripcion(ordenCompra.detraccionId),
+      montoDetraccion: montoDetraccionReporte,
+      totalPagar: totalPagarReporte,
       detalle
     };
+  }
+
+  private resolvePedidoSolicitadoPor(pedido: DataRecord | undefined): string {
+    if (!pedido) {
+      return '-';
+    }
+
+    return this.getTextValue(pedido, [
+      'Usr_Nom',
+      'usr_Nom',
+      'usrNom',
+      'UsuarioRegistro',
+      'usuarioRegistro',
+      'Usr_Reg_Nom',
+      'usr_Reg_Nom',
+      'usrRegNom',
+      'RegistradoPor',
+      'registradoPor',
+      'Usr_Reg',
+      'usr_Reg',
+      'usrReg'
+    ]) || '-';
   }
 
   private getArchivoAdjuntoActual(): string | undefined {
@@ -1409,6 +1595,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const proveedorId = this.getNumberValue(item, ['Ord_Com_Prv', 'ord_Com_Prv', 'ordComPrv']) ?? 0;
     const formaPagoId = this.getNumberValue(item, ['Ord_Com_For_Pag', 'ord_Com_For_Pag', 'ordComForPag']) ?? 0;
     const estadoCodigo = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']);
+    const flgIgvAut = this.getTextValue(item, ['Flg_Igv_Aut', 'flg_Igv_Aut', 'flgIgvAut']);
     const proveedorFallback = this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom', 'Proveedor', 'proveedor']);
     const formaPagoFallback = this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes', 'FormaPago', 'formaPago']);
 
@@ -1422,16 +1609,28 @@ export class OrdenCompraPageComponent implements OnInit {
       pedidoIdAtencion,
       proveedorId,
       proveedor: this.resolveProveedorNombre(proveedorId, proveedorFallback),
+      proveedorRuc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc']),
+      proveedorBancoId: this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan', 'Ban_Id', 'ban_Id', 'banId']) ?? 0,
+      proveedorBancoDescripcion: this.getTextValue(item, ['Ban_Des', 'ban_Des', 'banDes', 'Banco', 'banco']),
+      proveedorCuenta: this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']),
+      proveedorCci: this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci']),
+      proveedorContacto: this.getTextValue(item, ['Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
+      proveedorEmail: this.getTextValue(item, ['Prv_Email', 'prv_Email', 'prvEmail']),
+      proveedorDireccion: this.getTextValue(item, ['Prv_Dir', 'prv_Dir', 'prvDir']),
+      tipoServicio: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des']),
       formaPagoId,
       formaPago: this.resolveFormaPagoDescripcion(formaPagoId, formaPagoFallback),
       referenciaObra: this.getTextValue(item, ['Ord_Com_Ref_Obr', 'ord_Com_Ref_Obr', 'ordComRefObr']),
       referencia: this.getTextValue(item, ['Ord_Com_Ref', 'ord_Com_Ref', 'ordComRef']),
       observacion: this.getTextValue(item, ['Ord_Com_Obs', 'ord_Com_Obs', 'ordComObs']),
-      subtotal: this.getDecimalValue(item, ['Ord_Com_Sub_Tot', 'ord_Com_Sub_Tot', 'ordComSubTot']),
-      igv: this.getDecimalValue(item, ['Ord_Com_Igv', 'ord_Com_Igv', 'ordComIgv']),
-      total: this.getDecimalValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']),
+      subtotal: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Sub_Tot', 'ord_Com_Sub_Tot', 'ordComSubTot']),
+      igv: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Igv', 'ord_Com_Igv', 'ordComIgv']),
+      flgIgvAut,
+      igvPor: this.getNumberValue(item, ['Igv_Por', 'igv_Por', 'igvPor']),
+      total: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']),
       detraccionId: this.getNumberValue(item, ['Ord_Com_Det_Id', 'ord_Com_Det_Id', 'ordComDetId']) ?? 0,
-      montoDetraccion: this.getDecimalValue(item, ['Ord_Com_Det_Mon', 'ord_Com_Det_Mon', 'ordComDetMon']),
+      detraccionDescripcion: this.getTextValue(item, ['Det_Des', 'det_Des', 'detDes', 'Ord_Com_Det_Des', 'ord_Com_Det_Des', 'ordComDetDes', 'Detraccion', 'detraccion']),
+      montoDetraccion: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Det_Mon', 'ord_Com_Det_Mon', 'ordComDetMon']),
       archivo: this.getTextValue(item, [
         'Ord_Com_Arc_Adj_Nom',
         'ord_Com_Arc_Adj_Nom',
@@ -1467,7 +1666,7 @@ export class OrdenCompraPageComponent implements OnInit {
       ruc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc']),
       email: this.getTextValue(item, ['Prv_Email', 'prv_Email', 'prvEmail']),
       bankCode: this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan']) ?? 0,
-      bankName: '',
+      bankName: this.getTextValue(item, ['Ban_Des', 'ban_Des', 'banDes', 'Banco', 'banco']),
       bankAccountNumber: this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']),
       bankCci: this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci'])
     };
@@ -1552,12 +1751,23 @@ export class OrdenCompraPageComponent implements OnInit {
       cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']),
       costoUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']),
       subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']),
-      observacion: this.getTextValue(item, ['Ped_Obs', 'ped_Obs', 'pedObs', 'Observacion', 'observacion']),
+      observacion: this.getTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs', 'Observacion', 'observacion']),
       selected: false
     };
   }
 
-  private loadPedidoData(pedidoId: number): Observable<{ centrosCostoResponse: unknown; detalleResponse: unknown }> {
+  private buildDetalleReporteEspecificacion(item: OrdenCompraDetallePedidoRow): string {
+    const descripcion = String(item.itemDescripcion || '').trim();
+    const observacion = String(item.observacion || '').trim();
+
+    if (!observacion) {
+      return descripcion;
+    }
+
+    return `${descripcion} - ${observacion}`;
+  }
+
+  private loadPedidoData(pedidoId: number): Observable<{ centrosCostoResponse: unknown; detalleResponse: unknown; pedidoResponse: unknown }> {
     const ordenCompraId = Number(this.form.controls['ordenCompraId'].value);
     const detalleRequest = this.isEditingOrdenCompra && Number.isInteger(ordenCompraId) && ordenCompraId > 0
       ? this.apiService.getListarItemsAsignadosPedidoCentroCostoModificar(ordenCompraId, pedidoId)
@@ -1566,13 +1776,16 @@ export class OrdenCompraPageComponent implements OnInit {
 
     return forkJoin({
       centrosCostoResponse: this.apiService.getListarPedidoRegistradoCentroCosto(pedidoId),
-      detalleResponse: detalleRequest
+      detalleResponse: detalleRequest,
+      pedidoResponse: this.apiService.getListarPedidoModificar(pedidoId)
     });
   }
 
-  private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown): void {
+  private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown, pedidoResponse?: unknown): void {
     const centros = this.mapCentroCostoPedido(centrosCostoResponse);
     const seleccionarDetalles = this.debeSeleccionarDetallesAlCargar();
+    this.pedidoArchivoAdjunto = this.resolvePedidoArchivoAdjunto(pedidoResponse);
+    this.form.controls['pedidoReferenciaGeneral'].setValue(this.resolvePedidoReferenciaGeneral(pedidoResponse), { emitEvent: false });
 
     this.centrosCosto = centros.map((item) => ({
       ...item,
@@ -1608,12 +1821,44 @@ export class OrdenCompraPageComponent implements OnInit {
   private handlePedidoDataError(error: unknown): void {
     this.centrosCosto = [];
     this.pedidoDetalles = [];
+    this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
+    this.form.controls['pedidoReferenciaGeneral'].setValue('', { emitEvent: false });
     this.currentDetallePedidoPage = 1;
     this.centrosCostoErrorMessage = this.resolveErrorMessage(error, 'No se pudieron cargar los centros de costo del pedido.');
     this.detallePedidoErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el detalle del pedido.');
     this.syncTotalesCalculados();
     this.isLoadingPedidoCentrosCosto = false;
     this.isLoadingPedidoDetalle = false;
+  }
+
+  private resolvePedidoArchivoAdjunto(pedidoResponse: unknown): string {
+    const record = this.extractRecords(pedidoResponse)[0];
+
+    if (!record) {
+      return 'Sin archivo adjunto';
+    }
+
+    const archivo = this.getTextValue(record, [
+      'Ped_Arc_Adj_Nom',
+      'ped_Arc_Adj_Nom',
+      'ped_arc_adj_nom',
+      'pedArcAdjNom',
+      'PedArcAdjNom',
+      'archivo',
+      'Archivo'
+    ]);
+
+    return archivo || 'Sin archivo adjunto';
+  }
+
+  private resolvePedidoReferenciaGeneral(pedidoResponse: unknown): string {
+    const record = this.extractRecords(pedidoResponse)[0];
+
+    if (!record) {
+      return '';
+    }
+
+    return this.getTextValue(record, ['Ped_Ref_Gral', 'ped_Ref_Gral', 'pedRefGral']);
   }
 
   private resolveOrdenCompraIdParaAsignacion(response: unknown): Observable<number> {
@@ -1708,8 +1953,8 @@ export class OrdenCompraPageComponent implements OnInit {
 
     return new Observable<unknown>((subscriber) => {
       this.loadPedidoData(pedidoId).subscribe({
-        next: ({ centrosCostoResponse, detalleResponse }) => {
-          this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse);
+        next: ({ centrosCostoResponse, detalleResponse, pedidoResponse }) => {
+          this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse, pedidoResponse);
           subscriber.next(null);
           subscriber.complete();
         },
@@ -1823,12 +2068,41 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   private syncTotalesCalculados(): void {
+    if (this.form.controls['usarIgv18'].value) {
+      this.form.controls['porcentajeIgv'].setValue(18, { emitEvent: false });
+    }
+
     this.form.patchValue({
       subtotal: this.subtotalCalculado,
       igv: this.igvCalculado,
       montoDetraccion: this.montoDetraccionCalculado,
       total: this.totalCalculado
     }, { emitEvent: false });
+  }
+
+  private getPorcentajeIgv(): number {
+    const porcentaje = this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value);
+    return porcentaje > 0 ? porcentaje : 0;
+  }
+
+  private resolvePorcentajeIgv(item: OrdenCompraRow): number {
+    if (item.igvPor !== null && item.igvPor >= 0) {
+      return item.igvPor;
+    }
+
+    if (item.subtotal <= 0 || item.igv <= 0) {
+      return 18;
+    }
+
+    return this.normalizeDecimal(item.igv * 100 / item.subtotal);
+  }
+
+  private isIgv18Porcentaje(item: OrdenCompraRow): boolean {
+    if (item.flgIgvAut) {
+      return ['S', 'SI', 'Y', 'YES', 'TRUE', '1'].includes(item.flgIgvAut.trim().toUpperCase());
+    }
+
+    return Math.abs(this.resolvePorcentajeIgv(item) - 18) < 0.01;
   }
 
   private mapDetraccionOption(item: DataRecord): DetraccionOption | null {
@@ -1928,6 +2202,104 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private resolveFormaPagoDescripcion(formaPagoId: number, fallback: string): string {
     return this.formasPago.find((item) => item.code === formaPagoId)?.description || fallback || (formaPagoId ? String(formaPagoId) : '-');
+  }
+
+  private resolveDetraccionDescripcion(detraccionId: number): string {
+    return this.detracciones.find((item) => item.id === detraccionId)?.descripcion || '-';
+  }
+
+  private resolveProveedorBancoIdFromProveedorResponse(response: unknown): number {
+    const proveedor = this.extractRecords(response)[0];
+
+    if (!proveedor) {
+      return 0;
+    }
+
+    return this.getNumberValue(proveedor, [
+      'Ban_Id',
+      'ban_Id',
+      'banId',
+      'Prv_Ban_Id',
+      'prv_Ban_Id',
+      'prvBanId',
+      'Prv_Ban',
+      'prv_Ban',
+      'prvBan'
+    ]) ?? 0;
+  }
+
+  private resolveProveedorBancoPrincipal(response: unknown): OrdenCompraProveedorBancoReporte | null {
+    const cuentas = this.extractRecords(response)
+      .map((item) => this.mapProveedorBancoReporte(item))
+      .filter((item): item is OrdenCompraProveedorBancoReporte => item !== null);
+
+    return cuentas.find((item) => item.selected) ?? cuentas[0] ?? null;
+  }
+
+  private mapProveedorBancoReporte(item: DataRecord): OrdenCompraProveedorBancoReporte | null {
+    const id = this.getNumberValue(item, ['Prv_Ban_Id', 'prv_Ban_Id', 'prvBanId', 'id', 'Id']);
+    const bankId = this.getNumberValue(item, ['Ban_Id', 'ban_Id', 'banId']);
+
+    if (!id || !bankId) {
+      return null;
+    }
+
+    return {
+      id,
+      providerId: this.getNumberValue(item, ['Prv_Id', 'prv_Id', 'prvId']) ?? 0,
+      bankId,
+      accountNumber: this.getTextValue(item, ['Prv_Ban_Nro_Cta', 'prv_Ban_Nro_Cta', 'prvBanNroCta']),
+      cci: this.getTextValue(item, ['Prv_Ban_Nro_Cta_CCI', 'prv_Ban_Nro_Cta_CCI', 'prvBanNroCtaCci']),
+      selected: this.getBooleanValue(item, [
+        'Seleccionado',
+        'seleccionado',
+        'CuentaSeleccionada',
+        'cuentaSeleccionada',
+        'Prv_Ban_Sel',
+        'prv_Ban_Sel',
+        'prvBanSel',
+        'Flg_Sel',
+        'flg_Sel',
+        'flgSel'
+      ])
+    };
+  }
+
+  private resolveBancoDescripcion(response: unknown, bancoId: number, fallback: string): string {
+    const banco = this.extractRecords(response).find((item) => {
+      const id = this.getNumberValue(item, ['Ban_Id', 'ban_Id', 'banId', 'id', 'Id']);
+      return id === bancoId || (!bancoId && id !== null);
+    });
+
+    if (banco) {
+      const descripcion = this.getTextValue(banco, ['Ban_Des', 'ban_Des', 'banDes', 'descripcion', 'Descripcion']);
+
+      if (descripcion) {
+        return descripcion;
+      }
+    }
+
+    return fallback || (bancoId ? String(bancoId) : '-');
+  }
+
+  private getBooleanValue(item: DataRecord, keys: string[]): boolean {
+    for (const key of keys) {
+      const value = item[key];
+
+      if (value === true || value === 1 || value === '1') {
+        return true;
+      }
+
+      if (typeof value === 'string') {
+        const normalizedValue = value.trim().toUpperCase();
+
+        if (['S', 'SI', 'Y', 'YES', 'TRUE', 'A'].includes(normalizedValue)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   private mapEstadoDescripcion(value: string): string {
@@ -2034,6 +2406,10 @@ export class OrdenCompraPageComponent implements OnInit {
     return 0;
   }
 
+  private getOrdenCompraMoneyValue(item: DataRecord, keys: string[]): number {
+    return this.normalizeOrdenCompraMoneyValue(this.getDecimalValue(item, keys));
+  }
+
   private isDataRecord(value: unknown): value is DataRecord {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
@@ -2046,6 +2422,32 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return Math.round(decimal * 100) / 100;
+  }
+
+  private normalizeOrdenCompraMoneyValue(value: unknown): number {
+    const monto = this.normalizeDecimal(value);
+
+    if (monto >= 10000 && Number.isInteger(monto)) {
+      return this.normalizeDecimal(monto / 100);
+    }
+
+    return monto;
+  }
+
+  private normalizeDetraccionReporte(value: unknown, totalConIgv: number): number {
+    const monto = this.normalizeDecimal(value);
+
+    if (monto <= totalConIgv) {
+      return monto;
+    }
+
+    const montoConDecimalRestaurado = this.normalizeDecimal(monto / 100);
+
+    if (montoConDecimalRestaurado <= totalConIgv) {
+      return montoConDecimalRestaurado;
+    }
+
+    return monto;
   }
 
   private resolveErrorMessage(error: unknown, fallbackMessage: string): string {

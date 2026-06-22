@@ -80,8 +80,6 @@
             <th>DIR</th>
             <th>NOMBRE CONTACTO</th>
             <th>EMAIL</th>
-            <th>CTA BAN</th>
-            <th>CCI</th>
             <th>BANCO</th>
             <th>FECHA</th>
             <th>Action</th>
@@ -97,9 +95,15 @@
             <td>{{ proveedor.prvDir || '-' }}</td>
             <td>{{ proveedor.prvNomCon || '-' }}</td>
             <td>{{ proveedor.prvEmail || '-' }}</td>
-            <td>{{ proveedor.prvNroCueBan || '-' }}</td>
-            <td>{{ proveedor.prvNroCueBanCci || '-' }}</td>
-            <td>{{ proveedor.prvBan ?? '-' }}</td>
+            <td>
+              <button
+                type="button"
+                class="providers-table__assign"
+                [disabled]="proveedor.prvId === null"
+                (click)="asignarBanco(proveedor)">
+                Asignar
+              </button>
+            </td>
             <td>{{ proveedor.fecha || '-' }}</td>
             <td>
               <button
