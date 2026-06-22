@@ -24,6 +24,9 @@ import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servi
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
+import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
+import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
+import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
 
 const routes: Routes = [
   {
@@ -117,6 +120,18 @@ const routes: Routes = [
       {
         path: 'inspecciones',
         component: InspeccionesPageComponent
+      },
+      {
+        path: 'jefe',
+        component: JefePageComponent
+      },
+      {
+        path: 'cliente',
+        component: ClientePageComponent
+      },
+      {
+        path: 'subestacion',
+        component: SubestacionPageComponent
       },
       {
         path: 'requisicion',

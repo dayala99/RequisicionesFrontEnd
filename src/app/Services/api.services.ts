@@ -35,6 +35,56 @@ export interface RegistrarObservacionPlaneadaRequest {
     Usr_Reg: string;
 }
 
+export interface ActualizarObservacionPlaneadaRequest {
+    Codigo_Obs: string;
+    Cliente_Id: number;
+    Subestacion_Id: number;
+    SubContrata_Id: number;
+    Jefe_Id: number;
+    Motivo_Id: number;
+    Clima_Id: number;
+    Tarea_Id: number;
+    Obs_Detalle: string;
+    Obs_Actividad: string;
+    Estado: 'A' | 'I';
+    Usr_Mod: string;
+}
+
+export interface EliminarObservacionPlaneadaRequest {
+    Codigo_Obs: string;
+    Usr_Mod: string;
+}
+
+export interface ConsultarEstadoObservacionesRequest {
+    Estado: 'A' | 'I';
+}
+
+
+export interface ObservacionPlaneadaDetalleResponse {
+    Usr_Cod?: string;
+    Usr_Crg?: string;
+    Usr_Doc_Nro?: string;
+    Usr_Nom?: string;
+    Cliente_Id?: number;
+    Cliente_Nombre?: string;
+    Subestacion_Id?: number;
+    Subestacion_Nombre?: string;
+    SubContrata_Id?: number;
+    SubContrata_Nombre?: string;
+    Jefe_Id?: number;
+    Jef_Nombre?: string;
+    Jef_DNI?: string;
+    Cen_Cos_Des?: string;
+    Motivo_Id?: number;
+    Motivo_Nombre?: string;
+    Obs_Detalle?: string;
+    Clima_Id?: number;
+    Clima_Nombre?: string;
+    Tarea_Id?: number;
+    Tarea_Nombre?: string;
+    Obs_Actividad?: string;
+}
+
 export interface ProveedoresFiltro {
     Prv_Id?: number;
     Prv_Nom?: string;
@@ -120,6 +170,27 @@ export interface UnidadMedidaFiltro {
     Uni_Med_Id?: number;
     Uni_Med_Des?: string;
     Flg_Est?: string;
+}
+
+export interface JefeFiltro {
+    Id?: number;
+    Nombre?: string;
+    Dni?: string;
+    Estado?: string;
+    Fecha?: string;
+}
+
+export interface RegistrarJefeRequest {
+    Nombre: string;
+    Fecha: string;
+}
+
+export interface ActualizarJefeRequest {
+    Id: number;
+    Nombre: string;
+    Dni: string;
+    Cen_Cos_Id: number;
+    Usr_Mod: string;
 }
 
 export interface UbicacionFiltro {
@@ -1125,6 +1196,96 @@ export class ApiService {
         return this.http.post(this.baseUrl + 'UnidadMedida/patchActualizarUnidadMedida', unidadMedida, { headers });
     }
 
+    getListarJefe(filtros: JefeFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined) {
+            params = params.append('Id', filtros.Id);
+        }
+
+        if (filtros.Nombre) {
+            params = params.append('Nombre', filtros.Nombre);
+        }
+
+        if (filtros.Dni) {
+            params = params.append('Dni', filtros.Dni);
+        }
+
+        if (filtros.Estado) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        if (filtros.Fecha) {
+            params = params.append('Fecha', filtros.Fecha);
+        }
+
+        return this.http.get(this.baseUrl + 'Jefe/getListarJefe', { headers, params });
+    }
+
+    getConsultarDatosJefe(jefeId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Jefe_Id', jefeId);
+        return this.http.get(this.baseUrl + 'Jefe/getConsultarDatosJefe', { headers, params });
+    }
+
+    registrarJefe(jefe: RegistrarJefeRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Jefe/postRegistrarJefe', jefe, { headers });
+    }
+
+    actualizarJefe(jefe: ActualizarJefeRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Jefe/patchActualizarJefe', jefe, { headers });
+    }
+
+    eliminarJefe(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `Jefe/deleteEliminarJefe/${id}`, { headers, params });
+    }
+
+    getListarCliente(filtros: { Id?: number; Nombre?: string; Estado?: string } = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined) {
+            params = params.append('Id', filtros.Id);
+        }
+
+        if (filtros.Nombre) {
+            params = params.append('Nombre', filtros.Nombre);
+        }
+
+        if (filtros.Estado) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        return this.http.get(this.baseUrl + 'Cliente/getListarCliente', { headers, params });
+    }
+
+    getConsultarDatosCliente(clienteId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Cliente_Id', clienteId);
+        return this.http.get(this.baseUrl + 'Cliente/getConsultarDatosCliente', { headers, params });
+    }
+
+    registrarCliente(cliente: { Nombre: string; Usr_Reg: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Cliente/postRegistrarCliente', cliente, { headers });
+    }
+
+    actualizarCliente(cliente: { Id: number; Nombre: string; Estado: string; Usr_Mod: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Cliente/patchActualizarCliente', cliente, { headers });
+    }
+
+    eliminarCliente(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `Cliente/deleteEliminarCliente/${id}`, { headers, params });
+    }
+
     getListarUbicacionActivo(filtros: UbicacionFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -1161,6 +1322,11 @@ export class ApiService {
         }
 
         return this.http.get(this.baseUrl + 'CentroCosto/getListarCentroCostoActivo', { headers, params });
+    }
+
+    getListarCentroCostoParaJefe(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'CentroCosto/getListarCentroCostoParaJefe', { headers });
     }
 
     registrarCentroCosto(centroCosto: RegistrarCentroCostoRequest): Observable<any> {
@@ -1675,9 +1841,133 @@ export class ApiService {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Inspecciones/getListarJefesArea', { headers });
     }
-    getListarObservacionesPlaneadas(): Observable<any> {
+
+    getConsultarEstadoObservaciones(Estado: 'A' | 'I'): Observable<any> {
         const headers = this.Header;
-        return this.http.get(this.baseUrl + 'Inspecciones/getListarObservacionesPlaneadas', { headers });
+        const params = new HttpParams().set('Estado', Estado);
+        return this.http.get(this.baseUrl + 'Inspecciones/getConsultarEstadoObservaciones', { headers, params });
+    }
+
+    getFiltrarObservaciones(Fecha_Desde: string, Fecha_Hasta: string, Estado: 'A' | 'I'): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams()
+            .set('Fecha_Desde', Fecha_Desde)
+            .set('Fecha_Hasta', Fecha_Hasta)
+            .set('Estado', Estado);
+
+        return this.http.get(this.baseUrl + 'Inspecciones/getFiltrarObservaciones', { headers, params });
+    }
+
+    getMostrarObservacionPlaneada(Codigo_Obs: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Codigo_Obs', Codigo_Obs);
+        return this.http.get(this.baseUrl + 'Inspecciones/getMostrarObservacionPlaneada', { headers, params });
+    }
+
+    actualizarObservacionPlaneada(observacion: ActualizarObservacionPlaneadaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(
+            this.baseUrl + 'Inspecciones/patchActualizarObservacionPlaneada',
+            observacion,
+            { headers }
+        );
+    }
+
+    eliminarObservacionPlaneada(observacion: EliminarObservacionPlaneadaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(
+            this.baseUrl + 'Inspecciones/postEliminarObservacionPlaneada',
+            observacion,
+            { headers }
+        );
+    }
+
+
+    // ─── Sub Estación ────────────────────────────────────────────────
+
+    getListarSubEstaciones(filtros: { Id?: number; Nombre?: string; Cliente_Id?: number; Estado?: string } = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined && filtros.Id !== null) {
+            params = params.set('Id', String(filtros.Id));
+        }
+
+        if (filtros.Nombre !== undefined && filtros.Nombre !== null) {
+            params = params.set('Nombre', filtros.Nombre);
+        }
+
+        if (filtros.Cliente_Id !== undefined && filtros.Cliente_Id !== null) {
+            params = params.set('Cliente_Id', String(filtros.Cliente_Id));
+        }
+
+        if (filtros.Estado !== undefined && filtros.Estado !== null) {
+            params = params.set('Estado', filtros.Estado);
+        }
+
+        return this.http.get(this.baseUrl + 'Subestaciones/getListarSubEstaciones', { headers, params });
+    }
+
+    getListarSubEstacion(filtros: { Id?: number; Nombre?: string; Cliente_Id?: number; Estado?: string } = {}): Observable<any> {
+        return this.getListarSubEstaciones(filtros);
+    }
+
+    registrarSubEstacion(subEstacion: {
+        Subestacion_Nombre: string;
+        Cliente_Id: number;
+        Usr_Reg: string;
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(
+            this.baseUrl + 'Subestaciones/postInsertarSubestaciones',
+            subEstacion,
+            { headers }
+        );
+    }
+
+    getConsultarDatosSubEstacion(Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Id', String(Id));
+        return this.http.get(this.baseUrl + 'Inspecciones/getConsultarDatosSubEstacion', { headers, params });
+    }
+
+    getConsultarEditarSubEstaciones(Subestacion_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Subestacion_Id', String(Subestacion_Id));
+        return this.http.get(this.baseUrl + 'Subestaciones/getConsultarEditarSubEstaciones', { headers, params });
+    }
+
+    patchEditarSubEstaciones(subEstacion: {
+        Subestacion_Id: number;
+        Subestacion_Nombre: string;
+        Cliente_Id: number;
+        Usr_Mod: string;
+        Estado: 'A' | 'I';
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(
+            this.baseUrl + 'Subestaciones/patchEditarSubEstaciones',
+            subEstacion,
+            { headers }
+        );
+    }
+
+    actualizarSubEstacion(subEstacion: { Id: number; Nombre: string; Estado: string; Usr_Mod: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(
+            this.baseUrl + 'Inspecciones/patchActualizarSubEstacion',
+            subEstacion,
+            { headers }
+        );
+    }
+
+    eliminarSubEstacion(Id: number, Usr_Mod: string): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(
+            this.baseUrl + 'Inspecciones/postEliminarSubEstacion',
+            { Id, Usr_Mod },
+            { headers }
+        );
     }
 
 }

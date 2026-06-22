@@ -1,6 +1,9 @@
-import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { ApiService } from 'src/app/Services/api.services';
+import { MatDialog } from '@angular/material/dialog';
+
+import { ApiService, EliminarObservacionPlaneadaRequest } from 'src/app/Services/api.services';
+import { AuthService } from 'src/app/features/auth/services/auth.service';
+import { ConfirmacionAccionDialogComponent } from './confirmacion-accion-dialog.component';
 
 interface ObservacionPlaneadaListado {
   Observacion_Id: number;
@@ -24,28 +27,102 @@ export class InspeccionesPageComponent implements OnInit {
 
   filtroDesde: Date | null = new Date();
   filtroHasta: Date | null = new Date();
+  estadoFiltro: 'A' | 'I' = 'A';
   busquedaGeneral = '';
 
   observacionesPlaneadas: ObservacionPlaneadaListado[] = [];
   registrosPorPagina = 10;
   opcionesRegistros = [10, 25, 50, 100, 0];
   cargandoObservacionesPlaneadas = false;
+  eliminandoObservacion = false;
+
+  modoFormulario: 'nuevo' | 'editar' = 'nuevo';
+  codigoObsSeleccionado: string | null = null;
 
   constructor(
     private readonly apiService: ApiService,
-    private readonly http: HttpClient
+    private readonly authService: AuthService,
+    private readonly dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
-    this.cargarObservacionesPlaneadas();
+    this.buscarObservaciones();
   }
 
   abrirObservacionesPlaneadas(): void {
+    this.modoFormulario = 'nuevo';
+    this.codigoObsSeleccionado = null;
     this.vistaActual = 'observaciones-planeadas';
+  }
+
+  editarObservacion(codigoObs: string): void {
+    this.modoFormulario = 'editar';
+    this.codigoObsSeleccionado = (codigoObs ?? '').trim() || null;
+    this.vistaActual = 'observaciones-planeadas';
+  }
+
+  eliminarObservacion(obs: ObservacionPlaneadaListado): void {
+    const codigoObs = (obs.Codigo_Obs ?? '').trim();
+
+    if (!codigoObs) {
+      alert('No se encontró el código de la observación para eliminar.');
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '460px',
+      disableClose: true,
+      data: {
+        titulo: 'Eliminar observación',
+        mensaje: `Se eliminará la observación ${codigoObs}. Esta acción cambiará su estado a inactivo.`,
+        textoConfirmar: 'Confirmar eliminación',
+        textoCancelar: 'Volver',
+        tipo: 'peligro'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean) => {
+      if (confirmado) {
+        this.ejecutarEliminacion(codigoObs);
+      }
+    });
+  }
+
+  private ejecutarEliminacion(codigoObs: string): void {
+    const usuario = this.authService.getCurrentUser().trim();
+    if (!usuario) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    const payload: EliminarObservacionPlaneadaRequest = {
+      Codigo_Obs: codigoObs,
+      Usr_Mod: usuario
+    };
+
+    this.eliminandoObservacion = true;
+    this.apiService.eliminarObservacionPlaneada(payload).subscribe({
+      next: (response: unknown) => {
+        this.eliminandoObservacion = false;
+        const success = this.esRespuestaExitosa(response);
+
+        if (success) {
+          this.cargarObservacionesPlaneadas();
+        } else {
+          alert(this.getRespuestaMensaje(response) || 'No se pudo eliminar la observación planeada.');
+        }
+      },
+      error: (error: unknown) => {
+        this.eliminandoObservacion = false;
+        alert(this.getErrorMessage(error, 'No se pudo eliminar la observación planeada.'));
+      }
+    });
   }
 
   volverAInspecciones(): void {
     this.vistaActual = 'inspecciones';
+    this.modoFormulario = 'nuevo';
+    this.codigoObsSeleccionado = null;
     this.cargarObservacionesPlaneadas();
   }
 
@@ -59,6 +136,25 @@ export class InspeccionesPageComponent implements OnInit {
 
   cambiarBusqueda(valor: string): void {
     this.busquedaGeneral = valor ?? '';
+  }
+
+  cambiarEstado(valor: string): void {
+    this.estadoFiltro = valor === 'A' ? 'A' : 'I';
+  }
+
+  buscarObservaciones(): void {
+    this.cargarObservacionesPlaneadas();
+  }
+
+  private formatearFechaConsulta(fecha: Date | null): string {
+    if (!fecha) {
+      return '';
+    }
+
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   cambiarRegistrosPorPagina(valor: string): void {
@@ -105,60 +201,61 @@ export class InspeccionesPageComponent implements OnInit {
   private cargarObservacionesPlaneadas(): void {
     this.cargandoObservacionesPlaneadas = true;
 
-    this.apiService.getListarObservacionesPlaneadas().subscribe({
+    const fechaDesde = this.formatearFechaConsulta(this.filtroDesde);
+    const fechaHasta = this.formatearFechaConsulta(this.filtroHasta);
+
+    if (!fechaDesde || !fechaHasta) {
+      this.observacionesPlaneadas = [];
+      this.cargandoObservacionesPlaneadas = false;
+      return;
+    }
+
+    this.apiService.getFiltrarObservaciones(fechaDesde, fechaHasta, this.estadoFiltro).subscribe({
       next: (response: unknown) => {
-        console.log('Respuesta observaciones planeadas RAW:', JSON.stringify(response));
+        const raw = this.extraerLista<Record<string, unknown>>(response);
 
-        const raw = this.extraerLista<any>(response);
-        console.log('Lista extraída:', raw.length, 'registros');
-
-        this.observacionesPlaneadas = raw.map((item: any) => {
-          const mapped: ObservacionPlaneadaListado = {
-            Observacion_Id: this.toNumber(
-              item?.Observacion_Id ?? item?.observacion_Id ??
-              item?.observacionId ?? item?.OBSERVACION_ID ?? 0
-            ),
-            Codigo_Obs: this.texto(
-              item?.Codigo_Obs ?? item?.codigo_Obs ??
-              item?.codigoObs ?? item?.CODIGO_OBS
-            ),
-            Usr_Nom: this.texto(
-              item?.Usr_Nom ?? item?.usr_Nom ??
-              item?.usrNom ?? item?.USR_NOM
-            ),
-            Jef_Nombre: this.texto(
-              item?.Jef_Nombre ?? item?.jef_Nombre ??
-              item?.jefNombre ?? item?.JEF_NOMBRE
-            ),
-            Cen_Cos_Des: this.texto(
-              item?.Cen_Cos_Des ?? item?.cen_Cos_Des ??
-              item?.cenCosDes ?? item?.CEN_COS_DES
-            ),
-            Cliente_Nombre: this.texto(
-              item?.Cliente_Nombre ?? item?.cliente_Nombre ??
-              item?.clienteNombre ?? item?.CLIENTE_NOMBRE
-            ),
-            Subestacion_Nombre: this.texto(
-              item?.Subestacion_Nombre ?? item?.subestacion_Nombre ??
-              item?.subestacionNombre ?? item?.SUBESTACION_NOMBRE
-            ),
-            Motivo_Nombre: this.texto(
-              item?.Motivo_Nombre ?? item?.motivo_Nombre ??
-              item?.motivoNombre ?? item?.MOTIVO_NOMBRE
-            ),
-            Obs_Detalle: this.texto(
-              item?.Obs_Detalle ?? item?.obs_Detalle ??
-              item?.obsDetalle ?? item?.OBS_DETALLE
-            )
-          };
-          console.log('Item mapeado:', mapped);
-          return mapped;
-        });
+        this.observacionesPlaneadas = raw.map(item => ({
+          Observacion_Id: this.toNumber(
+            item?.['Observacion_Id'] ?? item?.['observacion_Id'] ??
+            item?.['observacionId'] ?? item?.['OBSERVACION_ID'] ?? 0
+          ),
+          Codigo_Obs: this.texto(
+            item?.['Codigo_Obs'] ?? item?.['codigo_Obs'] ??
+            item?.['codigoObs'] ?? item?.['CODIGO_OBS']
+          ),
+          Usr_Nom: this.texto(
+            item?.['Usr_Nom'] ?? item?.['usr_Nom'] ??
+            item?.['usrNom'] ?? item?.['USR_NOM']
+          ),
+          Jef_Nombre: this.texto(
+            item?.['Jef_Nombre'] ?? item?.['jef_Nombre'] ??
+            item?.['jefNombre'] ?? item?.['JEF_NOMBRE']
+          ),
+          Cen_Cos_Des: this.texto(
+            item?.['Cen_Cos_Des'] ?? item?.['cen_Cos_Des'] ??
+            item?.['cenCosDes'] ?? item?.['CEN_COS_DES']
+          ),
+          Cliente_Nombre: this.texto(
+            item?.['Cliente_Nombre'] ?? item?.['cliente_Nombre'] ??
+            item?.['clienteNombre'] ?? item?.['CLIENTE_NOMBRE']
+          ),
+          Subestacion_Nombre: this.texto(
+            item?.['Subestacion_Nombre'] ?? item?.['subestacion_Nombre'] ??
+            item?.['subestacionNombre'] ?? item?.['SUBESTACION_NOMBRE']
+          ),
+          Motivo_Nombre: this.texto(
+            item?.['Motivo_Nombre'] ?? item?.['motivo_Nombre'] ??
+            item?.['motivoNombre'] ?? item?.['MOTIVO_NOMBRE']
+          ),
+          Obs_Detalle: this.texto(
+            item?.['Obs_Detalle'] ?? item?.['obs_Detalle'] ??
+            item?.['obsDetalle'] ?? item?.['OBS_DETALLE']
+          )
+        }));
 
         this.cargandoObservacionesPlaneadas = false;
       },
-      error: (err: any) => {
-        console.error('Error cargando observaciones planeadas:', err);
+      error: () => {
         this.observacionesPlaneadas = [];
         this.cargandoObservacionesPlaneadas = false;
       }
@@ -195,7 +292,6 @@ export class InspeccionesPageComponent implements OnInit {
     if (response && typeof response === 'object') {
       const r = response as Record<string, unknown>;
 
-      // Busca en todas las claves posibles que use el backend
       const candidatos = [
         r['Elements'], r['elements'],
         r['Data'],     r['data'],
@@ -231,5 +327,58 @@ export class InspeccionesPageComponent implements OnInit {
     if (value === undefined || value === null || value === '') return 0;
     const numeric = Number(value);
     return Number.isNaN(numeric) ? 0 : numeric;
+  }
+
+  private esRespuestaExitosa(response: unknown): boolean {
+    if (response && typeof response === 'object') {
+      const record = response as Record<string, unknown>;
+      if (record['success'] !== undefined) {
+        return record['success'] === true;
+      }
+      if (record['Success'] !== undefined) {
+        return record['Success'] === true;
+      }
+    }
+
+    return true;
+  }
+
+  private getRespuestaMensaje(response: unknown): string {
+    if (response && typeof response === 'object') {
+      const record = response as Record<string, unknown>;
+      for (const key of ['message', 'Message']) {
+        const value = record[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          return String(value);
+        }
+      }
+    }
+
+    return '';
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    if (error && typeof error === 'object') {
+      const record = error as Record<string, unknown>;
+      const errorBody = record['error'];
+      if (errorBody && typeof errorBody === 'object') {
+        const bodyRecord = errorBody as Record<string, unknown>;
+        for (const key of ['message', 'Message']) {
+          const value = bodyRecord[key];
+          if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value);
+          }
+        }
+      }
+
+      for (const key of ['message', 'Message']) {
+        const value = record[key];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          return String(value);
+        }
+      }
+    }
+
+    return fallback;
   }
 }

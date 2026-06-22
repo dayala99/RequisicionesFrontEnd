@@ -6,6 +6,7 @@
 
 .inspecciones-page {
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -97,7 +98,7 @@
 .filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 0.75rem;
   margin-top: 0.2rem;
 }
@@ -119,8 +120,11 @@
 }
 
 .date-field--action {
-  /* Sin label → el botón queda naturalmente alineado al baseline */
-  padding-bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  min-height: 100%;
+  padding-top: 0;
+  padding-bottom: 0.15rem;
 }
 
 .btn-orange {
@@ -141,8 +145,7 @@
 
 .btn-search {
   width: fit-content;
-  /* Compensa la altura del label ausente para alinear con los date-pickers de Material */
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 .actions {
@@ -151,11 +154,14 @@
 }
 
 .content-card {
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #ece3d7;
   border-radius: 1.35rem;
   background: #fff;
   padding: 1.15rem;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
 }
 
 .table-toolbar {
@@ -191,14 +197,16 @@
 }
 
 .table-wrapper {
-  overflow: auto;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
   border-radius: 1rem;
 }
 
 /* ── Tabla: cabecera oscura, filas blancas con texto negro ── */
 .styled-table {
   width: 100%;
-  min-width: 1280px;
+  min-width: 1100px;
   border-collapse: collapse;
 }
 
@@ -230,6 +238,7 @@
   text-align: left;
   font-size: 0.93rem;
   color: #1f2937;
+  vertical-align: middle;
 }
 
 .table-empty {
@@ -240,38 +249,42 @@
 }
 
 /* ── Columna Acciones ── */
-.td-acciones {
+.styled-table td:last-child {
   white-space: nowrap;
-  display: flex;
-  gap: 0.45rem;
-  align-items: center;
 }
 
-.btn-accion {
+.table-action {
   border: none;
   border-radius: 0.6rem;
-  padding: 0.42rem 0.85rem;
-  font-size: 0.82rem;
-  font-weight: 700;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: 0.13s ease;
-}
-
-.btn-detalle {
-  background: #e0e7ff;
+  background: #eef2ff;
   color: #3730a3;
 }
 
-.btn-detalle:hover {
-  background: #c7d2fe;
+.table-action:hover {
+  transform: translateY(-1px);
+  background: #dbe4ff;
 }
 
-.btn-eliminar {
+.table-action svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.table-action--delete {
   background: #fee2e2;
   color: #991b1b;
+  margin-left: 0.45rem;
 }
 
-.btn-eliminar:hover {
+.table-action--delete:hover {
   background: #fecaca;
 }
 

@@ -200,7 +200,16 @@ export class AuthService {
       return true;
     }
 
-    return accessRoutes.some((accessRoute) => this.normalizeRoute(accessRoute) === normalizedRoute);
+    const aliases: Record<string, string[]> = {
+      '/cliente': ['/jefe'],
+      '/jefe': ['/cliente']
+    };
+
+    const candidateRoutes = [normalizedRoute, ...(aliases[normalizedRoute] ?? [])];
+
+    return candidateRoutes.some((route) =>
+      accessRoutes.some((accessRoute) => this.normalizeRoute(accessRoute) === route)
+    );
   }
 
   getRememberedCredentials(): RememberedCredentials {

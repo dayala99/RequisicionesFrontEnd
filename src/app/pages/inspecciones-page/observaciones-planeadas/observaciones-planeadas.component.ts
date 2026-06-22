@@ -1,8 +1,10 @@
-import { Component, ElementRef, EventEmitter, HostListener, OnInit, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnInit, Output } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 
-import { ApiService, RegistrarObservacionPlaneadaRequest } from 'src/app/Services/api.services';
+import { ApiService, ActualizarObservacionPlaneadaRequest, RegistrarObservacionPlaneadaRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
+import { ConfirmacionAccionDialogComponent } from '../confirmacion-accion-dialog.component';
 
 interface ObservadorDatos {
   nombre: string;
@@ -51,6 +53,20 @@ interface InsJefeArea {
 
 type ComboKey = 'cliente' | 'subestacion' | 'subcontrata' | 'jefeArea' | 'motivo' | 'clima' | 'tarea';
 
+interface ObservacionFormularioValores {
+  usrCodTexto: string;
+  clienteId: number;
+  subestacionId: number;
+  subContrataId: number;
+  jefeId: number;
+  motivoId: number;
+  climaId: number;
+  tareaId: number;
+  obsDetalle: string;
+  obsActividad: string;
+  estado: 'A' | 'I';
+}
+
 @Component({
   selector: 'app-observaciones-planeadas',
   templateUrl: './observaciones-planeadas.component.html',
@@ -58,6 +74,9 @@ type ComboKey = 'cliente' | 'subestacion' | 'subcontrata' | 'jefeArea' | 'motivo
 })
 export class ObservacionesPlaneadasComponent implements OnInit {
   @Output() volver = new EventEmitter<void>();
+
+  @Input() codigoObsSeleccionado: string | null = null;
+  @Input() modoEdicion = false;
 
   observador: ObservadorDatos = {
     nombre: '',
@@ -112,13 +131,16 @@ export class ObservacionesPlaneadasComponent implements OnInit {
   cargandoTareas = false;
   cargandoSubContratas = false;
   cargandoJefesArea = false;
+  cargandoObservacion = false;
   registrandoObservacion = false;
+  private observacionEdicionBase: Record<string, unknown> | null = null;
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly apiService: ApiService,
     private readonly authService: AuthService,
-    private readonly elementRef: ElementRef<HTMLElement>
+    private readonly elementRef: ElementRef<HTMLElement>,
+    private readonly dialog: MatDialog
   ) {
     this.observacionForm = this.fb.group({
       cliente: [''],
@@ -131,7 +153,8 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       detalleMotivo: [''],
       clima: [''],
       tipoTarea: [''],
-      actividadObservada: ['']
+      actividadObservada: [''],
+      estado: ['A']
     });
   }
 
@@ -143,6 +166,10 @@ export class ObservacionesPlaneadasComponent implements OnInit {
     this.cargarMotivos();
     this.cargarClimas();
     this.cargarTareas();
+
+    if (this.codigoObsSeleccionado?.trim()) {
+      this.cargarDatosObservacionSeleccionada(this.codigoObsSeleccionado.trim());
+    }
   }
 
   @HostListener('document:click', ['$event'])
@@ -154,6 +181,31 @@ export class ObservacionesPlaneadasComponent implements OnInit {
   }
 
   retroceder(): void {
+    const titulo = this.modoEdicion ? 'Cancelar edición' : 'Cancelar observación';
+    const mensaje = this.modoEdicion
+      ? `Se cancelará la edición de la observación ${this.codigoObsSeleccionado ?? ''}. Esta acción cerrará el formulario actual.`
+      : 'Se cancelará el registro de la nueva observación. Esta acción cerrará el formulario actual.';
+
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '460px',
+      disableClose: true,
+      data: {
+        titulo,
+        mensaje,
+        textoConfirmar: 'Confirmar cancelación',
+        textoCancelar: 'Volver',
+        tipo: 'normal'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean) => {
+      if (confirmado) {
+        this.volverSinConfirmacion();
+      }
+    });
+  }
+
+  private volverSinConfirmacion(): void {
     this.volver.emit();
   }
 
@@ -333,6 +385,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
           Cliente_Nombre: this.getFirstNonEmptyText(item, ['Cliente_Nombre', 'cliente_Nombre', 'Cliente_Des', 'cliente_Des'])
         })).filter(x => x.Cliente_Id > 0 || x.Cliente_Nombre !== '');
         this.cargandoClientes = false;
+        this.aplicarDatosEdicion();
       },
       error: () => {
         this.clientes = [];
@@ -352,6 +405,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
         })).filter(x => x.Subestacion_Id > 0 || x.Subestacion_Nombre !== '');
         this.subestacionesFiltradas = [...this.subestaciones];
         this.cargandoSubestaciones = false;
+        this.aplicarDatosEdicion();
       },
       error: () => {
         this.subestaciones = [];
@@ -371,6 +425,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
           Motivo_Nombre: this.getFirstNonEmptyText(item, ['Motivo_Nombre', 'motivo_Nombre', 'Motivo_Des', 'motivo_Des'])
         }));
         this.cargandoMotivos = false;
+        this.aplicarDatosEdicion();
       },
       error: () => {
         this.motivos = [];
@@ -389,6 +444,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
           Clima_Nombre: this.getFirstNonEmptyText(item, ['Clima_Nombre', 'clima_Nombre', 'Clima_Des', 'clima_Des', 'Clima', 'clima'])
         }));
         this.cargandoClimas = false;
+        this.aplicarDatosEdicion();
       },
       error: () => {
         this.climas = [];
@@ -407,6 +463,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
           Tarea_Nombre: this.getFirstNonEmptyText(item, ['Tarea_Nombre', 'tarea_Nombre', 'Tarea_Des', 'tarea_Des'])
         }));
         this.cargandoTareas = false;
+        this.aplicarDatosEdicion();
       },
       error: () => {
         this.tareas = [];
@@ -425,6 +482,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
           SubContrata_Nombre: this.getFirstNonEmptyText(item, ['SubContrata_Nombre', 'subContrata_Nombre', 'SubContrata_Des', 'subContrata_Des', 'SubContrata'])
         }));
         this.cargandoSubContratas = false;
+        this.aplicarDatosEdicion();
       },
       error: () => {
         this.subContratas = [];
@@ -446,11 +504,128 @@ export class ObservacionesPlaneadasComponent implements OnInit {
           Cen_Cos_Des: this.getFirstNonEmptyText(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'Area_Des', 'area_Des'])
         }));
         this.cargandoJefesArea = false;
+        this.aplicarDatosEdicion();
       },
       error: () => {
         this.jefesArea = [];
         this.cargandoJefesArea = false;
       }
+    });
+  }
+
+
+  private cargarDatosObservacionSeleccionada(codigoObs: string): void {
+    this.cargandoObservacion = true;
+    this.apiService.getMostrarObservacionPlaneada(codigoObs).subscribe({
+      next: (response: unknown) => {
+        this.observacionEdicionBase = this.extractFirstRecord(response);
+        this.cargandoObservacion = false;
+        this.aplicarDatosEdicion();
+      },
+      error: () => {
+        this.observacionEdicionBase = null;
+        this.cargandoObservacion = false;
+      }
+    });
+  }
+
+  private aplicarDatosEdicion(): void {
+    if (!this.observacionEdicionBase) {
+      return;
+    }
+
+    const record = this.observacionEdicionBase;
+
+    const clienteId = this.toNumber(this.getRecordValue(record, ['Cliente_Id', 'cliente_Id']));
+    if (clienteId > 0) {
+      const cliente = this.clientes.find(item => item.Cliente_Id === clienteId) ?? {
+        Cliente_Id: clienteId,
+        Cliente_Nombre: this.getRecordValue(record, ['Cliente_Nombre', 'cliente_Nombre']) || `Cliente ${clienteId}`
+      };
+      this.clienteSeleccionado = cliente;
+      this.observacionForm.patchValue({ cliente: clienteId });
+
+      if (!this.subestaciones.length && !this.cargandoSubestaciones) {
+        this.cargarSubestaciones(clienteId);
+      }
+    }
+
+    const subestacionNombre = this.getRecordValue(record, ['Subestacion_Nombre', 'subestacion_Nombre']);
+    if (subestacionNombre) {
+      const subestacion = this.subestaciones.find(item =>
+        this.normalizarTexto(item.Subestacion_Nombre) === this.normalizarTexto(subestacionNombre)
+      ) ?? null;
+      if (subestacion) {
+        this.subestacionSeleccionada = subestacion;
+        this.observacionForm.patchValue({ subestacion: subestacion.Subestacion_Id });
+      }
+    }
+
+    const subContrataNombre = this.getRecordValue(record, ['SubContrata_Nombre', 'subContrata_Nombre']);
+    if (subContrataNombre) {
+      const subContrata = this.subContratas.find(item =>
+        this.normalizarTexto(item.SubContrata_Nombre) === this.normalizarTexto(subContrataNombre)
+      ) ?? null;
+      if (subContrata) {
+        this.subContrataSeleccionada = subContrata;
+        this.observacionForm.patchValue({ subcontrata: subContrata.SubContrata_Id });
+      }
+    }
+
+    const jefeNombre = this.getRecordValue(record, ['Jef_Nombre', 'jef_Nombre']);
+    const jefeDni = this.getRecordValue(record, ['Jef_DNI', 'jef_DNI']);
+    if (jefeNombre || jefeDni) {
+      const jefeArea = this.jefesArea.find(item =>
+        (jefeDni && item.Jef_DNI === jefeDni) ||
+        (jefeNombre && this.normalizarTexto(item.Jef_Nombre) === this.normalizarTexto(jefeNombre))
+      ) ?? null;
+      if (jefeArea) {
+        this.jefeAreaSeleccionado = jefeArea;
+        this.observacionForm.patchValue({
+          jefeEquipo: jefeArea.Jefe_Id,
+          areaJefeEquipo: jefeArea.Cen_Cos_Des,
+          dniJefeEquipo: jefeArea.Jef_DNI
+        });
+      }
+    }
+
+    const motivoNombre = this.getRecordValue(record, ['Motivo_Nombre', 'motivo_Nombre']);
+    if (motivoNombre) {
+      const motivo = this.motivos.find(item =>
+        this.normalizarTexto(item.Motivo_Nombre) === this.normalizarTexto(motivoNombre)
+      ) ?? null;
+      if (motivo) {
+        this.motivoSeleccionado = motivo;
+        this.observacionForm.patchValue({ motivo: motivo.Motivo_Id });
+      }
+    }
+
+    const climaNombre = this.getRecordValue(record, ['Clima_Nombre', 'clima_Nombre']);
+    if (climaNombre) {
+      const clima = this.climas.find(item =>
+        this.normalizarTexto(item.Clima_Nombre) === this.normalizarTexto(climaNombre)
+      ) ?? null;
+      if (clima) {
+        this.climaSeleccionado = clima;
+        this.observacionForm.patchValue({ clima: clima.Clima_Id });
+      }
+    }
+
+    const tareaNombre = this.getRecordValue(record, ['Tarea_Nombre', 'tarea_Nombre']);
+    if (tareaNombre) {
+      const tarea = this.tareas.find(item =>
+        this.normalizarTexto(item.Tarea_Nombre) === this.normalizarTexto(tareaNombre)
+      ) ?? null;
+      if (tarea) {
+        this.tareaSeleccionada = tarea;
+        this.observacionForm.patchValue({ tipoTarea: tarea.Tarea_Id });
+      }
+    }
+
+    this.observacionForm.patchValue({
+      detalleMotivo: this.getRecordValue(record, ['Obs_Detalle', 'obs_Detalle']),
+      actividadObservada: this.getRecordValue(record, ['Obs_Actividad', 'obs_Actividad']),
+      estado: (this.getRecordValue(record, ['Estado', 'estado']) || 'A') as 'A' | 'I'
     });
   }
 
@@ -464,8 +639,8 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       next: (response: unknown) => {
         const record = this.extractFirstRecord(response);
         this.observador = {
-          nombre: usrCod,
-          cargo: this.getRecordValue(record, ['usr_Nom', 'Usr_Nom']) || this.authService.getCurrentUserName(),
+          nombre: this.getRecordValue(record, ['usr_Nom', 'Usr_Nom']) || this.authService.getCurrentUserName(),
+          cargo: this.getRecordValue(record, ['cargo_Nombre', 'Cargo_Nombre']),
           area: this.getRecordValue(record, ['cen_Cos_Des', 'Cen_Cos_Des', 'areaDescripcion', 'Area_Des']),
           dni: this.getRecordValue(record, ['usr_Doc_Nro', 'Usr_Doc_Nro', 'dni', 'DNI'])
         };
@@ -476,44 +651,39 @@ export class ObservacionesPlaneadasComponent implements OnInit {
     });
   }
 
+  guardarObservacion(): void {
+    if (this.modoEdicion) {
+      this.actualizarObservacion();
+      return;
+    }
+
+    this.registrarObservacion();
+  }
+
   registrarObservacion(): void {
     if (this.registrandoObservacion) {
       return;
     }
 
-    const usrCodTexto = (this.observador.nombre.trim() || this.authService.getCurrentUser().trim());
-    const clienteId = this.clienteSeleccionado?.Cliente_Id ?? 0;
-    const subestacionId = this.subestacionSeleccionada?.Subestacion_Id ?? 0;
-    const subContrataId = this.subContrataSeleccionada?.SubContrata_Id ?? 0;
-    const jefeId = this.jefeAreaSeleccionado?.Jefe_Id ?? 0;
-    const motivoId = this.motivoSeleccionado?.Motivo_Id ?? 0;
-    const climaId = this.climaSeleccionado?.Clima_Id ?? 0;
-    const tareaId = this.tareaSeleccionada?.Tarea_Id ?? 0;
-    const obsDetalle = (this.observacionForm.get('detalleMotivo')?.value ?? '').toString().trim();
-    const obsActividad = (this.observacionForm.get('actividadObservada')?.value ?? '').toString().trim();
-
-    if (!usrCodTexto) {
-      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
-      return;
-    }
-
-    if (!clienteId || !subestacionId || !subContrataId || !jefeId || !motivoId || !climaId || !tareaId || !obsDetalle || !obsActividad) {
-      alert('Completa todos los campos antes de registrar la observación planeada.');
+    const valores = this.obtenerValoresFormularioComunes(
+      'Completa todos los campos antes de registrar la observación planeada.'
+    );
+    if (!valores) {
       return;
     }
 
     const payload: RegistrarObservacionPlaneadaRequest = {
-      Usr_Cod: usrCodTexto,
-      Cliente_Id: clienteId,
-      Subestacion_Id: subestacionId,
-      SubContrata_Id: subContrataId,
-      Jefe_Id: jefeId,
-      Motivo_Id: motivoId,
-      Clima_Id: climaId,
-      Tarea_Id: tareaId,
-      Obs_Detalle: obsDetalle,
-      Obs_Actividad: obsActividad,
-      Usr_Reg: usrCodTexto
+      Usr_Cod: valores.usrCodTexto,
+      Cliente_Id: valores.clienteId,
+      Subestacion_Id: valores.subestacionId,
+      SubContrata_Id: valores.subContrataId,
+      Jefe_Id: valores.jefeId,
+      Motivo_Id: valores.motivoId,
+      Clima_Id: valores.climaId,
+      Tarea_Id: valores.tareaId,
+      Obs_Detalle: valores.obsDetalle,
+      Obs_Actividad: valores.obsActividad,
+      Usr_Reg: valores.usrCodTexto
     };
 
     this.registrandoObservacion = true;
@@ -525,7 +695,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
         alert(message);
 
         if (success) {
-          this.retroceder();
+          this.volverSinConfirmacion();
         }
       },
       error: (error: unknown) => {
@@ -533,6 +703,97 @@ export class ObservacionesPlaneadasComponent implements OnInit {
         alert(this.getErrorMessage(error, 'No se pudo registrar la observación planeada.'));
       }
     });
+  }
+
+  actualizarObservacion(): void {
+    if (this.registrandoObservacion) {
+      return;
+    }
+
+    const codigoObs = (this.codigoObsSeleccionado ?? '').trim();
+    if (!codigoObs) {
+      alert('No se encontró el código de la observación a actualizar.');
+      return;
+    }
+
+    const valores = this.obtenerValoresFormularioComunes(
+      'Completa todos los campos antes de actualizar la observación planeada.'
+    );
+    if (!valores) {
+      return;
+    }
+
+    const payload: ActualizarObservacionPlaneadaRequest = {
+      Codigo_Obs: codigoObs,
+      Cliente_Id: valores.clienteId,
+      Subestacion_Id: valores.subestacionId,
+      SubContrata_Id: valores.subContrataId,
+      Jefe_Id: valores.jefeId,
+      Motivo_Id: valores.motivoId,
+      Clima_Id: valores.climaId,
+      Tarea_Id: valores.tareaId,
+      Obs_Detalle: valores.obsDetalle,
+      Obs_Actividad: valores.obsActividad,
+      Estado: valores.estado,
+      Usr_Mod: valores.usrCodTexto
+    };
+
+    this.registrandoObservacion = true;
+    this.apiService.actualizarObservacionPlaneada(payload).subscribe({
+      next: (response: unknown) => {
+        this.registrandoObservacion = false;
+        const success = this.esRespuestaExitosa(response);
+
+        if (success) {
+          this.volverSinConfirmacion();
+        } else {
+          alert(this.getRespuestaMensaje(response) || 'No se pudo actualizar la observación planeada.');
+        }
+      },
+      error: (error: unknown) => {
+        this.registrandoObservacion = false;
+        alert(this.getErrorMessage(error, 'No se pudo actualizar la observación planeada.'));
+      }
+    });
+  }
+
+  private obtenerValoresFormularioComunes(mensajeError: string): ObservacionFormularioValores | null {
+    const usrCodTexto = this.authService.getCurrentUser().trim();
+
+    if (!usrCodTexto) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
+      return null;
+    }
+
+    const clienteId = this.clienteSeleccionado?.Cliente_Id ?? 0;
+    const subestacionId = this.subestacionSeleccionada?.Subestacion_Id ?? 0;
+    const subContrataId = this.subContrataSeleccionada?.SubContrata_Id ?? 0;
+    const jefeId = this.jefeAreaSeleccionado?.Jefe_Id ?? 0;
+    const motivoId = this.motivoSeleccionado?.Motivo_Id ?? 0;
+    const climaId = this.climaSeleccionado?.Clima_Id ?? 0;
+    const tareaId = this.tareaSeleccionada?.Tarea_Id ?? 0;
+    const obsDetalle = (this.observacionForm.get('detalleMotivo')?.value ?? '').toString().trim();
+    const obsActividad = (this.observacionForm.get('actividadObservada')?.value ?? '').toString().trim();
+    const estado = ((this.observacionForm.get('estado')?.value ?? 'A').toString().trim() || 'A') as 'A' | 'I';
+
+    if (!clienteId || !subestacionId || !subContrataId || !jefeId || !motivoId || !climaId || !tareaId || !obsDetalle || !obsActividad) {
+      alert(mensajeError);
+      return null;
+    }
+
+    return {
+      usrCodTexto,
+      clienteId,
+      subestacionId,
+      subContrataId,
+      jefeId,
+      motivoId,
+      climaId,
+      tareaId,
+      obsDetalle,
+      obsActividad,
+      estado
+    };
   }
 
   private esRespuestaExitosa(response: unknown): boolean {

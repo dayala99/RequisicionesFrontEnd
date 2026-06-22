@@ -2,9 +2,9 @@ import { NgModule } from '@angular/core';
 import { Overlay } from '@angular/cdk/overlay';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DATE_FORMATS, MAT_DATE_LOCALE, MatNativeDateModule } from '@angular/material/core';
+import { MAT_DATE_FORMATS, MAT_DATE_LOCALE, MatNativeDateModule, MatOptionModule } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_SCROLL_STRATEGY, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -76,16 +76,23 @@ import { TipoServicioRegisterDialogComponent } from './pages/tipo-servicio-page/
 import { UnidadMedidaEditDialogComponent } from './pages/unidad-medida-page/unidad-medida-edit-dialog.component';
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/unidad-medida-register-dialog.component';
+import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
+import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
+import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
+import { JefeRegisterDialogComponent } from './pages/inspecciones/jefe/jefe-register-dialog.component';
+import { ClienteRegisterDialogComponent } from './pages/inspecciones/cliente/cliente-register-dialog.component';
+import { JefeService } from './pages/inspecciones/jefe/jefe.service';
+import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
 import { GridPaginationComponent } from './shared/components/grid-pagination/grid-pagination.component';
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
+import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/confirmacion-accion-dialog.component';
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
 }
-import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 
 const APP_DATE_FORMATS = {
   parse: {
@@ -162,24 +169,32 @@ const APP_DATE_FORMATS = {
     UnidadMedidaPageComponent,
     UnidadMedidaRegisterDialogComponent,
     UnidadMedidaEditDialogComponent,
+    JefePageComponent,
+    ClientePageComponent,
+    SubestacionPageComponent,
+    JefeRegisterDialogComponent,
+    ClienteRegisterDialogComponent,
     LoginPageComponent,
     UsuariosPageComponent,
     UsuarioEditDialogComponent,
     UsuarioRegisterDialogComponent,
     InspeccionesPageComponent,
+    ConfirmacionAccionDialogComponent,
     ObservacionesPlaneadasComponent,
-    GridPaginationComponent
+    GridPaginationComponent,
   ],
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
     ReactiveFormsModule,
+    FormsModule,
     MatDialogModule,
     MatButtonModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
     MatNativeDateModule,
+    MatOptionModule,
     MatSelectModule,
     AppRoutingModule,
     HttpClientModule
@@ -197,7 +212,8 @@ const APP_DATE_FORMATS = {
     {
       provide: MAT_DATE_FORMATS,
       useValue: APP_DATE_FORMATS
-    }
+    },
+    JefeService
   ],
   bootstrap: [AppComponent]
 })

@@ -1,7 +1,13 @@
 <section class="observaciones">
   <div class="observaciones__form-top">
     <div>
-      <h2 class="observaciones__title">Observaciones Planeadas</h2>
+      <p class="observaciones__eyebrow">Administracion</p>
+      <h2 class="observaciones__title">
+        {{ modoEdicion && codigoObsSeleccionado ? 'Editar observación ' + codigoObsSeleccionado : 'Observaciones Planeadas' }}
+      </h2>
+      <p class="observaciones__subtitle">
+        Administra la observación planeada desde mantenimiento con el mismo estilo visual del sistema.
+      </p>
     </div>
 
     <div class="observaciones__form-actions">
@@ -9,8 +15,8 @@
         type="button"
         class="btn-primary"
         [disabled]="registrandoObservacion"
-        (click)="registrarObservacion()">
-        {{ registrandoObservacion ? 'Agregando...' : 'Agregar' }}
+        (click)="guardarObservacion()">
+        {{ registrandoObservacion ? (modoEdicion ? 'Actualizando...' : 'Agregando...') : (modoEdicion ? 'Actualizar' : 'Agregar') }}
       </button>
 
       <button type="button" class="btn-secondary" (click)="retroceder()">Retroceder</button>
@@ -353,6 +359,14 @@
       <div class="field field--wide">
         <label>Actividad Observada:</label>
         <input type="text" formControlName="actividadObservada" placeholder="Actividad Observada">
+      </div>
+
+      <div class="field" *ngIf="modoEdicion">
+        <label>Estado:</label>
+        <select formControlName="estado">
+          <option value="A">Activo</option>
+          <option value="I">Inactivo</option>
+        </select>
       </div>
     </div>
   </section>
