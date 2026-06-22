@@ -139,7 +139,6 @@ function buildPageContent(
   addText(PAGE_LEFT + 65, signatureY + 18, 'ENTREGADO POR', 8, true, 'center');
   addText((PAGE_LEFT + PAGE_RIGHT) / 2, signatureY + 18, 'RECIBIDO POR', 8, true, 'center');
   addText(PAGE_RIGHT - 65, signatureY + 18, 'V°B° SUPERVISION', 8, true, 'center');
-  addText((PAGE_LEFT + PAGE_RIGHT) / 2, 802, `Fecha emision ${formatGeneratedDate(new Date())}`, 7, false, 'center');
 
   return commands.join('\n');
 }
@@ -615,21 +614,6 @@ function formatAmount(value: number, decimals = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   }).format(Number.isFinite(value) ? value : 0);
-}
-
-function formatGeneratedDate(value: Date): string {
-  const date = new Intl.DateTimeFormat('es-PE', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  }).format(value);
-  const time = new Intl.DateTimeFormat('es-PE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).format(value);
-
-  return `${date}, ${time}`;
 }
 
 function isOrdenServicio(value?: string): boolean {
