@@ -88,6 +88,17 @@ export class AuthService {
           })
         );
       }),
+      catchError((error) => {
+        console.error('[Auth] Error validando usuario en getObtenerAccesoUsuario:', error);
+
+        return of({
+          success: false,
+          message: this.extractErrorMessage(error),
+          userName: '',
+          userProfile: '',
+          accessRoutes: []
+        });
+      }),
       tap((result: LoginResult) => {
         if (result.success) {
           this.setStorageValue(AUTH_STORAGE_KEY, 'true');
@@ -116,17 +127,7 @@ export class AuthService {
     return this.apiService.getListarUsuarioActivo({ Usr_Cod: userCode, Flg_Est: 'A' }).pipe(
       map((response: unknown) => {
         const record = this.extractFirstRecord(response);
-        const userProfile = String(this.getRecordValue(record, [
-          'Usr_Prf',
-          'usr_Prf',
-          'usrPrf',
-          'USR_PRF',
-          'usr_prf',
-          'Usr_Perfil',
-          'usrPerfil',
-          'Perfil',
-          'perfil'
-        ]) ?? '').trim();
+        const userProfile = this.getUserProfileFromRecord(record);
 
         console.groupCollapsed('[Auth] Perfil obtenido por fallback de usuario activo');
         console.log('Usuario:', userCode);
@@ -267,21 +268,16 @@ export class AuthService {
   }
 
   private mapAccessResponse(response: unknown): LoginResult {
+    const responseRecord = this.asRecord(response);
     const record = this.extractFirstRecord(response);
-    const existe = String(this.getRecordValue(record, ['Existe', 'existe']) ?? '1').trim();
-    const message = String(this.getRecordValue(record, ['Respuesta', 'respuesta']) ?? '').trim();
+    const existe = String(this.getRecordValue(record, ['Existe']) ?? '1').trim();
+    const message = String(
+      this.getRecordValue(record, ['Respuesta', 'Message', 'message'])
+      ?? this.getRecordValue(responseRecord, ['Message', 'message'])
+      ?? ''
+    ).trim();
     const userName = String(this.getRecordValue(record, ['Usr_Nom', 'usr_Nom', 'usrNom']) ?? '').trim();
-    const userProfile = String(this.getRecordValue(record, [
-      'Usr_Prf',
-      'usr_Prf',
-      'usrPrf',
-      'USR_PRF',
-      'usr_prf',
-      'Usr_Perfil',
-      'usrPerfil',
-      'Perfil',
-      'perfil'
-    ]) ?? '').trim();
+    const userProfile = this.getUserProfileFromRecord(record);
 
     return {
       success: existe === '0',
@@ -296,6 +292,18 @@ export class AuthService {
     return this.extractRecords(response)
       .map((item) => String(this.getRecordValue(item, ['Prf_Acc_Des', 'prf_Acc_Des', 'prfAccDes']) ?? '').trim())
       .filter(Boolean);
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    const errorRecord = this.asRecord(error);
+    const nestedError = this.asRecord(errorRecord?.['error']);
+    const message = String(
+      this.getRecordValue(nestedError, ['Message', 'message', 'Detail', 'detail'])
+      ?? this.getRecordValue(errorRecord, ['Message', 'message', 'statusText'])
+      ?? ''
+    ).trim();
+
+    return message || 'No se pudo validar el acceso. Intenta nuevamente.';
   }
 
   private extractRecords(response: unknown): Record<string, unknown>[] {
@@ -342,14 +350,19 @@ export class AuthService {
       return null;
     }
 
-    const elements = responseRecord['Elements'] ?? responseRecord['elements'];
+    const elements = this.getRecordValue(responseRecord, ['Elements']);
     if (Array.isArray(elements)) {
       return this.asRecord(elements[0]);
     }
 
-    const data = responseRecord['Data'] ?? responseRecord['data'];
+    const data = this.getRecordValue(responseRecord, ['Data']);
     if (Array.isArray(data)) {
       return this.asRecord(data[0]);
+    }
+
+    const dataRecord = this.asRecord(data);
+    if (dataRecord) {
+      return dataRecord;
     }
 
     return responseRecord;
@@ -366,7 +379,29 @@ export class AuthService {
       }
     }
 
+    const normalizedRecordKeys = Object.keys(record);
+    for (const key of keys) {
+      const normalizedKey = normalizedRecordKeys.find((recordKey) => recordKey.toLowerCase() === key.toLowerCase());
+
+      if (normalizedKey) {
+        return record[normalizedKey];
+      }
+    }
+
     return null;
+  }
+
+  private getUserProfileFromRecord(record: Record<string, unknown> | null): string {
+    return String(this.getRecordValue(record, [
+      'Usr_Prf',
+      'usrPrf',
+      'USR_PRF',
+      'usr_prf',
+      'Usr_Perfil',
+      'usrPerfil',
+      'Perfil',
+      'perfil'
+    ]) ?? '').trim();
   }
 
   private asRecord(value: unknown): Record<string, unknown> | null {
