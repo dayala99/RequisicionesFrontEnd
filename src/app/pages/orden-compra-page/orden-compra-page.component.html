@@ -66,8 +66,6 @@
               <th>Nro. O/C</th>
               <th>Proveedor</th>
               <th>Forma de Pago</th>
-              <th>Ref. Obra</th>
-              <th>Referencia</th>
               <th>Total</th>
               <th>Estado</th>
               <th>Accion</th>
@@ -76,11 +74,11 @@
 
           <tbody>
             <tr *ngIf="isLoadingOrdenesCompra">
-              <td colspan="8" class="empty-row">Cargando ordenes de compra registradas...</td>
+              <td colspan="6" class="empty-row">Cargando ordenes de compra registradas...</td>
             </tr>
 
             <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !ordenesCompra.length">
-              <td colspan="8" class="empty-row">No se encontraron ordenes de compra.</td>
+              <td colspan="6" class="empty-row">No se encontraron ordenes de compra.</td>
             </tr>
 
             <tr
@@ -91,8 +89,6 @@
               <td>{{ item.ordenCompraId ?? '-' }}</td>
               <td>{{ item.proveedor }}</td>
               <td>{{ item.formaPago }}</td>
-              <td>{{ item.referenciaObra || '-' }}</td>
-              <td>{{ item.referencia || '-' }}</td>
               <td>{{ formatCurrency(item.total) }}</td>
               <td>{{ item.estado }}</td>
               <td>
@@ -136,8 +132,6 @@
                 <th>Nro. Pedido</th>
                 <th>Proveedor</th>
                 <th>Tipo de Servicio</th>
-                <th>Referencia</th>
-                <th>Moneda</th>
                 <th>Total</th>
                 <th>Estado</th>
               </tr>
@@ -145,11 +139,11 @@
 
             <tbody>
               <tr *ngIf="isLoadingOrdenesCompra">
-                <td colspan="8" class="empty-row">Cargando pedidos pendientes...</td>
+                <td colspan="6" class="empty-row">Cargando pedidos pendientes...</td>
               </tr>
 
               <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !pedidosPendientes.length">
-                <td colspan="8" class="empty-row">No se encontraron pedidos pendientes.</td>
+                <td colspan="6" class="empty-row">No se encontraron pedidos pendientes.</td>
               </tr>
 
               <tr *ngFor="let item of paginatedPedidosPendientes">
@@ -164,8 +158,6 @@
                 <td>{{ item.pedidoId || '-' }}</td>
                 <td>{{ item.proveedor }}</td>
                 <td>{{ item.tipoServicio }}</td>
-                <td>{{ item.referencia }}</td>
-                <td>{{ item.moneda }}</td>
                 <td>{{ formatCurrency(item.total) }}</td>
                 <td>{{ item.estado }}</td>
               </tr>
