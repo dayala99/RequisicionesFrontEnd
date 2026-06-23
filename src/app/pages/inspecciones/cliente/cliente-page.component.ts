@@ -17,9 +17,9 @@ type DataRecord = Record<string, unknown>;
 })
 export class ClientePageComponent implements OnInit {
   readonly filtros: ClienteFilter = {
-    Id: undefined,
+    Id: 0,
     Nombre: '',
-    Estado: ''
+    Estado: 'A'
   };
 
   clientes: ClienteItem[] = [];
@@ -152,9 +152,9 @@ export class ClientePageComponent implements OnInit {
   }
 
   limpiar(): void {
-    this.filtros.Id = undefined;
+    this.filtros.Id = 0;
     this.filtros.Nombre = '';
-    this.filtros.Estado = '';
+    this.filtros.Estado = 'A';
     this.cargarClientes();
   }
 

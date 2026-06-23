@@ -177,6 +177,7 @@ export interface JefeFiltro {
     Nombre?: string;
     Dni?: string;
     Estado?: string;
+    Cen_Cos_Id?: number;
     Fecha?: string;
 }
 
@@ -1245,21 +1246,11 @@ export class ApiService {
         const headers = this.Header;
         let params = new HttpParams();
 
-        if (filtros.Id !== undefined) {
-            params = params.append('Id', filtros.Id);
-        }
-
-        if (filtros.Nombre) {
-            params = params.append('Nombre', filtros.Nombre);
-        }
-
-        if (filtros.Dni) {
-            params = params.append('Dni', filtros.Dni);
-        }
-
-        if (filtros.Estado) {
-            params = params.append('Estado', filtros.Estado);
-        }
+        params = params.append('Id', filtros.Id ?? 0);
+        params = params.append('Nombre', filtros.Nombre ?? '');
+        params = params.append('Dni', filtros.Dni ?? '');
+        params = params.append('Estado', filtros.Estado ?? 'A');
+        params = params.append('Cen_Cos_Id', filtros.Cen_Cos_Id ?? 0);
 
         if (filtros.Fecha) {
             params = params.append('Fecha', filtros.Fecha);
@@ -1294,15 +1285,15 @@ export class ApiService {
         const headers = this.Header;
         let params = new HttpParams();
 
-        if (filtros.Id !== undefined) {
-            params = params.append('Id', filtros.Id);
+        if (filtros.Id !== undefined && filtros.Id !== null) {
+            params = params.append('Id', String(filtros.Id));
         }
 
-        if (filtros.Nombre) {
+        if (filtros.Nombre !== undefined && filtros.Nombre !== null) {
             params = params.append('Nombre', filtros.Nombre);
         }
 
-        if (filtros.Estado) {
+        if (filtros.Estado !== undefined && filtros.Estado !== null) {
             params = params.append('Estado', filtros.Estado);
         }
 

@@ -17,4 +17,5 @@ export interface JefeFilter {
   Nombre?: string;
   Dni?: string;
   Estado?: string;
+  Cen_Cos_Id?: number;
 }

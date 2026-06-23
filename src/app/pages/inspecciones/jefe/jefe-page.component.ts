@@ -5,7 +5,7 @@ import { catchError, of } from 'rxjs';
 import { AuthService } from '../../../features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from '../../inspecciones-page/confirmacion-accion-dialog.component';
 import { JefeRegisterDialogComponent } from './jefe-register-dialog.component';
-import { JefeFilter, JefeItem } from './jefe.model';
+import { CentroCostoOption, JefeFilter, JefeItem } from './jefe.model';
 import { JefeService } from './jefe.service';
 
 type DataRecord = Record<string, unknown>;
@@ -20,11 +20,14 @@ export class JefePageComponent implements OnInit {
     Id: undefined,
     Nombre: '',
     Dni: '',
-    Estado: ''
+    Estado: 'A',
+    Cen_Cos_Id: 0
   };
 
   jefes: JefeItem[] = [];
+  centroCostos: CentroCostoOption[] = [];
   cargando = false;
+  cargandoAreas = false;
   eliminandoJefe = false;
   errorMessage = '';
 
@@ -58,6 +61,7 @@ export class JefePageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.cargarAreas();
     this.cargarJefes();
   }
 
@@ -104,6 +108,22 @@ export class JefePageComponent implements OnInit {
 
   buscar(): void {
     this.cargarJefes();
+  }
+
+  private cargarAreas(): void {
+    this.cargandoAreas = true;
+
+    this.jefeService.listarCentroCostosActivos().subscribe({
+      next: (response: unknown) => {
+        this.centroCostos = this.jefeService.mapCentroCostoOptions(response);
+        this.cargandoAreas = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando áreas', error);
+        this.centroCostos = [];
+        this.cargandoAreas = false;
+      }
+    });
   }
 
   eliminarJefe(jefe: JefeItem): void {
@@ -156,7 +176,8 @@ export class JefePageComponent implements OnInit {
     this.filtros.Id = undefined;
     this.filtros.Nombre = '';
     this.filtros.Dni = '';
-    this.filtros.Estado = '';
+    this.filtros.Estado = 'A';
+    this.filtros.Cen_Cos_Id = 0;
     this.cargarJefes();
   }
 

@@ -42,6 +42,20 @@
         [(ngModel)]="filtros.Dni">
     </label>
 
+    <label class="filter-field">
+      <span>Área</span>
+      <div class="custom-select-wrap">
+        <select
+          class="custom-select"
+          [(ngModel)]="filtros.Cen_Cos_Id"
+          name="area">
+          <option [ngValue]="0">Todas</option>
+          <option *ngFor="let area of centroCostos" [ngValue]="area.id">{{ area.descripcion }}</option>
+        </select>
+        <span class="custom-select-arrow"></span>
+      </div>
+    </label>
+
     <label class="filter-field estado-field">
       <span>Estado:</span>
       <div class="custom-select-wrap">
@@ -49,7 +63,6 @@
           class="custom-select"
           [(ngModel)]="filtros.Estado"
           name="estado">
-          <option value="">Seleccionar</option>
           <option value="A">Activo</option>
           <option value="I">Inactivo</option>
         </select>

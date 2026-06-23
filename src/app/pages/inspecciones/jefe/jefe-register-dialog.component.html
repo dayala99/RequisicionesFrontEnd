@@ -4,7 +4,7 @@
       <p class="dialog-card__eyebrow">Administracion</p>
       <h2>{{ esEdicion ? 'Editar Jefe' : 'Nuevo Jefe' }}</h2>
       <p class="dialog-card__description">
-        {{ esEdicion ? 'Actualiza el nombre, DNI y centro de costos del jefe.' : 'Registra un nuevo jefe con nombre, DNI y centro de costos.' }}
+        {{ esEdicion ? 'Actualiza el nombre, DNI y área del jefe.' : 'Registra un nuevo jefe con nombre, DNI y área.' }}
       </p>
     </div>
 
@@ -26,9 +26,9 @@
       </label>
 
       <label class="field field--full">
-        <span>Centro de costos</span>
+        <span>Área</span>
         <select formControlName="cenCosId">
-          <option [ngValue]="null">Seleccione un centro de costos</option>
+          <option [ngValue]="null">Seleccione un área</option>
           <option *ngFor="let centro of centroCostos" [ngValue]="centro.id">{{ centro.descripcion }}</option>
         </select>
       </label>
