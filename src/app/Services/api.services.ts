@@ -181,6 +181,25 @@ export interface JefeFiltro {
     Fecha?: string;
 }
 
+export interface MotivoFiltro {
+    Id?: number;
+    Nombre?: string;
+    Estado?: string;
+}
+
+export interface RegistrarMotivoRequest {
+    Nombre: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarMotivoRequest {
+    Id: number;
+    Nombre: string;
+    Estado: string;
+    Usr_Mod: string;
+}
+
+
 export interface RegistrarJefeRequest {
     Nombre: string;
     Fecha: string;
@@ -1320,6 +1339,115 @@ export class ApiService {
         const headers = this.Header;
         const params = new HttpParams().append('Usr_Mod', usrMod);
         return this.http.delete(this.baseUrl + `Cliente/deleteEliminarCliente/${id}`, { headers, params });
+    }
+
+getListarMotivo(filtros: MotivoFiltro = {}): Observable<any> {
+    const headers = this.Header;
+    let params = new HttpParams();
+
+    params = params.append('Id', filtros.Id ?? 0);
+    params = params.append('Nombre', filtros.Nombre ?? '');
+    params = params.append('Estado', filtros.Estado ?? 'A');
+
+    return this.http.get(this.baseUrl + 'Motivo/getListarMotivo', { headers, params });
+}
+
+getConsultarDatosMotivo(motivoId: number): Observable<any> {
+    const headers = this.Header;
+    const params = new HttpParams().append('Motivo_Id', motivoId);
+    return this.http.get(this.baseUrl + 'Motivo/getConsultarDatosMotivo', { headers, params });
+}
+
+registrarMotivo(motivo: RegistrarMotivoRequest): Observable<any> {
+    const headers = this.Header;
+    return this.http.post(this.baseUrl + 'Motivo/postRegistrarMotivo', motivo, { headers });
+}
+
+actualizarMotivo(motivo: ActualizarMotivoRequest): Observable<any> {
+    const headers = this.Header;
+    return this.http.patch(this.baseUrl + 'Motivo/patchActualizarMotivo', motivo, { headers });
+}
+
+eliminarMotivo(id: number, usrMod: string): Observable<any> {
+    const headers = this.Header;
+    const params = new HttpParams().append('Usr_Mod', usrMod);
+    return this.http.delete(this.baseUrl + `Motivo/deleteEliminarMotivo/${id}`, { headers, params });
+}
+
+    // ─── Tarea ────────────────────────────────────────────────────
+
+    getListarTarea(filtros: { Id?: number; Nombre?: string; Estado?: string } = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        params = params.append('Id', filtros.Id ?? 0);
+        params = params.append('Nombre', filtros.Nombre ?? '');
+        params = params.append('Estado', filtros.Estado ?? 'A');
+
+        return this.http.get(this.baseUrl + 'Tarea/getListarTarea', { headers, params });
+    }
+
+    getConsultarDatosTarea(tareaId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Tarea_Id', tareaId);
+        return this.http.get(this.baseUrl + 'Tarea/getConsultarDatosTarea', { headers, params });
+    }
+
+    registrarTarea(tarea: { Nombre: string; Usr_Reg: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Tarea/postRegistrarTarea', tarea, { headers });
+    }
+
+    actualizarTarea(tarea: { Id: number; Nombre: string; Estado: string; Usr_Mod: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Tarea/patchActualizarTarea', tarea, { headers });
+    }
+
+    eliminarTarea(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `Tarea/deleteEliminarTarea/${id}`, { headers, params });
+    }
+
+    getListarClima(filtros: { Id?: number; Nombre?: string; Estado?: string } = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined) {
+            params = params.append('Id', filtros.Id);
+        }
+
+        if (filtros.Nombre !== undefined) {
+            params = params.append('Nombre', filtros.Nombre);
+        }
+
+        if (filtros.Estado !== undefined) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        return this.http.get(this.baseUrl + 'Clima/getListarClima', { headers, params });
+    }
+
+    getConsultarDatosClima(climaId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Clima_Id', climaId);
+        return this.http.get(this.baseUrl + 'Clima/getConsultarDatosClima', { headers, params });
+    }
+
+    registrarClima(clima: { Nombre: string; Usr_Reg: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Clima/postRegistrarClima', clima, { headers });
+    }
+
+    actualizarClima(clima: { Id: number; Nombre: string; Estado: string; Usr_Mod: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Clima/patchActualizarClima', clima, { headers });
+    }
+
+    eliminarClima(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `Clima/deleteEliminarClima/${id}`, { headers, params });
     }
 
     getListarUbicacionActivo(filtros: UbicacionFiltro = {}): Observable<any> {

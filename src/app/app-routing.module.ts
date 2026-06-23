@@ -27,6 +27,10 @@ import { InspeccionesPageComponent } from './pages/inspecciones-page/inspeccione
 import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
+import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
+import { ClimaPageComponent } from './pages/inspecciones/clima/clima-page.component';
+import { TareaPageComponent } from './pages/inspecciones/tarea/tarea-page.component';
+import { SubContrataPageComponent } from './pages/inspecciones/sub-contrata/sub-contrata-page.component';
 
 const routes: Routes = [
   {
@@ -128,6 +132,22 @@ const routes: Routes = [
       {
         path: 'cliente',
         component: ClientePageComponent
+      },
+      {
+        path: 'motivo',
+        component: MotivoPageComponent
+      },
+      {
+        path: 'clima',
+        component: ClimaPageComponent
+      },
+      {
+        path: 'tarea',
+        component: TareaPageComponent
+      },
+      {
+        path: 'sub-contrata',
+        component: SubContrataPageComponent
       },
       {
         path: 'subestacion',

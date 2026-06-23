@@ -79,6 +79,7 @@ import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-med
 import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/unidad-medida-register-dialog.component';
 import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
+import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
 import { JefeRegisterDialogComponent } from './pages/inspecciones/jefe/jefe-register-dialog.component';
 import { ClienteRegisterDialogComponent } from './pages/inspecciones/cliente/cliente-register-dialog.component';
@@ -173,6 +174,7 @@ const APP_DATE_FORMATS = {
     UnidadMedidaEditDialogComponent,
     JefePageComponent,
     ClientePageComponent,
+    MotivoPageComponent,
     SubestacionPageComponent,
     JefeRegisterDialogComponent,
     ClienteRegisterDialogComponent,
