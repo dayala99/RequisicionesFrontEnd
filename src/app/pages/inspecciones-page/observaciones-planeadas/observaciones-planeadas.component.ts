@@ -640,7 +640,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
         const record = this.extractFirstRecord(response);
         this.observador = {
           nombre: this.getRecordValue(record, ['usr_Nom', 'Usr_Nom']) || this.authService.getCurrentUserName(),
-          cargo: this.getRecordValue(record, ['cargo_Nombre', 'Cargo_Nombre']),
+          cargo: this.getRecordValue(record, ['cargo_Nombre', 'cargoNombre', 'Cargo_Nombre']),
           area: this.getRecordValue(record, ['cen_Cos_Des', 'Cen_Cos_Des', 'areaDescripcion', 'Area_Des']),
           dni: this.getRecordValue(record, ['usr_Doc_Nro', 'Usr_Doc_Nro', 'dni', 'DNI'])
         };

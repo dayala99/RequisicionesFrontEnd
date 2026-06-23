@@ -1450,6 +1450,48 @@ eliminarMotivo(id: number, usrMod: string): Observable<any> {
         return this.http.delete(this.baseUrl + `Clima/deleteEliminarClima/${id}`, { headers, params });
     }
 
+
+getListarSubContrata(filtros: { Id?: number; Nombre?: string; Estado?: string } = {}): Observable<any> {
+    const headers = this.Header;
+    let params = new HttpParams();
+
+    if (filtros.Id !== undefined) {
+        params = params.append('Id', filtros.Id);
+    }
+
+    if (filtros.Nombre !== undefined) {
+        params = params.append('Nombre', filtros.Nombre);
+    }
+
+    if (filtros.Estado !== undefined) {
+        params = params.append('Estado', filtros.Estado);
+    }
+
+    return this.http.get(this.baseUrl + 'SubContrata/getListarSubContrata', { headers, params });
+}
+
+getConsultarDatosSubContrata(subContrataId: number): Observable<any> {
+    const headers = this.Header;
+    const params = new HttpParams().append('SubContrata_Id', subContrataId);
+    return this.http.get(this.baseUrl + 'SubContrata/getConsultarDatosSubContrata', { headers, params });
+}
+
+registrarSubContrata(subContrata: { Nombre: string; Usr_Reg: string }): Observable<any> {
+    const headers = this.Header;
+    return this.http.post(this.baseUrl + 'SubContrata/postRegistrarSubContrata', subContrata, { headers });
+}
+
+actualizarSubContrata(subContrata: { Id: number; Nombre: string; Estado: string; Usr_Mod: string }): Observable<any> {
+    const headers = this.Header;
+    return this.http.patch(this.baseUrl + 'SubContrata/patchActualizarSubContrata', subContrata, { headers });
+}
+
+eliminarSubContrata(id: number, usrMod: string): Observable<any> {
+    const headers = this.Header;
+    const params = new HttpParams().append('Usr_Mod', usrMod);
+    return this.http.delete(this.baseUrl + `SubContrata/deleteEliminarSubContrata/${id}`, { headers, params });
+}
+
     getListarUbicacionActivo(filtros: UbicacionFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
