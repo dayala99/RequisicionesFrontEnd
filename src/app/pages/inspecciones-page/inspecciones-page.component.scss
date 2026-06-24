@@ -119,13 +119,7 @@
   width: 200px;
 }
 
-.date-field--action {
-  display: flex;
-  align-items: flex-end;
-  min-height: 100%;
-  padding-top: 0;
-  padding-bottom: 0.15rem;
-}
+/* ── Filtros ── */
 
 .btn-orange {
   border: none;
@@ -141,11 +135,6 @@
 
 .btn-orange:hover {
   transform: translateY(-1px);
-}
-
-.btn-search {
-  width: fit-content;
-  margin-bottom: 0;
 }
 
 .actions {
