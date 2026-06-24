@@ -1,4 +1,7 @@
-<ng-container *ngIf="vistaActual === 'inspecciones'; else vistaObservaciones">
+<ng-container [ngSwitch]="vistaActual">
+
+  <!-- ── Vista principal de tabla ── -->
+  <ng-container *ngSwitchCase="'inspecciones'">
   <section class="inspecciones-page">
     <div class="page-header">
       <div class="page-header__title-block">
@@ -156,6 +159,23 @@
       </div>
     </div>
   </section>
+  </ng-container>
+
+  <!-- ── Observaciones Planeadas ── -->
+  <ng-container *ngSwitchCase="'observaciones-planeadas'">
+    <ng-container *ngTemplateOutlet="vistaObservaciones"></ng-container>
+  </ng-container>
+
+  <!-- ── Inspecciones Medio Ambiente ── -->
+  <ng-container *ngSwitchCase="'medio-ambiente'">
+    <ng-container *ngTemplateOutlet="vistaMedioAmbiente"></ng-container>
+  </ng-container>
+
+  <!-- ── Inspecciones de Prevención ── -->
+  <ng-container *ngSwitchCase="'prevencion'">
+    <ng-container *ngTemplateOutlet="vistaPrevencion"></ng-container>
+  </ng-container>
+
 </ng-container>
 
 <ng-template #vistaObservaciones>
@@ -164,4 +184,18 @@
     [codigoObsSeleccionado]="codigoObsSeleccionado"
     [modoEdicion]="modoFormulario === 'editar'"
     (volver)="volverAInspecciones()"></app-observaciones-planeadas>
+</ng-template>
+
+<ng-template #vistaMedioAmbiente>
+  <app-inspeccion-medio-ambiente
+    [modoEdicion]="modoFormulario === 'editar'"
+    [inspeccionId]="inspeccionIdSeleccionado"
+    (volver)="volverAInspecciones()"></app-inspeccion-medio-ambiente>
+</ng-template>
+
+<ng-template #vistaPrevencion>
+  <app-inspeccion-prevencion
+    [modoEdicion]="modoFormulario === 'editar'"
+    [inspeccionId]="inspeccionIdSeleccionado"
+    (volver)="volverAInspecciones()"></app-inspeccion-prevencion>
 </ng-template>

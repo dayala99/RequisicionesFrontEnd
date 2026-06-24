@@ -91,6 +91,8 @@ import { GridPaginationComponent } from './shared/components/grid-pagination/gri
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
 import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/confirmacion-accion-dialog.component';
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
+import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
+import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -185,6 +187,8 @@ const APP_DATE_FORMATS = {
     InspeccionesPageComponent,
     ConfirmacionAccionDialogComponent,
     ObservacionesPlaneadasComponent,
+    InspeccionMedioAmbienteComponent,
+    InspeccionPrevencionComponent,
     GridPaginationComponent,
   ],
   imports: [

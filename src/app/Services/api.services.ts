@@ -2217,4 +2217,34 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         );
     }
 
+    // ─── Tipos de Inspección ─────────────────────────────────────────
+    /** SELECT Tipo_Id, Tipo_Nombre FROM Ins_Tipo_Inspeccion */
+    getListarTiposInspeccion(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarTiposInspeccion', { headers });
+    }
+
+    // ─── Medio Ambiente ──────────────────────────────────────────────
+    /** Llama a SP_Insertar_Medio_Ambiente */
+    postInsertarMedioAmbiente(payload: {
+        Usr_Cod: string;
+        Cliente_Id: number;
+        Subestacion_Id: number;
+        SubContrata_Id: number;
+        Jefe_Id: number;
+        Actividad: string;
+        Orden_Trabajo: string;
+        Procedimiento_Trabajo: string;
+        Tipo_Id: number;
+        Usr_Reg: string;
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(
+            this.baseUrl + 'Inspecciones/postInsertarMedioAmbiente',
+            payload,
+            { headers }
+        );
+    }
+
+
 }

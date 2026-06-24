@@ -33,7 +33,7 @@ const LABEL_NUEVO: Record<TabActivo, string> = {
   styleUrls: ['./inspecciones-page.component.scss'],
 })
 export class InspeccionesPageComponent implements OnInit {
-  vistaActual: 'inspecciones' | 'observaciones-planeadas' = 'inspecciones';
+  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' = 'inspecciones';
 
   /** Tab actualmente seleccionado */
   tabActivo: TabActivo = 'observaciones';
@@ -53,6 +53,8 @@ export class InspeccionesPageComponent implements OnInit {
   /** ID numérico interno capturado al editar (oculto al usuario) */
   observacionIdSeleccionado: number | null = null;
   codigoObsSeleccionado: string | null = null;
+  /** ID para inspecciones de Medio Ambiente / Prevención */
+  inspeccionIdSeleccionado: number | null = null;
 
   constructor(
     private readonly apiService: ApiService,
@@ -78,7 +80,21 @@ export class InspeccionesPageComponent implements OnInit {
     this.modoFormulario = 'nuevo';
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
-    this.vistaActual = 'observaciones-planeadas';
+    this.inspeccionIdSeleccionado = null;
+
+    // Enrutar al panel correcto según el tab activo
+    switch (this.tabActivo) {
+      case 'medio-ambiente':
+        this.vistaActual = 'medio-ambiente';
+        break;
+      case 'prevencion':
+        this.vistaActual = 'prevencion';
+        break;
+      default:
+        // 'observaciones', 'stop-work', 'we-report' → aún usan ObservacionesPlaneadas
+        this.vistaActual = 'observaciones-planeadas';
+        break;
+    }
   }
 
   /**
@@ -155,6 +171,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.modoFormulario = 'nuevo';
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
+    this.inspeccionIdSeleccionado = null;
     this.cargarObservacionesPlaneadas();
   }
 
