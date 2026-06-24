@@ -5,6 +5,8 @@ import { ApiService, EliminarObservacionPlaneadaRequest } from 'src/app/Services
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from './confirmacion-accion-dialog.component';
 
+type TabActivo = 'prevencion' | 'medio-ambiente' | 'observaciones' | 'stop-work' | 'we-report';
+
 interface ObservacionPlaneadaListado {
   Observacion_Id: number;
   Codigo_Obs: string;
@@ -17,6 +19,14 @@ interface ObservacionPlaneadaListado {
   Obs_Detalle: string;
 }
 
+const LABEL_NUEVO: Record<TabActivo, string> = {
+  'prevencion':      'Nueva inspección de prevención',
+  'medio-ambiente':  'Nueva inspección de medio ambiente',
+  'observaciones':   'Nueva observación planeada',
+  'stop-work':       'Nuevo Stop Work',
+  'we-report':       'Nuevo We Report',
+};
+
 @Component({
   selector: 'app-inspecciones-page',
   templateUrl: './inspecciones-page.component.html',
@@ -24,6 +34,9 @@ interface ObservacionPlaneadaListado {
 })
 export class InspeccionesPageComponent implements OnInit {
   vistaActual: 'inspecciones' | 'observaciones-planeadas' = 'inspecciones';
+
+  /** Tab actualmente seleccionado */
+  tabActivo: TabActivo = 'observaciones';
 
   filtroDesde: Date | null = new Date();
   filtroHasta: Date | null = new Date();
@@ -37,6 +50,8 @@ export class InspeccionesPageComponent implements OnInit {
   eliminandoObservacion = false;
 
   modoFormulario: 'nuevo' | 'editar' = 'nuevo';
+  /** ID numérico interno capturado al editar (oculto al usuario) */
+  observacionIdSeleccionado: number | null = null;
   codigoObsSeleccionado: string | null = null;
 
   constructor(
@@ -49,14 +64,30 @@ export class InspeccionesPageComponent implements OnInit {
     this.buscarObservaciones();
   }
 
+  /** Etiqueta dinámica del botón "+Nuevo" según el tab activo */
+  get labelNuevo(): string {
+    return LABEL_NUEVO[this.tabActivo];
+  }
+
+  /** Cambia el tab activo */
+  cambiarTab(tab: TabActivo): void {
+    this.tabActivo = tab;
+  }
+
   abrirObservacionesPlaneadas(): void {
     this.modoFormulario = 'nuevo';
+    this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.vistaActual = 'observaciones-planeadas';
   }
 
-  editarObservacion(codigoObs: string): void {
+  /**
+   * Editar: captura el ID oculto (Observacion_Id) y el código visible (Codigo_Obs).
+   * El ID se pasa al formulario hijo sin mostrarlo al usuario en la tabla.
+   */
+  editarObservacion(observacionId: number, codigoObs: string): void {
     this.modoFormulario = 'editar';
+    this.observacionIdSeleccionado = observacionId ?? null;
     this.codigoObsSeleccionado = (codigoObs ?? '').trim() || null;
     this.vistaActual = 'observaciones-planeadas';
   }
@@ -122,6 +153,7 @@ export class InspeccionesPageComponent implements OnInit {
   volverAInspecciones(): void {
     this.vistaActual = 'inspecciones';
     this.modoFormulario = 'nuevo';
+    this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.cargarObservacionesPlaneadas();
   }
@@ -264,7 +296,6 @@ export class InspeccionesPageComponent implements OnInit {
 
   private crearTextoBusqueda(item: ObservacionPlaneadaListado): string {
     return [
-      item.Observacion_Id,
       item.Codigo_Obs,
       item.Usr_Nom,
       item.Jef_Nombre,

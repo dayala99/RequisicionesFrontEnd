@@ -11,11 +11,11 @@
     </div>
 
     <div class="tabs">
-      <button type="button" class="tab-button">Inspecciones de prevención</button>
-      <button type="button" class="tab-button">Inspecciones Medio Ambiente</button>
-      <button type="button" class="tab-button tab-button--active">Obvseraciones Planeadas</button>
-      <button type="button" class="tab-button">Stop Work</button>
-      <button type="button" class="tab-button">We Report</button>
+      <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'prevencion'" (click)="cambiarTab('prevencion')">Inspecciones de prevención</button>
+      <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'medio-ambiente'" (click)="cambiarTab('medio-ambiente')">Inspecciones Medio Ambiente</button>
+      <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'observaciones'" (click)="cambiarTab('observaciones')">Observaciones Planeadas</button>
+      <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'stop-work'" (click)="cambiarTab('stop-work')">Stop Work</button>
+      <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'we-report'" (click)="cambiarTab('we-report')">We Report</button>
     </div>
 
     <div class="filters">
@@ -60,7 +60,7 @@
     </div>
 
     <div class="actions">
-      <button type="button" class="btn-orange" (click)="abrirObservacionesPlaneadas()">+ Nueva observación planeada</button>
+      <button type="button" class="btn-orange" (click)="abrirObservacionesPlaneadas()">+ {{ labelNuevo }}</button>
       <button type="button" class="btn-orange">Excel General</button>
       <button type="button" class="btn-orange">Excel Específico</button>
       <button type="button" class="btn-orange btn-search" (click)="buscarObservaciones()">Buscar</button>
@@ -93,7 +93,7 @@
         <table class="styled-table">
           <thead>
             <tr>
-              <th>#</th>
+              <th class="col-id-hidden">#</th>
               <th>Nro</th>
               <th>Observador</th>
               <th>Supervisor</th>
@@ -112,7 +112,8 @@
             </tr>
 
             <tr *ngFor="let obs of observacionesPaginadas">
-              <td>{{ obs.Observacion_Id }}</td>
+              <!-- ID oculto: no se muestra en la celda, se usa internamente al editar -->
+              <td class="col-id-hidden">{{ obs.Observacion_Id }}</td>
               <td>{{ obs.Codigo_Obs || '-' }}</td>
               <td>{{ obs.Usr_Nom || '-' }}</td>
               <td>{{ obs.Jef_Nombre || '-' }}</td>
@@ -122,7 +123,7 @@
               <td>{{ obs.Motivo_Nombre || '-' }}</td>
               <td>{{ obs.Obs_Detalle || '-' }}</td>
               <td>
-                <button type="button" class="table-action" aria-label="Editar observación" title="Editar" (click)="editarObservacion(obs.Codigo_Obs)">
+                <button type="button" class="table-action" aria-label="Editar observación" title="Editar" (click)="editarObservacion(obs.Observacion_Id, obs.Codigo_Obs)">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
                   </svg>
@@ -159,6 +160,7 @@
 
 <ng-template #vistaObservaciones>
   <app-observaciones-planeadas
+    [observacionIdSeleccionado]="observacionIdSeleccionado"
     [codigoObsSeleccionado]="codigoObsSeleccionado"
     [modoEdicion]="modoFormulario === 'editar'"
     (volver)="volverAInspecciones()"></app-observaciones-planeadas>

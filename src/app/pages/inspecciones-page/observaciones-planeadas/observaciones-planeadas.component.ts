@@ -75,6 +75,8 @@ interface ObservacionFormularioValores {
 export class ObservacionesPlaneadasComponent implements OnInit {
   @Output() volver = new EventEmitter<void>();
 
+  /** ID numérico interno capturado oculto desde la tabla (no se muestra al usuario) */
+  @Input() observacionIdSeleccionado: number | null = null;
   @Input() codigoObsSeleccionado: string | null = null;
   @Input() modoEdicion = false;
 

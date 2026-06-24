@@ -313,3 +313,7 @@
     font-size: 1.6rem;
   }
 }
+/* ── Columna ID oculta: visible solo en modo edición (internamente) ── */
+.col-id-hidden {
+  display: none;
+}
