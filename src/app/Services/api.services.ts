@@ -213,6 +213,24 @@ export interface ActualizarJefeRequest {
     Usr_Mod: string;
 }
 
+export interface TipoInspeccionFiltro {
+    Id?: number;
+    Nombre?: string;
+    Estado?: string;
+}
+
+export interface RegistrarTipoInspeccionRequest {
+    Nombre: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarTipoInspeccionRequest {
+    Id: number;
+    Nombre: string;
+    Estado: string;
+    Usr_Mod: string;
+}
+
 export interface UbicacionFiltro {
     Ubi_Id?: number;
     Ubi_Des?: string;
@@ -1339,6 +1357,47 @@ export class ApiService {
         const headers = this.Header;
         const params = new HttpParams().append('Usr_Mod', usrMod);
         return this.http.delete(this.baseUrl + `Cliente/deleteEliminarCliente/${id}`, { headers, params });
+    }
+
+    getListarTipoInspeccion(filtros: TipoInspeccionFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined && filtros.Id !== null) {
+            params = params.append('Id', String(filtros.Id));
+        }
+
+        if (filtros.Nombre !== undefined && filtros.Nombre !== null) {
+            params = params.append('Nombre', filtros.Nombre);
+        }
+
+        if (filtros.Estado !== undefined && filtros.Estado !== null) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        return this.http.get(this.baseUrl + 'TipoInspeccion/getListarTipoInspeccion', { headers, params });
+    }
+
+    getConsultarDatosTipoInspeccion(tipoInspeccionId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Tipo_Id', tipoInspeccionId);
+        return this.http.get(this.baseUrl + 'TipoInspeccion/getConsultarDatosTipoInspeccion', { headers, params });
+    }
+
+    registrarTipoInspeccion(tipoInspeccion: RegistrarTipoInspeccionRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'TipoInspeccion/postRegistrarTipoInspeccion', tipoInspeccion, { headers });
+    }
+
+    actualizarTipoInspeccion(tipoInspeccion: ActualizarTipoInspeccionRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'TipoInspeccion/patchActualizarTipoInspeccion', tipoInspeccion, { headers });
+    }
+
+    eliminarTipoInspeccion(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `TipoInspeccion/deleteEliminarTipoInspeccion/${id}`, { headers, params });
     }
 
 getListarMotivo(filtros: MotivoFiltro = {}): Observable<any> {

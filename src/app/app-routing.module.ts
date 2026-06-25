@@ -31,6 +31,8 @@ import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.com
 import { ClimaPageComponent } from './pages/inspecciones/clima/clima-page.component';
 import { TareaPageComponent } from './pages/inspecciones/tarea/tarea-page.component';
 import { SubContrataPageComponent } from './pages/inspecciones/sub-contrata/sub-contrata-page.component';
+import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
+import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
 
 const routes: Routes = [
   {
@@ -132,6 +134,14 @@ const routes: Routes = [
       {
         path: 'cliente',
         component: ClientePageComponent
+      },
+      {
+        path: 'riesgo',
+        component: RiesgoPageComponent
+      },
+      {
+        path: 'reporte',
+        component: ReportePageComponent
       },
       {
         path: 'motivo',

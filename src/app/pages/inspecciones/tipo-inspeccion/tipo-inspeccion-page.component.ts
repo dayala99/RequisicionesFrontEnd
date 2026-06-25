@@ -4,64 +4,57 @@ import { catchError, of } from 'rxjs';
 
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from '../../inspecciones-page/confirmacion-accion-dialog.component';
-import { ClienteFilter, ClienteItem } from './cliente.model';
-import { ClienteRegisterDialogComponent } from './cliente-register-dialog.component';
-import { ClienteService } from './cliente.service';
+import { TipoInspeccionFilter, TipoInspeccionItem } from './tipo-inspeccion.model';
+import { TipoInspeccionRegisterDialogComponent } from './tipo-inspeccion-register-dialog.component';
+import { TipoInspeccionService } from './tipo-inspeccion.service';
 
 type DataRecord = Record<string, unknown>;
 
 @Component({
-  selector: 'app-cliente-page',
-  templateUrl: './cliente-page.component.html',
-  styleUrls: ['./cliente-page.component.scss']
+  selector: 'app-tipo-inspeccion-page',
+  templateUrl: './tipo-inspeccion-page.component.html',
+  styleUrls: ['./tipo-inspeccion-page.component.scss']
 })
-export class ClientePageComponent implements OnInit {
-  readonly filtros: ClienteFilter = {
+export class TipoInspeccionPageComponent implements OnInit {
+  readonly filtros: TipoInspeccionFilter = {
     Id: 0,
     Nombre: '',
     Estado: 'A'
   };
 
-  clientes: ClienteItem[] = [];
+  tiposInspeccion: TipoInspeccionItem[] = [];
   cargando = false;
-  eliminandoCliente = false;
+  eliminandoTipoInspeccion = false;
   errorMessage = '';
 
-  // ── Paginación ──────────────────────────────────────────────────
   readonly pageSize = 20;
   paginaActual = 1;
 
   get totalPaginas(): number {
-    return Math.max(1, Math.ceil(this.clientes.length / this.pageSize));
+    return Math.max(1, Math.ceil(this.tiposInspeccion.length / this.pageSize));
   }
 
-  get clientesPaginados(): ClienteItem[] {
+  get tiposInspeccionPaginados(): TipoInspeccionItem[] {
     const inicio = (this.paginaActual - 1) * this.pageSize;
-    return this.clientes.slice(inicio, inicio + this.pageSize);
+    return this.tiposInspeccion.slice(inicio, inicio + this.pageSize);
   }
 
   get paginas(): number[] {
     return Array.from({ length: this.totalPaginas }, (_, i) => i + 1);
   }
 
-  irAPagina(pagina: number): void {
-    if (pagina < 1 || pagina > this.totalPaginas) return;
-    this.paginaActual = pagina;
-  }
-  // ────────────────────────────────────────────────────────────────
-
   constructor(
-    private readonly clienteService: ClienteService,
+    private readonly tipoInspeccionService: TipoInspeccionService,
     private readonly dialog: MatDialog,
     private readonly authService: AuthService
   ) {}
 
   ngOnInit(): void {
-    this.cargarClientes();
+    this.cargarTiposInspeccion();
   }
 
   abrirNuevo(): void {
-    const dialogRef = this.dialog.open(ClienteRegisterDialogComponent, {
+    const dialogRef = this.dialog.open(TipoInspeccionRegisterDialogComponent, {
       width: '560px',
       maxWidth: '96vw',
       disableClose: true,
@@ -73,30 +66,30 @@ export class ClientePageComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((reload) => {
       if (reload === true) {
-        this.cargarClientes();
+        this.cargarTiposInspeccion();
       }
     });
   }
 
-  editarCliente(cliente: ClienteItem): void {
-    if (cliente.id === null) {
+  editarTipoInspeccion(tipoInspeccion: TipoInspeccionItem): void {
+    if (tipoInspeccion.id === null) {
       return;
     }
 
-    const dialogRef = this.dialog.open(ClienteRegisterDialogComponent, {
+    const dialogRef = this.dialog.open(TipoInspeccionRegisterDialogComponent, {
       width: '560px',
       maxWidth: '96vw',
       disableClose: true,
       autoFocus: false,
       data: {
         usrReg: this.authService.getCurrentUser() || '',
-        cliente
+        tipoInspeccion
       }
     });
 
     dialogRef.afterClosed().subscribe((reload) => {
       if (reload === true) {
-        this.cargarClientes();
+        this.cargarTiposInspeccion();
       }
     });
   }
@@ -112,11 +105,31 @@ export class ClientePageComponent implements OnInit {
   }
 
   buscar(): void {
-    this.cargarClientes();
+    this.paginaActual = 1;
+    this.cargarTiposInspeccion();
   }
 
-  eliminarCliente(cliente: ClienteItem): void {
-    if (cliente.id === null) {
+  limpiar(): void {
+    this.filtros.Id = 0;
+    this.filtros.Nombre = '';
+    this.filtros.Estado = 'A';
+    this.cargarTiposInspeccion();
+  }
+
+  irAPagina(pagina: number): void {
+    if (pagina < 1) {
+      pagina = 1;
+    }
+
+    if (pagina > this.totalPaginas) {
+      pagina = this.totalPaginas;
+    }
+
+    this.paginaActual = pagina;
+  }
+
+  eliminarTipoInspeccion(tipoInspeccion: TipoInspeccionItem): void {
+    if (tipoInspeccion.id === null) {
       return;
     }
 
@@ -124,8 +137,8 @@ export class ClientePageComponent implements OnInit {
       width: '460px',
       disableClose: true,
       data: {
-        titulo: 'Eliminar cliente',
-        mensaje: `Se eliminará al cliente "${cliente.nombre}". Esta acción cambiará su estado a inactivo.`,
+        titulo: 'Eliminar tipo de inspección',
+        mensaje: `Se eliminará el tipo de inspección "${tipoInspeccion.nombre}". Esta acción cambiará su estado a inactivo.`,
         textoConfirmar: 'Confirmar eliminación',
         textoCancelar: 'Volver',
         tipo: 'peligro'
@@ -134,68 +147,61 @@ export class ClientePageComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((confirmado: boolean) => {
       if (confirmado) {
-        this.ejecutarEliminacionCliente(cliente.id as number);
+        this.ejecutarEliminacionTipoInspeccion(tipoInspeccion.id as number);
       }
     });
   }
 
-  private ejecutarEliminacionCliente(id: number): void {
+  private ejecutarEliminacionTipoInspeccion(id: number): void {
     const usrMod = this.authService.getCurrentUser().trim();
     if (!usrMod) {
       this.errorMessage = 'No se pudo identificar el usuario. Vuelve a iniciar sesión.';
       return;
     }
 
-    this.eliminandoCliente = true;
+    this.eliminandoTipoInspeccion = true;
 
-    this.clienteService.eliminar(id, usrMod).subscribe({
+    this.tipoInspeccionService.eliminar(id, usrMod).subscribe({
       next: () => {
-        this.eliminandoCliente = false;
-        this.cargarClientes();
+        this.eliminandoTipoInspeccion = false;
+        this.cargarTiposInspeccion();
       },
       error: (error: unknown) => {
-        console.error('Error eliminando cliente', error);
-        this.eliminandoCliente = false;
-        this.errorMessage = 'No se pudo eliminar el cliente.';
+        console.error('Error eliminando tipo de inspección', error);
+        this.eliminandoTipoInspeccion = false;
+        this.errorMessage = 'No se pudo eliminar el tipo de inspección.';
       }
     });
   }
 
-  limpiar(): void {
-    this.filtros.Id = 0;
-    this.filtros.Nombre = '';
-    this.filtros.Estado = 'A';
-    this.cargarClientes();
-  }
-
-  cargarClientes(): void {
+  cargarTiposInspeccion(): void {
     this.cargando = true;
     this.errorMessage = '';
-    this.paginaActual = 1; // resetear al buscar/limpiar
+    this.paginaActual = 1;
 
-    this.clienteService.listar(this.filtros).pipe(
+    this.tipoInspeccionService.listar(this.filtros).pipe(
       catchError((error: unknown) => {
-        console.error('Error cargando clientes', error);
-        this.clientes = [];
-        this.errorMessage = 'No se pudo cargar la información de Clientes.';
+        console.error('Error cargando tipos de inspección', error);
+        this.tiposInspeccion = [];
+        this.errorMessage = 'No se pudo cargar la información de Tipo de Inspección.';
         this.cargando = false;
         return of([]);
       })
     ).subscribe({
       next: (response: unknown) => {
         const registros = this.extractRecords(response);
-        this.clientes = registros.map((item) => this.mapCliente(item));
+        this.tiposInspeccion = registros.map((item) => this.mapTipoInspeccion(item));
         this.cargando = false;
       },
       error: () => {
-        this.clientes = [];
+        this.tiposInspeccion = [];
         this.cargando = false;
       }
     });
   }
 
-  trackByCliente(_index: number, cliente: ClienteItem): number | null {
-    return cliente.id;
+  trackByTipoInspeccion(_index: number, tipoInspeccion: TipoInspeccionItem): number | null {
+    return tipoInspeccion.id;
   }
 
   formatEstado(value: string): string {
@@ -216,18 +222,18 @@ export class ClientePageComponent implements OnInit {
     return text;
   }
 
-  private mapCliente(item: DataRecord): ClienteItem {
+  private mapTipoInspeccion(item: DataRecord): TipoInspeccionItem {
     const rawId =
       item['id'] ??
       item['Id'] ??
-      item['Cliente_Id'] ??
-      item['cliente_Id'];
+      item['Tipo_Id'] ??
+      item['tipo_Id'];
 
     const rawNombre =
       item['nombre'] ??
       item['Nombre'] ??
-      item['Cliente_Nombre'] ??
-      item['cliente_Nombre'];
+      item['Tipo_Nombre'] ??
+      item['tipo_Nombre'];
 
     const rawEstado =
       item['estado'] ??
