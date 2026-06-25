@@ -6,13 +6,11 @@ import { ApiService } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from '../confirmacion-accion-dialog.component';
 
-// ── Interfaces de combos reutilizados ─────────────────────────────
+// ── Interfaces de combos ──────────────────────────────────────────
 interface InsCliente      { Cliente_Id: number;     Cliente_Nombre: string; }
 interface InsSubEstacion  { Subestacion_Id: number; Subestacion_Nombre: string; }
 interface InsSubContrata  { SubContrata_Id: number; SubContrata_Nombre: string; }
 interface InsJefe         { Jefe_Id: number; Jef_Nombre: string; Jef_DNI: string; Cen_Cos_Id: number; Cen_Cos_Des: string; }
-
-/** Tipo de inspección proveniente de BD: SELECT Tipo_Id, Tipo_Nombre FROM Ins_Tipo_Inspeccion */
 interface TipoInspeccion  { Tipo_Id: number; Tipo_Nombre: string; }
 
 type ComboKey = 'cliente' | 'subestacion' | 'subcontrata' | 'jefe' | 'tipoInspeccion';
@@ -30,7 +28,6 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
   @Input() modoEdicion = false;
   @Input() inspeccionId: number | null = null;
 
-  // ── Datos del supervisor ──────────────────────────────────────────
   supervisor: SupervisorDatos = { nombre: '', cargo: '', area: '' };
 
   readonly form: FormGroup;
@@ -54,6 +51,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
   cargandoSubContratas  = false;
   cargandoJefes         = false;
   cargandoTipos         = false;
+  cargandoEdicion       = false;
   guardando             = false;
 
   // ── Estado de combos ─────────────────────────────────────────────
@@ -65,6 +63,9 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     cliente: '', subestacion: '', subcontrata: '',
     jefe: '', tipoInspeccion: '',
   };
+
+  /** Datos base cargados al editar (para el método aplicarDatosEdicion) */
+  private edicionBase: Record<string, unknown> | null = null;
 
   constructor(
     private readonly fb: FormBuilder,
@@ -87,6 +88,11 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     this.cargarSubContratas();
     this.cargarJefes();
     this.cargarTiposInspeccion();
+
+    // Si viene en modo edición, cargar los datos del registro
+    if (this.modoEdicion && this.inspeccionId) {
+      this.cargarDatosEdicion(this.inspeccionId);
+    }
   }
 
   @HostListener('document:click', ['$event'])
@@ -116,49 +122,32 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     });
   }
 
-  // ── Guardar ──────────────────────────────────────────────────────
+  // ── Guardar / Actualizar ─────────────────────────────────────────
   guardar(): void {
+    if (this.modoEdicion) {
+      this.actualizar();
+      return;
+    }
+    this.registrar();
+  }
+
+  private registrar(): void {
     if (this.guardando) { return; }
 
-    const actividadTarea = this.form.get('actividadTarea')?.value ?? '';
-
-    if (!actividadTarea) {
-      alert('Seleccione Actividad o Tarea.');
-      return;
-    }
-    if (!this.clienteSeleccionado) {
-      alert('Seleccione un Cliente.');
-      return;
-    }
-    if (!this.subestacionSeleccionada) {
-      alert('Seleccione una Subestación.');
-      return;
-    }
-    if (!this.subContrataSeleccionada) {
-      alert('Seleccione una Subcontrata.');
-      return;
-    }
-    if (!this.jefeSeleccionado) {
-      alert('Seleccione un Jefe de Equipo.');
-      return;
-    }
-    if (!this.tipoInspeccionSeleccionado) {
-      alert('Seleccione un Tipo de Inspección.');
-      return;
-    }
+    if (!this.validarFormulario()) { return; }
 
     const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
 
     const payload = {
       Usr_Cod:               usrCod,
-      Cliente_Id:            this.clienteSeleccionado.Cliente_Id,
-      Subestacion_Id:        this.subestacionSeleccionada.Subestacion_Id,
-      SubContrata_Id:        this.subContrataSeleccionada.SubContrata_Id,
-      Jefe_Id:               this.jefeSeleccionado.Jefe_Id,
-      Actividad:             actividadTarea,
+      Cliente_Id:            this.clienteSeleccionado!.Cliente_Id,
+      Subestacion_Id:        this.subestacionSeleccionada!.Subestacion_Id,
+      SubContrata_Id:        this.subContrataSeleccionada!.SubContrata_Id,
+      Jefe_Id:               this.jefeSeleccionado!.Jefe_Id,
+      Actividad:             this.form.get('actividadTarea')?.value ?? '',
       Orden_Trabajo:         this.form.get('ordenTrabajo')?.value ?? '',
       Procedimiento_Trabajo: this.form.get('procedimientoTrabajo')?.value ?? '',
-      Tipo_Id:               this.tipoInspeccionSeleccionado.Tipo_Id,
+      Tipo_Id:               this.tipoInspeccionSeleccionado!.Tipo_Id,
       Usr_Reg:               usrCod,
     };
 
@@ -166,7 +155,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     this.apiService.postInsertarMedioAmbiente(payload).subscribe({
       next: () => {
         this.guardando = false;
-        alert('Inspección de Medio Ambiente registrada correctamente.');
+        // Sin alert: volver directamente a la tabla
         this.volver.emit();
       },
       error: (err: unknown) => {
@@ -175,6 +164,69 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
         alert('Ocurrió un error al guardar. Intente nuevamente.');
       },
     });
+  }
+
+  private actualizar(): void {
+    if (this.guardando) { return; }
+    if (!this.inspeccionId) {
+      alert('No se encontró el ID de la inspección a actualizar.');
+      return;
+    }
+    if (!this.validarFormulario()) { return; }
+
+    const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
+    const estado = (this.form.get('estado')?.value ?? 'A') as string;
+
+    const payload = {
+      Medio_Ambiente_Id:     this.inspeccionId,
+      Usr_Cod:               usrCod,
+      Cliente_Id:            this.clienteSeleccionado!.Cliente_Id,
+      Subestacion_Id:        this.subestacionSeleccionada!.Subestacion_Id,
+      SubContrata_Id:        this.subContrataSeleccionada!.SubContrata_Id,
+      Jefe_Id:               this.jefeSeleccionado!.Jefe_Id,
+      Actividad:             this.form.get('actividadTarea')?.value ?? '',
+      Orden_Trabajo:         this.form.get('ordenTrabajo')?.value ?? '',
+      Procedimiento_Trabajo: this.form.get('procedimientoTrabajo')?.value ?? '',
+      Tipo_Id:               this.tipoInspeccionSeleccionado!.Tipo_Id,
+      Usr_Mod:               usrCod,
+      Estado:                estado,
+    };
+
+    this.guardando = true;
+    this.apiService.putActualizarMedioAmbiente(payload).subscribe({
+      next: () => {
+        this.guardando = false;
+        // Sin alert: volver directamente a la tabla
+        this.volver.emit();
+      },
+      error: (err: unknown) => {
+        this.guardando = false;
+        console.error('Error al actualizar inspección de Medio Ambiente:', err);
+        alert('Ocurrió un error al actualizar. Intente nuevamente.');
+      },
+    });
+  }
+
+  private validarFormulario(): boolean {
+    if (!this.form.get('actividadTarea')?.value) {
+      alert('Seleccione Actividad o Tarea.'); return false;
+    }
+    if (!this.clienteSeleccionado) {
+      alert('Seleccione un Cliente.'); return false;
+    }
+    if (!this.subestacionSeleccionada) {
+      alert('Seleccione una Subestación.'); return false;
+    }
+    if (!this.subContrataSeleccionada) {
+      alert('Seleccione una Subcontrata.'); return false;
+    }
+    if (!this.jefeSeleccionado) {
+      alert('Seleccione un Jefe de Equipo.'); return false;
+    }
+    if (!this.tipoInspeccionSeleccionado) {
+      alert('Seleccione un Tipo de Inspección.'); return false;
+    }
+    return true;
   }
 
   // ── Combos ───────────────────────────────────────────────────────
@@ -239,10 +291,81 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
   get tiposInspeccionFiltrados(): TipoInspeccion[]  { return this.filtrar(this.tiposInspeccion, this.comboSearch.tipoInspeccion, i => i.Tipo_Nombre); }
 
   // ── Carga de datos ───────────────────────────────────────────────
+  private cargarDatosEdicion(id: number): void {
+    this.cargandoEdicion = true;
+    this.apiService.getMostrarMedioAmbiente(id).subscribe({
+      next: (response: unknown) => {
+        this.edicionBase = this.extractFirstRecord(response);
+        this.cargandoEdicion = false;
+        this.aplicarDatosEdicion();
+      },
+      error: () => {
+        this.edicionBase = null;
+        this.cargandoEdicion = false;
+      },
+    });
+  }
+
+  private aplicarDatosEdicion(): void {
+    if (!this.edicionBase) { return; }
+    const r = this.edicionBase;
+
+    // Actividad, Orden_Trabajo, Procedimiento, Estado
+    this.form.patchValue({
+      actividadTarea:       this.getVal(r, ['Actividad', 'actividad']),
+      ordenTrabajo:         this.getVal(r, ['Orden_Trabajo', 'orden_Trabajo']),
+      procedimientoTrabajo: this.getVal(r, ['Procedimiento_Trabajo', 'procedimiento_Trabajo']),
+      estado:               this.getVal(r, ['Estado', 'estado']) || 'A',
+    });
+
+    // Cliente (por nombre, ya que SP_Mostrar no devuelve Cliente_Id directamente)
+    const clienteNombre = this.getVal(r, ['Cliente_Nombre', 'cliente_Nombre']);
+    if (clienteNombre && this.clientes.length) {
+      const c = this.clientes.find(x => this.norm(x.Cliente_Nombre) === this.norm(clienteNombre)) ?? null;
+      if (c) {
+        this.clienteSeleccionado = c;
+        if (!this.subestaciones.length && !this.cargandoSubestaciones) {
+          this.cargarSubestaciones(c.Cliente_Id);
+        }
+      }
+    }
+
+    // Subestación
+    const subNombre = this.getVal(r, ['Subestacion_Nombre', 'subestacion_Nombre']);
+    if (subNombre && this.subestaciones.length) {
+      const s = this.subestaciones.find(x => this.norm(x.Subestacion_Nombre) === this.norm(subNombre)) ?? null;
+      if (s) { this.subestacionSeleccionada = s; }
+    }
+
+    // SubContrata
+    const scNombre = this.getVal(r, ['SubContrata_Nombre', 'subContrata_Nombre']);
+    if (scNombre && this.subContratas.length) {
+      const sc = this.subContratas.find(x => this.norm(x.SubContrata_Nombre) === this.norm(scNombre)) ?? null;
+      if (sc) { this.subContrataSeleccionada = sc; }
+    }
+
+    // Jefe
+    const jefeNombre = this.getVal(r, ['Jef_Nombre', 'jef_Nombre']);
+    const jefeDni    = this.getVal(r, ['Jef_DNI', 'jef_DNI']);
+    if ((jefeNombre || jefeDni) && this.jefes.length) {
+      const j = this.jefes.find(x =>
+        (jefeDni && x.Jef_DNI === jefeDni) ||
+        (jefeNombre && this.norm(x.Jef_Nombre) === this.norm(jefeNombre))
+      ) ?? null;
+      if (j) { this.jefeSeleccionado = j; }
+    }
+
+    // Tipo Inspección
+    const tipoNombre = this.getVal(r, ['Tipo_Nombre', 'tipo_Nombre']);
+    if (tipoNombre && this.tiposInspeccion.length) {
+      const t = this.tiposInspeccion.find(x => this.norm(x.Tipo_Nombre) === this.norm(tipoNombre)) ?? null;
+      if (t) { this.tipoInspeccionSeleccionado = t; }
+    }
+  }
+
   private cargarDatosSupervisor(): void {
     const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
     if (!usrCod) { return; }
-
     this.apiService.getConsultaDatosUsuario({ Usr_Cod: usrCod }).subscribe({
       next: (response: unknown) => {
         const record = this.extractFirstRecord(response);
@@ -252,9 +375,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
           area:   this.getVal(record, ['cen_Cos_Des', 'Cen_Cos_Des', 'Area_Des']),
         };
       },
-      error: () => {
-        this.supervisor = { nombre: usrCod, cargo: '', area: '' };
-      },
+      error: () => { this.supervisor = { nombre: usrCod, cargo: '', area: '' }; },
     });
   }
 
@@ -265,6 +386,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
           Cliente_Id:     this.toNum(i['Cliente_Id'] ?? i['cliente_Id']),
           Cliente_Nombre: this.getVal(i, ['Cliente_Nombre', 'cliente_Nombre']),
         })).filter(x => x.Cliente_Id > 0);
+        this.aplicarDatosEdicion();
       },
       error: () => { this.clientes = []; },
     });
@@ -279,6 +401,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
           Subestacion_Nombre: this.getVal(i, ['Subestacion_Nombre', 'subestacion_Nombre']),
         })).filter(x => x.Subestacion_Id > 0);
         this.cargandoSubestaciones = false;
+        this.aplicarDatosEdicion();
       },
       error: () => { this.subestaciones = []; this.cargandoSubestaciones = false; },
     });
@@ -293,6 +416,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
           SubContrata_Nombre: this.getVal(i, ['SubContrata_Nombre', 'subContrata_Nombre']),
         }));
         this.cargandoSubContratas = false;
+        this.aplicarDatosEdicion();
       },
       error: () => { this.subContratas = []; this.cargandoSubContratas = false; },
     });
@@ -310,6 +434,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
           Cen_Cos_Des: this.getVal(i, ['Cen_Cos_Des', 'cen_Cos_Des', 'Area_Des']),
         }));
         this.cargandoJefes = false;
+        this.aplicarDatosEdicion();
       },
       error: () => { this.jefes = []; this.cargandoJefes = false; },
     });
@@ -324,6 +449,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
           Tipo_Nombre: this.getVal(i, ['Tipo_Nombre', 'tipo_Nombre']),
         })).filter(x => x.Tipo_Id > 0);
         this.cargandoTipos = false;
+        this.aplicarDatosEdicion();
       },
       error: () => { this.tiposInspeccion = []; this.cargandoTipos = false; },
     });

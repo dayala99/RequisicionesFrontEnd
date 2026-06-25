@@ -2246,5 +2246,107 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         );
     }
 
+    getFiltrarMedioAmbiente(Fecha_Desde: string, Fecha_Hasta: string, Estado: 'A' | 'I'): Observable<any> {
+        const headers = this.Header;
+        const params = { Fecha_Desde, Fecha_Hasta, Estado };
+        return this.http.get(this.baseUrl + 'Inspecciones/getFiltrarMedioAmbiente', { headers, params });
+    }
+
+    getMostrarMedioAmbiente(Medio_Ambiente_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = { Medio_Ambiente_Id: Medio_Ambiente_Id.toString() };
+        return this.http.get(this.baseUrl + 'Inspecciones/getMostrarMedioAmbiente', { headers, params });
+    }
+
+    putActualizarMedioAmbiente(payload: {
+        Medio_Ambiente_Id: number;
+        Usr_Cod: string;
+        Cliente_Id: number;
+        Subestacion_Id: number;
+        SubContrata_Id: number;
+        Jefe_Id: number;
+        Actividad: string;
+        Orden_Trabajo: string;
+        Procedimiento_Trabajo: string;
+        Tipo_Id: number;
+        Usr_Mod: string;
+        Estado: string;
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.put(
+            this.baseUrl + 'Inspecciones/putActualizarMedioAmbiente',
+            payload,
+            { headers }
+        );
+    }
+
+    deleteEliminarMedioAmbiente(Medio_Ambiente_Id: number, Usr_Mod: string): Observable<any> {
+        const headers = this.Header;
+        const params = { Medio_Ambiente_Id: Medio_Ambiente_Id.toString(), Usr_Mod };
+        return this.http.delete(this.baseUrl + 'Inspecciones/deleteEliminarMedioAmbiente', { headers, params });
+    }
+
+
+
+    // ─── Prevención ────────────────────────────────────────────────
+    postInsertarPrevencion(payload: {
+        Usr_Cod: string;
+        Cliente_Id: number;
+        Subestacion_Id: number;
+        SubContrata_Id: number;
+        Jefe_Id: number;
+        Actividad: string;
+        Orden_Trabajo: string;
+        Procedimiento_Trabajo: string;
+        Tipo_Id: number;
+        Usr_Reg: string;
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(
+            this.baseUrl + 'Inspecciones/postInsertarPrevencion',
+            payload,
+            { headers }
+        );
+    }
+
+    getFiltrarPrevencion(Fecha_Desde: string, Fecha_Hasta: string, Estado: 'A' | 'I'): Observable<any> {
+        const headers = this.Header;
+        const params = { Fecha_Desde, Fecha_Hasta, Estado };
+        return this.http.get(this.baseUrl + 'Inspecciones/getFiltrarPrevencion', { headers, params });
+    }
+
+    getMostrarPrevencion(Prevencion_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = { Prevencion_Id: Prevencion_Id.toString() };
+        return this.http.get(this.baseUrl + 'Inspecciones/getMostrarPrevencion', { headers, params });
+    }
+
+    putActualizarPrevencion(payload: {
+        Prevencion_Id: number;
+        Usr_Cod: string;
+        Cliente_Id: number;
+        Subestacion_Id: number;
+        SubContrata_Id: number;
+        Jefe_Id: number;
+        Actividad: string;
+        Orden_Trabajo: string;
+        Procedimiento_Trabajo: string;
+        Tipo_Id: number;
+        Usr_Mod: string;
+        Estado: string;
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.put(
+            this.baseUrl + 'Inspecciones/putActualizarPrevencion',
+            payload,
+            { headers }
+        );
+    }
+
+    deleteEliminarPrevencion(Prevencion_Id: number, Usr_Mod: string): Observable<any> {
+        const headers = this.Header;
+        const params = { Prevencion_Id: Prevencion_Id.toString(), Usr_Mod };
+        return this.http.delete(this.baseUrl + 'Inspecciones/deleteEliminarPrevencion', { headers, params });
+    }
 
 }
