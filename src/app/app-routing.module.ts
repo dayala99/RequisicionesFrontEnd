@@ -19,6 +19,7 @@ import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra
 import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page.component';
 import { PerfilPageComponent } from './pages/perfil-page/perfil-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
+import { StockPageComponent } from './pages/stock-page/stock-page.component';
 import { SubGrupoItemPageComponent } from './pages/sub-grupo-item-page/sub-grupo-item-page.component';
 import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
@@ -116,6 +117,10 @@ const routes: Routes = [
       {
         path: 'almacen',
         component: AlmacenPageComponent
+      },
+      {
+        path: 'stock',
+        component: StockPageComponent
       },
       {
         path: 'inspecciones',

@@ -526,10 +526,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const checked = !!input?.checked;
 
     this.form.controls['usarIgv18'].setValue(checked, { emitEvent: false });
-
-    if (checked) {
-      this.form.controls['porcentajeIgv'].setValue(18, { emitEvent: false });
-    }
+    this.form.controls['porcentajeIgv'].setValue(checked ? 18 : 0, { emitEvent: false });
 
     this.syncTotalesCalculados();
   }
@@ -585,6 +582,29 @@ export class OrdenCompraPageComponent implements OnInit {
     this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
       detalle.id === item.id
         ? { ...detalle, costoUnitario, subtotal }
+        : detalle
+    );
+    this.syncTotalesCalculados();
+  }
+
+  actualizarSubtotalDetallePedido(item: OrdenCompraDetallePedidoRow, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = this.sanitizeDecimalInput(input.value);
+
+    if (sanitizedValue !== input.value) {
+      input.value = sanitizedValue;
+    }
+
+    const subtotal = this.parseMontoControlValue(sanitizedValue);
+
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, subtotal }
         : detalle
     );
     this.syncTotalesCalculados();
@@ -1066,7 +1086,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const detraccionId = this.getDetraccionIdSeleccionada();
     const montoDetraccion = this.parseMontoControlValue(this.form.controls['montoDetraccion'].value);
     const usarIgvAutomatico = Boolean(this.form.controls['usarIgv18'].value);
-    const porcentajeIgv = this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value);
+    const porcentajeIgv = this.getPorcentajeIgv();
 
     if (!proveedorId || !proveedor) {
       this.form.controls['proveedor'].markAsTouched();
@@ -1469,7 +1489,8 @@ export class OrdenCompraPageComponent implements OnInit {
     const subtotalReporte = detalle.length
       ? this.normalizeDecimal(detalle.reduce((total, item) => total + item.importe, 0))
       : ordenCompra.subtotal;
-    const igvReporte = this.normalizeDecimal(subtotalReporte * 0.18);
+    const porcentajeIgvReporte = this.resolvePorcentajeIgv(ordenCompra);
+    const igvReporte = this.normalizeDecimal(subtotalReporte * porcentajeIgvReporte / 100);
     const totalReporte = this.normalizeDecimal(subtotalReporte + igvReporte);
     const montoDetraccionReporte = this.normalizeDetraccionReporte(ordenCompra.montoDetraccion, totalReporte);
     const totalPagarReporte = this.normalizeDecimal(totalReporte - montoDetraccionReporte);
@@ -1595,7 +1616,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const proveedorId = this.getNumberValue(item, ['Ord_Com_Prv', 'ord_Com_Prv', 'ordComPrv']) ?? 0;
     const formaPagoId = this.getNumberValue(item, ['Ord_Com_For_Pag', 'ord_Com_For_Pag', 'ordComForPag']) ?? 0;
     const estadoCodigo = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']);
-    const flgIgvAut = this.getTextValue(item, ['Flg_Igv_Aut', 'flg_Igv_Aut', 'flgIgvAut']);
+    const flgIgvAut = this.getTextValue(item, ['Flg_Igv_Aut', 'Flg_IGV_Aut', 'flg_Igv_Aut', 'flg_igv_aut', 'flgIgvAut']);
     const proveedorFallback = this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom', 'Proveedor', 'proveedor']);
     const formaPagoFallback = this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes', 'FormaPago', 'formaPago']);
 
@@ -1626,7 +1647,7 @@ export class OrdenCompraPageComponent implements OnInit {
       subtotal: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Sub_Tot', 'ord_Com_Sub_Tot', 'ordComSubTot']),
       igv: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Igv', 'ord_Com_Igv', 'ordComIgv']),
       flgIgvAut,
-      igvPor: this.getNumberValue(item, ['Igv_Por', 'igv_Por', 'igvPor']),
+      igvPor: this.normalizePorcentajeIgv(this.getDecimalValue(item, ['Igv_Por', 'IGV_Por', 'igv_Por', 'igv_por', 'igvPor'])),
       total: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']),
       detraccionId: this.getNumberValue(item, ['Ord_Com_Det_Id', 'ord_Com_Det_Id', 'ordComDetId']) ?? 0,
       detraccionDescripcion: this.getTextValue(item, ['Det_Des', 'det_Des', 'detDes', 'Ord_Com_Det_Des', 'ord_Com_Det_Des', 'ordComDetDes', 'Detraccion', 'detraccion']),
@@ -2081,13 +2102,12 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   private getPorcentajeIgv(): number {
-    const porcentaje = this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value);
-    return porcentaje > 0 ? porcentaje : 0;
+    return this.normalizePorcentajeIgv(this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value));
   }
 
   private resolvePorcentajeIgv(item: OrdenCompraRow): number {
     if (item.igvPor !== null && item.igvPor >= 0) {
-      return item.igvPor;
+      return this.normalizePorcentajeIgv(item.igvPor);
     }
 
     if (item.subtotal <= 0 || item.igv <= 0) {
@@ -2095,6 +2115,16 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return this.normalizeDecimal(item.igv * 100 / item.subtotal);
+  }
+
+  private normalizePorcentajeIgv(value: unknown): number {
+    let porcentaje = this.normalizeDecimal(value);
+
+    while (porcentaje > 100) {
+      porcentaje = this.normalizeDecimal(porcentaje / 100);
+    }
+
+    return porcentaje;
   }
 
   private isIgv18Porcentaje(item: OrdenCompraRow): boolean {
@@ -2372,7 +2402,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private getTextValue(item: DataRecord, keys: string[]): string {
     for (const key of keys) {
-      const value = item[key];
+      const value = this.findDataValue(item, key);
 
       if (value !== null && value !== undefined && String(value).trim()) {
         return String(value).trim();
@@ -2384,7 +2414,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private getNumberValue(item: DataRecord, keys: string[]): number | null {
     for (const key of keys) {
-      const value = Number(item[key]);
+      const value = Number(this.findDataValue(item, key));
 
       if (Number.isFinite(value) && value > 0) {
         return value;
@@ -2396,7 +2426,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private getDecimalValue(item: DataRecord, keys: string[]): number {
     for (const key of keys) {
-      const value = Number(item[key]);
+      const value = Number(this.findDataValue(item, key));
 
       if (Number.isFinite(value)) {
         return this.normalizeDecimal(value);
@@ -2404,6 +2434,21 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return 0;
+  }
+
+  private findDataValue(item: DataRecord, key: string): unknown {
+    if (Object.prototype.hasOwnProperty.call(item, key)) {
+      return item[key];
+    }
+
+    const normalizedKey = this.normalizeDataKey(key);
+    const matchingKey = Object.keys(item).find((itemKey) => this.normalizeDataKey(itemKey) === normalizedKey);
+
+    return matchingKey ? item[matchingKey] : undefined;
+  }
+
+  private normalizeDataKey(key: string): string {
+    return String(key || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   }
 
   private getOrdenCompraMoneyValue(item: DataRecord, keys: string[]): number {

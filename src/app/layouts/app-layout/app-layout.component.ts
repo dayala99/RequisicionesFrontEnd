@@ -32,6 +32,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Pedidos', route: '/pedidos' },
     { label: 'Orden de Compra', route: '/orden-compra' },
     { label: 'Almacen', route: '/almacen' },
+    { label: 'Stock', route: '/stock' },
     { label: 'Inspecciones', route: '/inspecciones' }
   ];
   readonly maintenanceItems = [

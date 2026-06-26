@@ -33,7 +33,11 @@
 }
 
 .pedido-detalle-dialog__selector-row--pedido-b {
-  grid-template-columns: minmax(12rem, 1.45fr) minmax(7rem, 0.75fr) minmax(7rem, 0.75fr) minmax(8rem, 0.85fr);
+  grid-template-columns: repeat(3, minmax(8rem, 1fr));
+}
+
+.pedido-detalle-dialog__selector-row--pedido-b .pedido-detalle-dialog__field--full {
+  grid-column: 1 / -1;
 }
 
 .pedido-detalle-dialog__selector-row--pedido-b .pedido-detalle-dialog__field > span,

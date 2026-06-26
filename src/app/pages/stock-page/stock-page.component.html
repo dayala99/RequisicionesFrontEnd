@@ -1,0 +1,68 @@
+<section class="stock-page">
+  <section class="stock-card">
+    <header class="stock-card__header">
+      <div>
+        <p class="stock-card__eyebrow">Operacion</p>
+        <h2>Stock</h2>
+        <p class="stock-card__description">
+          Consulta la informacion disponible del stock de materiales registrados.
+        </p>
+      </div>
+    </header>
+
+    <section class="panel panel--listing">
+      <label class="field field--search">
+        <span>Buscar en la grilla</span>
+        <input
+          type="text"
+          [value]="globalSearch"
+          placeholder="Escribe para filtrar..."
+          (input)="onGlobalSearchChange(($any($event.target).value || '').toString())">
+      </label>
+
+      <p *ngIf="errorMessage" class="editor-feedback editor-feedback--error">{{ errorMessage }}</p>
+
+      <div class="table-shell">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Codigo</th>
+              <th>Descripcion</th>
+              <th>Grupo</th>
+              <th>Sub Grupo</th>
+              <th>Detalle de Material</th>
+              <th>Stock</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngIf="isLoading">
+              <td colspan="6" class="empty-row">Cargando informacion de stock...</td>
+            </tr>
+
+            <tr *ngIf="!isLoading && !errorMessage && !filteredItems.length">
+              <td colspan="6" class="empty-row">No se encontraron items registrados.</td>
+            </tr>
+
+            <tr *ngFor="let item of paginatedItems; trackBy: trackByItem" class="stock-table__row">
+              <td>{{ item.itemCodigo }}</td>
+              <td class="text-cell">{{ item.descripcion }}</td>
+              <td>{{ item.grupo }}</td>
+              <td>{{ item.subGrupo }}</td>
+              <td>{{ item.detalleMaterial }}</td>
+              <td>{{ item.stock | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <app-grid-pagination
+        *ngIf="filteredItems.length"
+        [totalItems]="filteredItems.length"
+        [currentPage]="currentPage"
+        [pageSize]="pageSize"
+        (pageChange)="onPageChange($event)">
+      </app-grid-pagination>
+    </section>
+  </section>
+</section>

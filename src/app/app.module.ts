@@ -10,6 +10,7 @@ import { MAT_DIALOG_SCROLL_STRATEGY, MatDialogModule } from '@angular/material/d
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 //Import API
 import { HttpClientModule } from '@angular/common/http';
 
@@ -57,6 +58,7 @@ import { ProviderPageComponent } from './pages/provider-page/provider-page.compo
 import { ProviderBanksDialogComponent } from './pages/provider-page/provider-banks-dialog.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
+import { StockPageComponent } from './pages/stock-page/stock-page.component';
 import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
 import { ApprovalUserSelectorDialogComponent } from './pages/requisiciones-page/approval-user-selector-dialog.component';
 import { CentroCostoSelectorDialogComponent } from './pages/requisiciones-page/centro-costo-selector-dialog.component';
@@ -151,6 +153,7 @@ const APP_DATE_FORMATS = {
     ProviderBanksDialogComponent,
     ProviderEditDialogComponent,
     ProviderRegisterDialogComponent,
+    StockPageComponent,
     ProviderFormComponent,
     ProviderSelectorDialogComponent,
     PaymentSelectorDialogComponent,
@@ -198,6 +201,7 @@ const APP_DATE_FORMATS = {
     MatNativeDateModule,
     MatOptionModule,
     MatSelectModule,
+    MatSnackBarModule,
     AppRoutingModule,
     HttpClientModule
   ],

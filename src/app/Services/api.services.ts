@@ -418,6 +418,7 @@ export interface RegistrarIngresoAlmacenRequest {
     Alm_Sol_Dni: string;
     Alm_Cen_Cos: number;
     Usr_Reg: string;
+    Flg_Est_Apr?: string;
 }
 
 export interface RegistrarIngresoAlmacenOrdenCompraRequest {
@@ -464,6 +465,24 @@ export interface ActualizarIngresoAlmacenDetalleRequest {
 export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
     Ped_Det_Id: number;
     Ord_Com_Id: number;
+    Can_Ing: number;
+}
+
+export interface ActualizarStockItemRequest {
+    Itm_Id: number;
+    Ord_Com_Id: number;
+    Can_Ing: number;
+}
+
+export interface ActualizarStockItemIngresoDirectoRequest {
+    Alm_Mov_Id: number;
+    Alm_Det_Itm_Id: number;
+    Can_Ing: number;
+}
+
+export interface ActualizarStockItemSalidaRequest {
+    Alm_Mov_Id: number;
+    Alm_Det_Itm_Id: number;
     Can_Ing: number;
 }
 
@@ -1621,6 +1640,21 @@ export class ApiService {
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedidoDetalleIngresoAlmacen', detalle, { headers });
     }
 
+    patchActualizarStockItem(item: ActualizarStockItemRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItem', item, { headers });
+    }
+
+    patchActualizarStockItemIngresoDirecto(item: ActualizarStockItemIngresoDirectoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItemIngresoDirecto', item, { headers });
+    }
+
+    patchActualizarStockItemSalida(item: ActualizarStockItemSalidaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItemSalida', item, { headers });
+    }
+
     getListarItemsAsignadosPedidoCentroCosto(Ped_Cab_Id: number): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -1766,11 +1800,30 @@ export class ApiService {
             'Igv_Por'
         ]);
 
-        if (decimalKeys.has(key) && typeof value === 'number') {
-            return value.toFixed(2);
+        if (decimalKeys.has(key)) {
+            return this.formatDecimalForFormData(value);
         }
 
         return String(value);
+    }
+
+    private formatDecimalForFormData(value: unknown): string {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value.toFixed(2).replace('.', ',') : '0,00';
+        }
+
+        const rawValue = String(value ?? '').trim();
+
+        if (!rawValue) {
+            return '0,00';
+        }
+
+        const normalizedValue = rawValue.includes(',')
+            ? rawValue.replace(/\./g, '').replace(',', '.')
+            : rawValue.replace(/,/g, '');
+        const numericValue = Number(normalizedValue);
+
+        return Number.isFinite(numericValue) ? numericValue.toFixed(2).replace('.', ',') : '0,00';
     }
 
     patchAsignarOrdenCompraADetallePedido(detalle: AsignarOrdenCompraDetallePedidoRequest): Observable<any> {
