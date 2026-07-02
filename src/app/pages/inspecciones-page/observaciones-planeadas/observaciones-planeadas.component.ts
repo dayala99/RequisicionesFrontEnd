@@ -43,12 +43,10 @@ interface InsSubContrata {
   SubContrata_Nombre: string;
 }
 
+// El Jefe se identifica por Usr_Cod (string); área y DNI se cargan con SP_Mostrar_Jefe
 interface InsJefeArea {
-  Jefe_Id: number;
-  Jef_Nombre: string;
-  Jef_DNI: string;
-  Cen_Cos_Id: number;
-  Cen_Cos_Des: string;
+  Usr_Cod: string;
+  Usr_Nom: string;
 }
 
 type ComboKey = 'cliente' | 'subestacion' | 'subcontrata' | 'jefeArea' | 'motivo' | 'clima' | 'tarea';
@@ -58,7 +56,7 @@ interface ObservacionFormularioValores {
   clienteId: number;
   subestacionId: number;
   subContrataId: number;
-  jefeId: number;
+  jefeCod: string;
   motivoId: number;
   climaId: number;
   tareaId: number;
@@ -75,7 +73,6 @@ interface ObservacionFormularioValores {
 export class ObservacionesPlaneadasComponent implements OnInit {
   @Output() volver = new EventEmitter<void>();
 
-  /** ID numérico interno capturado oculto desde la tabla (no se muestra al usuario) */
   @Input() observacionIdSeleccionado: number | null = null;
   @Input() codigoObsSeleccionado: string | null = null;
   @Input() modoEdicion = false;
@@ -271,13 +268,45 @@ export class ObservacionesPlaneadasComponent implements OnInit {
     this.jefeAreaSeleccionado = jefe;
 
     this.observacionForm.patchValue({
-      jefeEquipo: jefe?.Jefe_Id ?? '',
-      areaJefeEquipo: jefe?.Cen_Cos_Des ?? '',
-      dniJefeEquipo: jefe?.Jef_DNI ?? ''
+      jefeEquipo: jefe?.Usr_Cod ?? '',
+      areaJefeEquipo: '',
+      dniJefeEquipo: ''
     });
 
     this.comboSearch.jefeArea = '';
     this.closeCombos();
+
+    if (jefe?.Usr_Cod) {
+      this.apiService.getMostrarJefe(jefe.Usr_Cod).subscribe({
+        next: (response: unknown) => {
+          const data = this.extraerDatosJefe(response);
+          this.observacionForm.patchValue({
+            areaJefeEquipo: data?.cenCosDes ?? '',
+            dniJefeEquipo: data?.dni ?? ''
+          });
+        },
+        error: () => { }
+      });
+    }
+  }
+
+  private extraerDatosJefe(response: unknown): { cenCosDes: string; dni: string } | null {
+    if (!response || typeof response !== 'object') { return null; }
+    const resp = response as Record<string, unknown>;
+
+    const elements = resp['Elements'] ?? resp['elements'];
+    let record: Record<string, unknown> | null = null;
+
+    if (Array.isArray(elements) && elements.length > 0) {
+      record = elements[0] as Record<string, unknown>;
+    } else {
+      record = resp;
+    }
+
+    if (!record) { return null; }
+    const cenCosDes = String(record['Cen_Cos_Des'] ?? record['cen_Cos_Des'] ?? '').trim();
+    const dni = String(record['Usr_Doc_Nro'] ?? record['usr_Doc_Nro'] ?? '').trim();
+    return { cenCosDes, dni };
   }
 
   selectMotivo(motivo: InsMotivo | null): void {
@@ -314,7 +343,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
   }
 
   get jefesAreaFiltrados(): InsJefeArea[] {
-    return this.filtrarLista(this.jefesArea, this.comboSearch.jefeArea, item => `${item.Jefe_Id} ${item.Jef_Nombre} ${item.Jef_DNI} ${item.Cen_Cos_Id} ${item.Cen_Cos_Des}`);
+    return this.filtrarLista(this.jefesArea, this.comboSearch.jefeArea, item => `${item.Usr_Cod} ${item.Usr_Nom}`);
   }
 
   get motivosFiltrados(): InsMotivo[] {
@@ -345,7 +374,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
   }
 
   get jefeAreaDisplay(): string {
-    return this.jefeAreaSeleccionado?.Jef_Nombre || 'Seleccionar';
+    return this.jefeAreaSeleccionado?.Usr_Nom || 'Seleccionar';
   }
 
   get motivoDisplay(): string {
@@ -499,12 +528,9 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       next: (response: unknown) => {
         const raw = this.extraerLista<Record<string, unknown>>(response);
         this.jefesArea = raw.map(item => ({
-          Jefe_Id: this.toNumber(item['Jefe_Id'] ?? item['jefe_Id']),
-          Jef_Nombre: this.getFirstNonEmptyText(item, ['Jef_Nombre', 'jef_Nombre', 'Jefe_Nombre', 'jefe_Nombre']),
-          Jef_DNI: this.getFirstNonEmptyText(item, ['Jef_DNI', 'jef_DNI', 'DNI', 'dni']),
-          Cen_Cos_Id: this.toNumber(item['Cen_Cos_Id'] ?? item['cen_Cos_Id']),
-          Cen_Cos_Des: this.getFirstNonEmptyText(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'Area_Des', 'area_Des'])
-        }));
+          Usr_Cod: this.getFirstNonEmptyText(item, ['Usr_Cod', 'usr_Cod']),
+          Usr_Nom: this.getFirstNonEmptyText(item, ['Usr_Nom', 'usr_Nom'])
+        })).filter(x => !!x.Usr_Cod);
         this.cargandoJefesArea = false;
         this.aplicarDatosEdicion();
       },
@@ -514,7 +540,6 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       }
     });
   }
-
 
   private cargarDatosObservacionSeleccionada(codigoObs: string): void {
     this.cargandoObservacion = true;
@@ -574,19 +599,21 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       }
     }
 
+    // FIX: ahora el backend devuelve Jef_Nombre (alias) y Jefe_Cod
     const jefeNombre = this.getRecordValue(record, ['Jef_Nombre', 'jef_Nombre']);
-    const jefeDni = this.getRecordValue(record, ['Jef_DNI', 'jef_DNI']);
-    if (jefeNombre || jefeDni) {
+    const jefeCod = this.getRecordValue(record, ['Jefe_Cod', 'jefe_Cod', 'Jef_Cod', 'jef_Cod']);
+    if (jefeNombre || jefeCod) {
       const jefeArea = this.jefesArea.find(item =>
-        (jefeDni && item.Jef_DNI === jefeDni) ||
-        (jefeNombre && this.normalizarTexto(item.Jef_Nombre) === this.normalizarTexto(jefeNombre))
+        (jefeCod && item.Usr_Cod === jefeCod) ||
+        (jefeNombre && this.normalizarTexto(item.Usr_Nom) === this.normalizarTexto(jefeNombre))
       ) ?? null;
       if (jefeArea) {
         this.jefeAreaSeleccionado = jefeArea;
         this.observacionForm.patchValue({
-          jefeEquipo: jefeArea.Jefe_Id,
-          areaJefeEquipo: jefeArea.Cen_Cos_Des,
-          dniJefeEquipo: jefeArea.Jef_DNI
+          jefeEquipo: jefeArea.Usr_Cod,
+          // FIX: el área del jefe viene como Jef_Area (alias), el DNI como Jef_DNI
+          areaJefeEquipo: this.getRecordValue(record, ['Jef_Area', 'jef_Area', 'Cen_Cos_Des', 'cen_Cos_Des']),
+          dniJefeEquipo: this.getRecordValue(record, ['Jef_DNI', 'jef_DNI', 'Usr_Doc_Nro', 'usr_Doc_Nro'])
         });
       }
     }
@@ -679,7 +706,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       Cliente_Id: valores.clienteId,
       Subestacion_Id: valores.subestacionId,
       SubContrata_Id: valores.subContrataId,
-      Jefe_Id: valores.jefeId,
+      Jefe_Cod: valores.jefeCod,
       Motivo_Id: valores.motivoId,
       Clima_Id: valores.climaId,
       Tarea_Id: valores.tareaId,
@@ -693,11 +720,11 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       next: (response: unknown) => {
         this.registrandoObservacion = false;
         const success = this.esRespuestaExitosa(response);
-        const message = this.getRespuestaMensaje(response) || (success ? 'Observación planeada registrada correctamente.' : 'No se pudo registrar la observación planeada.');
-        alert(message);
 
         if (success) {
           this.volverSinConfirmacion();
+        } else {
+          alert(this.getRespuestaMensaje(response) || 'No se pudo registrar la observación planeada.');
         }
       },
       error: (error: unknown) => {
@@ -730,7 +757,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       Cliente_Id: valores.clienteId,
       Subestacion_Id: valores.subestacionId,
       SubContrata_Id: valores.subContrataId,
-      Jefe_Id: valores.jefeId,
+      Jefe_Cod: valores.jefeCod,
       Motivo_Id: valores.motivoId,
       Clima_Id: valores.climaId,
       Tarea_Id: valores.tareaId,
@@ -770,7 +797,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
     const clienteId = this.clienteSeleccionado?.Cliente_Id ?? 0;
     const subestacionId = this.subestacionSeleccionada?.Subestacion_Id ?? 0;
     const subContrataId = this.subContrataSeleccionada?.SubContrata_Id ?? 0;
-    const jefeId = this.jefeAreaSeleccionado?.Jefe_Id ?? 0;
+    const jefeCod = (this.jefeAreaSeleccionado?.Usr_Cod ?? '').trim();
     const motivoId = this.motivoSeleccionado?.Motivo_Id ?? 0;
     const climaId = this.climaSeleccionado?.Clima_Id ?? 0;
     const tareaId = this.tareaSeleccionada?.Tarea_Id ?? 0;
@@ -778,7 +805,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
     const obsActividad = (this.observacionForm.get('actividadObservada')?.value ?? '').toString().trim();
     const estado = ((this.observacionForm.get('estado')?.value ?? 'A').toString().trim() || 'A') as 'A' | 'I';
 
-    if (!clienteId || !subestacionId || !subContrataId || !jefeId || !motivoId || !climaId || !tareaId || !obsDetalle || !obsActividad) {
+    if (!clienteId || !subestacionId || !subContrataId || !jefeCod || !motivoId || !climaId || !tareaId || !obsDetalle || !obsActividad) {
       alert(mensajeError);
       return null;
     }
@@ -788,7 +815,7 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       clienteId,
       subestacionId,
       subContrataId,
-      jefeId,
+      jefeCod,
       motivoId,
       climaId,
       tareaId,
@@ -894,10 +921,6 @@ export class ObservacionesPlaneadasComponent implements OnInit {
 
   private getFirstNonEmptyText(record: Record<string, unknown>, keys: string[]): string {
     return this.getRecordValue(record, keys).trim();
-  }
-
-  private toString(value: unknown): string {
-    return value === undefined || value === null ? '' : String(value);
   }
 
   private toNumber(value: unknown): number {

@@ -99,9 +99,9 @@
               <tr>
                 <th class="col-id-hidden">#</th>
                 <th>Nro</th>
-                <th>Observador</th>
                 <th>Supervisor</th>
-                <th>Área Sup.</th>
+                <th>Jefe</th>
+                <th>Área Jefe</th>
                 <th>Cliente</th>
                 <th>Subestación</th>
                 <th>Motivo</th>
@@ -158,9 +158,9 @@
               <tr>
                 <th class="col-id-hidden">#</th>
                 <th>Nro</th>
-                <th>Observador</th>
                 <th>Supervisor</th>
-                <th>Área Sup.</th>
+                <th>Jefe</th>
+                <th>Área Jefe</th>
                 <th>Cliente</th>
                 <th>Subestación</th>
                 <th>Actividad</th>
@@ -219,6 +219,7 @@
               <tr>
                 <th class="col-id-hidden">#</th>
                 <th>Nro</th>
+                <th>Supervisor</th>
                 <th>Jefe de Equipo</th>
                 <th>Área</th>
                 <th>Cliente</th>
@@ -231,12 +232,13 @@
             </thead>
             <tbody>
               <tr *ngIf="cargandoMedioAmbiente">
-                <td colspan="10" class="table-empty">Cargando registros...</td>
+                <td colspan="11" class="table-empty">Cargando registros...</td>
               </tr>
 
               <tr *ngFor="let reg of medioAmbientePaginado">
                 <td class="col-id-hidden">{{ reg.Medio_Ambiente_Id }}</td>
                 <td>{{ reg.Medio_Ambiente_Cod || '-' }}</td>
+                <td>{{ reg.Supervisor_Nom || '-' }}</td>
                 <td>{{ reg.Jef_Nombre || '-' }}</td>
                 <td>{{ reg.Cen_Cos_Des || '-' }}</td>
                 <td>{{ reg.Cliente_Nombre || '-' }}</td>
@@ -263,7 +265,7 @@
               </tr>
 
               <tr *ngIf="!cargandoMedioAmbiente && medioAmbientePaginado.length === 0">
-                <td colspan="10" class="table-empty">No se encontró ningún registro</td>
+                <td colspan="11" class="table-empty">No se encontró ningún registro</td>
               </tr>
             </tbody>
           </table>

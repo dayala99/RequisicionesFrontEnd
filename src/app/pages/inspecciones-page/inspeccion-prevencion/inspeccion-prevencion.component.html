@@ -126,12 +126,6 @@
         </div>
       </div>
 
-      <!-- DNI Jefe Equipo (readonly, se rellena al seleccionar jefe) -->
-      <div class="field">
-        <label>DNI Jefe Equipo:</label>
-        <input type="text" [value]="jefeSeleccionado?.Jef_DNI || ''" readonly placeholder="DNI Jefe Equipo">
-      </div>
-
       <!-- Jefe Equipo -->
       <div class="field combo-field">
         <label>Jefe Equipo:</label>
@@ -146,12 +140,12 @@
             <i class="combo__caret"></i>
           </button>
           <div class="combo__panel" *ngIf="comboOpen.jefe" (click)="$event.stopPropagation()">
-            <input type="text" class="combo__search" placeholder="Buscar por nombre o DNI..."
+            <input type="text" class="combo__search" placeholder="Buscar por nombre..."
               [value]="comboSearch.jefe" (input)="onSearchChange('jefe', $event)">
             <div class="combo__list">
               <button type="button" class="combo__option combo__option--empty" (click)="selectJefe(null)">Seleccione</button>
               <button type="button" class="combo__option" *ngFor="let j of jefesFiltrados" (click)="selectJefe(j)">
-                {{ j.Jef_Nombre }}
+                {{ j.Usr_Nom }}
               </button>
               <div class="combo__empty" *ngIf="jefesFiltrados.length === 0">No hay resultados</div>
             </div>
@@ -159,13 +153,19 @@
         </div>
       </div>
 
-      <!-- Área Jefe Equipo (readonly, se rellena al seleccionar jefe) -->
+      <!-- Área Jefe Equipo (readonly, cargada con SP_Mostrar_Jefe) -->
       <div class="field">
         <label>Área Jefe Equipo:</label>
-        <input type="text" [value]="jefeSeleccionado?.Cen_Cos_Des || ''" readonly>
+        <input type="text" [value]="jefeArea" readonly placeholder="Se carga al seleccionar jefe">
       </div>
 
-      <!-- Actividad o Tarea: select simple con solo 2 opciones (sin tabla) -->
+      <!-- DNI Jefe Equipo (readonly, cargada con SP_Mostrar_Jefe) -->
+      <div class="field">
+        <label>DNI Jefe Equipo:</label>
+        <input type="text" [value]="jefeDni" readonly placeholder="Se carga al seleccionar jefe">
+      </div>
+
+      <!-- Actividad o Tarea -->
       <div class="field">
         <label>Actividad o Tarea:</label>
         <select formControlName="actividadTarea">

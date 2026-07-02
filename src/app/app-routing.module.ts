@@ -33,6 +33,7 @@ import { TareaPageComponent } from './pages/inspecciones/tarea/tarea-page.compon
 import { SubContrataPageComponent } from './pages/inspecciones/sub-contrata/sub-contrata-page.component';
 import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
 import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
+import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
 
 const routes: Routes = [
   {
@@ -134,6 +135,10 @@ const routes: Routes = [
       {
         path: 'cliente',
         component: ClientePageComponent
+      },
+      {
+        path: 'tipo-inspeccion',
+        component: TipoInspeccionPageComponent
       },
       {
         path: 'riesgo',

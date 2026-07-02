@@ -22,6 +22,7 @@ interface ObservacionPlaneadaListado {
 interface MedioAmbienteListado {
   Medio_Ambiente_Id: number;
   Medio_Ambiente_Cod: string;
+  Supervisor_Nom: string;
   Jef_Nombre: string;
   Cen_Cos_Des: string;
   Cliente_Nombre: string;
@@ -474,6 +475,7 @@ export class InspeccionesPageComponent implements OnInit {
         this.registrosMedioAmbiente = raw.map(item => ({
           Medio_Ambiente_Id:  this.toNumber(item?.['Medio_Ambiente_Id']  ?? item?.['medio_Ambiente_Id']  ?? 0),
           Medio_Ambiente_Cod: this.texto(item?.['Medio_Ambiente_Cod'] ?? item?.['medio_Ambiente_Cod']),
+          Supervisor_Nom:     this.texto(item?.['Supervisor_Nom']     ?? item?.['supervisor_Nom']),
           Jef_Nombre:         this.texto(item?.['Jef_Nombre']         ?? item?.['jef_Nombre']),
           Cen_Cos_Des:        this.texto(item?.['Cen_Cos_Des']        ?? item?.['cen_Cos_Des']),
           Cliente_Nombre:     this.texto(item?.['Cliente_Nombre']     ?? item?.['cliente_Nombre']),
@@ -506,7 +508,7 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   private crearTextoBusquedaMA(item: MedioAmbienteListado): string {
-    return [item.Medio_Ambiente_Cod, item.Jef_Nombre, item.Cen_Cos_Des,
+    return [item.Medio_Ambiente_Cod, item.Supervisor_Nom, item.Jef_Nombre, item.Cen_Cos_Des,
             item.Cliente_Nombre, item.Subestacion_Nombre, item.Actividad,
             item.Orden_Trabajo, item.Tipo_Nombre].join(' ');
   }

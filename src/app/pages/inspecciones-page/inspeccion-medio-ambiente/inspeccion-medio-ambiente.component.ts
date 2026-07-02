@@ -10,7 +10,10 @@ import { ConfirmacionAccionDialogComponent } from '../confirmacion-accion-dialog
 interface InsCliente      { Cliente_Id: number;     Cliente_Nombre: string; }
 interface InsSubEstacion  { Subestacion_Id: number; Subestacion_Nombre: string; }
 interface InsSubContrata  { SubContrata_Id: number; SubContrata_Nombre: string; }
-interface InsJefe         { Jefe_Id: number; Jef_Nombre: string; Jef_DNI: string; Cen_Cos_Id: number; Cen_Cos_Des: string; }
+
+// El Jefe se identifica por Usr_Cod (string) — igual que Observaciones Planeadas
+interface InsJefeArea     { Usr_Cod: string; Usr_Nom: string; }
+
 interface TipoInspeccion  { Tipo_Id: number; Tipo_Nombre: string; }
 
 type ComboKey = 'cliente' | 'subestacion' | 'subcontrata' | 'jefe' | 'tipoInspeccion';
@@ -36,15 +39,19 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
   clientes:        InsCliente[]      = [];
   subestaciones:   InsSubEstacion[]  = [];
   subContratas:    InsSubContrata[]  = [];
-  jefes:           InsJefe[]         = [];
+  jefes:           InsJefeArea[]     = [];
   tiposInspeccion: TipoInspeccion[]  = [];
 
   // ── Seleccionados ────────────────────────────────────────────────
   clienteSeleccionado:        InsCliente     | null = null;
   subestacionSeleccionada:    InsSubEstacion | null = null;
   subContrataSeleccionada:    InsSubContrata | null = null;
-  jefeSeleccionado:           InsJefe        | null = null;
+  jefeSeleccionado:           InsJefeArea    | null = null;
   tipoInspeccionSeleccionado: TipoInspeccion | null = null;
+
+  // ── Área y DNI del jefe (cargados con SP_Mostrar_Jefe) ──────────
+  jefeArea = '';
+  jefeDni  = '';
 
   // ── Estado de carga ──────────────────────────────────────────────
   cargandoSubestaciones = false;
@@ -89,7 +96,6 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     this.cargarJefes();
     this.cargarTiposInspeccion();
 
-    // Si viene en modo edición, cargar los datos del registro
     if (this.modoEdicion && this.inspeccionId) {
       this.cargarDatosEdicion(this.inspeccionId);
     }
@@ -133,7 +139,6 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
 
   private registrar(): void {
     if (this.guardando) { return; }
-
     if (!this.validarFormulario()) { return; }
 
     const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
@@ -143,7 +148,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
       Cliente_Id:            this.clienteSeleccionado!.Cliente_Id,
       Subestacion_Id:        this.subestacionSeleccionada!.Subestacion_Id,
       SubContrata_Id:        this.subContrataSeleccionada!.SubContrata_Id,
-      Jefe_Id:               this.jefeSeleccionado!.Jefe_Id,
+      Jefe_Cod:              this.jefeSeleccionado!.Usr_Cod,
       Actividad:             this.form.get('actividadTarea')?.value ?? '',
       Orden_Trabajo:         this.form.get('ordenTrabajo')?.value ?? '',
       Procedimiento_Trabajo: this.form.get('procedimientoTrabajo')?.value ?? '',
@@ -155,7 +160,6 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     this.apiService.postInsertarMedioAmbiente(payload).subscribe({
       next: () => {
         this.guardando = false;
-        // Sin alert: volver directamente a la tabla
         this.volver.emit();
       },
       error: (err: unknown) => {
@@ -183,7 +187,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
       Cliente_Id:            this.clienteSeleccionado!.Cliente_Id,
       Subestacion_Id:        this.subestacionSeleccionada!.Subestacion_Id,
       SubContrata_Id:        this.subContrataSeleccionada!.SubContrata_Id,
-      Jefe_Id:               this.jefeSeleccionado!.Jefe_Id,
+      Jefe_Cod:              this.jefeSeleccionado!.Usr_Cod,
       Actividad:             this.form.get('actividadTarea')?.value ?? '',
       Orden_Trabajo:         this.form.get('ordenTrabajo')?.value ?? '',
       Procedimiento_Trabajo: this.form.get('procedimientoTrabajo')?.value ?? '',
@@ -196,7 +200,6 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     this.apiService.putActualizarMedioAmbiente(payload).subscribe({
       next: () => {
         this.guardando = false;
-        // Sin alert: volver directamente a la tabla
         this.volver.emit();
       },
       error: (err: unknown) => {
@@ -263,9 +266,44 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     this.closeCombos();
   }
 
-  selectJefe(j: InsJefe | null): void {
+  selectJefe(j: InsJefeArea | null): void {
     this.jefeSeleccionado = j;
+    this.jefeArea = '';
+    this.jefeDni  = '';
     this.closeCombos();
+
+    // Al seleccionar, cargar área y DNI del jefe con SP_Mostrar_Jefe
+    if (j?.Usr_Cod) {
+      this.apiService.getMostrarJefe(j.Usr_Cod).subscribe({
+        next: (response: unknown) => {
+          const data = this.extraerDatosJefe(response);
+          this.jefeArea = data?.cenCosDes ?? '';
+          this.jefeDni  = data?.dni       ?? '';
+        },
+        error: () => { this.jefeArea = ''; this.jefeDni = ''; }
+      });
+    }
+  }
+
+  private extraerDatosJefe(response: unknown): { cenCosDes: string; dni: string } | null {
+    let record: Record<string, unknown> | null = null;
+    if (Array.isArray(response) && response.length > 0) {
+      record = response[0] as Record<string, unknown>;
+    } else if (response && typeof response === 'object') {
+      const r = response as Record<string, unknown>;
+      for (const k of ['Elements', 'elements', 'Data', 'data', 'Result', 'result', 'items', 'Items']) {
+        if (Array.isArray(r[k]) && (r[k] as unknown[]).length > 0) {
+          record = (r[k] as Record<string, unknown>[])[0];
+          break;
+        }
+      }
+      if (!record) { record = r; }
+    }
+    if (!record) { return null; }
+    return {
+      cenCosDes: this.getVal(record, ['Cen_Cos_Des', 'cen_Cos_Des', 'Area_Des']),
+      dni:       this.getVal(record, ['Usr_Doc_Nro', 'usr_Doc_Nro', 'DNI']),
+    };
   }
 
   selectTipoInspeccion(t: TipoInspeccion | null): void {
@@ -274,20 +312,20 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
   }
 
   // ── Getters display ──────────────────────────────────────────────
-  get clienteDisplay():        string { return this.clienteSeleccionado?.Cliente_Nombre           || 'Seleccione'; }
+  get clienteDisplay():        string { return this.clienteSeleccionado?.Cliente_Nombre         || 'Seleccione'; }
   get subestacionDisplay():    string {
     if (!this.clienteSeleccionado) { return 'Primero seleccione cliente'; }
     return this.subestacionSeleccionada?.Subestacion_Nombre || 'Seleccione';
   }
-  get subContrataDisplay():    string { return this.subContrataSeleccionada?.SubContrata_Nombre   || 'Seleccione'; }
-  get jefeDisplay():           string { return this.jefeSeleccionado?.Jef_Nombre                 || 'Seleccione'; }
-  get tipoInspeccionDisplay(): string { return this.tipoInspeccionSeleccionado?.Tipo_Nombre      || 'Seleccione'; }
+  get subContrataDisplay():    string { return this.subContrataSeleccionada?.SubContrata_Nombre || 'Seleccione'; }
+  get jefeDisplay():           string { return this.jefeSeleccionado?.Usr_Nom                  || 'Seleccione'; }
+  get tipoInspeccionDisplay(): string { return this.tipoInspeccionSeleccionado?.Tipo_Nombre    || 'Seleccione'; }
 
   // ── Getters filtrados ────────────────────────────────────────────
   get clientesFiltrados():        InsCliente[]      { return this.filtrar(this.clientes,        this.comboSearch.cliente,        i => i.Cliente_Nombre); }
   get subestacionesFiltradas():   InsSubEstacion[]  { return this.filtrar(this.subestaciones,   this.comboSearch.subestacion,    i => i.Subestacion_Nombre); }
   get subContratasFiltradas():    InsSubContrata[]  { return this.filtrar(this.subContratas,    this.comboSearch.subcontrata,    i => i.SubContrata_Nombre); }
-  get jefesFiltrados():           InsJefe[]         { return this.filtrar(this.jefes,           this.comboSearch.jefe,           i => `${i.Jef_Nombre} ${i.Jef_DNI}`); }
+  get jefesFiltrados():           InsJefeArea[]     { return this.filtrar(this.jefes,           this.comboSearch.jefe,           i => i.Usr_Nom); }
   get tiposInspeccionFiltrados(): TipoInspeccion[]  { return this.filtrar(this.tiposInspeccion, this.comboSearch.tipoInspeccion, i => i.Tipo_Nombre); }
 
   // ── Carga de datos ───────────────────────────────────────────────
@@ -310,7 +348,6 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     if (!this.edicionBase) { return; }
     const r = this.edicionBase;
 
-    // Actividad, Orden_Trabajo, Procedimiento, Estado
     this.form.patchValue({
       actividadTarea:       this.getVal(r, ['Actividad', 'actividad']),
       ordenTrabajo:         this.getVal(r, ['Orden_Trabajo', 'orden_Trabajo']),
@@ -318,7 +355,7 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
       estado:               this.getVal(r, ['Estado', 'estado']) || 'A',
     });
 
-    // Cliente (por nombre, ya que SP_Mostrar no devuelve Cliente_Id directamente)
+    // Cliente
     const clienteNombre = this.getVal(r, ['Cliente_Nombre', 'cliente_Nombre']);
     if (clienteNombre && this.clientes.length) {
       const c = this.clientes.find(x => this.norm(x.Cliente_Nombre) === this.norm(clienteNombre)) ?? null;
@@ -344,15 +381,31 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
       if (sc) { this.subContrataSeleccionada = sc; }
     }
 
-    // Jefe
+    // Jefe — buscar por Jefe_Cod (Usr_Cod) o nombre
+    const jefeCod    = this.getVal(r, ['Jefe_Cod', 'jefe_Cod']);
     const jefeNombre = this.getVal(r, ['Jef_Nombre', 'jef_Nombre']);
-    const jefeDni    = this.getVal(r, ['Jef_DNI', 'jef_DNI']);
-    if ((jefeNombre || jefeDni) && this.jefes.length) {
+    if ((jefeCod || jefeNombre) && this.jefes.length) {
       const j = this.jefes.find(x =>
-        (jefeDni && x.Jef_DNI === jefeDni) ||
-        (jefeNombre && this.norm(x.Jef_Nombre) === this.norm(jefeNombre))
+        (jefeCod    && x.Usr_Cod === jefeCod) ||
+        (jefeNombre && this.norm(x.Usr_Nom) === this.norm(jefeNombre))
       ) ?? null;
-      if (j) { this.jefeSeleccionado = j; }
+      if (j) {
+        this.jefeSeleccionado = j;
+        // Cargar área y DNI desde el SP
+        this.jefeArea = this.getVal(r, ['Cen_Cos_Des_Jefe', 'cen_Cos_Des_Jefe', 'Jef_Area', 'jef_Area']);
+        this.jefeDni  = this.getVal(r, ['Jef_DNI', 'jef_DNI', 'Usr_Doc_Nro', 'usr_Doc_Nro']);
+        // Si no vinieron en el detalle, pedirlos al SP
+        if (!this.jefeArea && !this.jefeDni && j.Usr_Cod) {
+          this.apiService.getMostrarJefe(j.Usr_Cod).subscribe({
+            next: (response: unknown) => {
+              const data = this.extraerDatosJefe(response);
+              this.jefeArea = data?.cenCosDes ?? '';
+              this.jefeDni  = data?.dni       ?? '';
+            },
+            error: () => {}
+          });
+        }
+      }
     }
 
     // Tipo Inspección
@@ -422,17 +475,16 @@ export class InspeccionMedioAmbienteComponent implements OnInit {
     });
   }
 
+  // Carga jefes con el mismo query que Observaciones Planeadas:
+  // SELECT Usr_Cod, Usr_Nom FROM Sg_Usuario JOIN Ins_Cargo WHERE Cargo_Nombre LIKE 'JEFE%'
   private cargarJefes(): void {
     this.cargandoJefes = true;
     this.apiService.getListarJefesArea().subscribe({
       next: (r: unknown) => {
         this.jefes = this.extraerLista<Record<string, unknown>>(r).map(i => ({
-          Jefe_Id:     this.toNum(i['Jefe_Id'] ?? i['jefe_Id']),
-          Jef_Nombre:  this.getVal(i, ['Jef_Nombre', 'jef_Nombre', 'Jefe_Nombre']),
-          Jef_DNI:     this.getVal(i, ['Jef_DNI', 'jef_DNI', 'DNI']),
-          Cen_Cos_Id:  this.toNum(i['Cen_Cos_Id'] ?? i['cen_Cos_Id']),
-          Cen_Cos_Des: this.getVal(i, ['Cen_Cos_Des', 'cen_Cos_Des', 'Area_Des']),
-        }));
+          Usr_Cod: this.getVal(i, ['Usr_Cod', 'usr_Cod']),
+          Usr_Nom: this.getVal(i, ['Usr_Nom', 'usr_Nom']),
+        })).filter(x => !!x.Usr_Cod);
         this.cargandoJefes = false;
         this.aplicarDatosEdicion();
       },

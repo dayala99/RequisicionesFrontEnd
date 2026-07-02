@@ -49,6 +49,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Unidad de Medida', route: '/unidad-medida' },
     { label: 'Jefe', route: '/jefe' },
     { label: 'Cliente', route: '/cliente' },
+    { label: 'Tipo de Inspección', route: '/tipo-inspeccion' },
     { label: 'Riesgo', route: '/riesgo' },
     { label: 'Reporte', route: '/reporte' },
     { label: 'Motivo', route: '/motivo' },

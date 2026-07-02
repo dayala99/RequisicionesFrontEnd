@@ -26,7 +26,7 @@ export interface RegistrarObservacionPlaneadaRequest {
     Cliente_Id: number;
     Subestacion_Id: number;
     SubContrata_Id: number;
-    Jefe_Id: number;
+    Jefe_Cod: string;
     Motivo_Id: number;
     Clima_Id: number;
     Tarea_Id: number;
@@ -40,7 +40,7 @@ export interface ActualizarObservacionPlaneadaRequest {
     Cliente_Id: number;
     Subestacion_Id: number;
     SubContrata_Id: number;
-    Jefe_Id: number;
+    Jefe_Cod: string;
     Motivo_Id: number;
     Clima_Id: number;
     Tarea_Id: number;
@@ -2148,6 +2148,13 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'Inspecciones/getListarJefesArea', { headers });
     }
 
+    // NUEVO: obtiene Cen_Cos_Des y DNI del jefe a partir de su Usr_Cod
+    getMostrarJefe(Jefe_Cod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Jefe_Cod', Jefe_Cod);
+        return this.http.get(this.baseUrl + 'Inspecciones/getMostrarJefe', { headers, params });
+    }
+
     getConsultarEstadoObservaciones(Estado: 'A' | 'I'): Observable<any> {
         const headers = this.Header;
         const params = new HttpParams().set('Estado', Estado);
@@ -2290,7 +2297,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         Cliente_Id: number;
         Subestacion_Id: number;
         SubContrata_Id: number;
-        Jefe_Id: number;
+        Jefe_Cod: string;
         Actividad: string;
         Orden_Trabajo: string;
         Procedimiento_Trabajo: string;
@@ -2323,7 +2330,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         Cliente_Id: number;
         Subestacion_Id: number;
         SubContrata_Id: number;
-        Jefe_Id: number;
+        Jefe_Cod: string;
         Actividad: string;
         Orden_Trabajo: string;
         Procedimiento_Trabajo: string;
@@ -2353,7 +2360,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         Cliente_Id: number;
         Subestacion_Id: number;
         SubContrata_Id: number;
-        Jefe_Id: number;
+        Jefe_Cod: string;
         Actividad: string;
         Orden_Trabajo: string;
         Procedimiento_Trabajo: string;
@@ -2386,7 +2393,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         Cliente_Id: number;
         Subestacion_Id: number;
         SubContrata_Id: number;
-        Jefe_Id: number;
+        Jefe_Cod: string;
         Actividad: string;
         Orden_Trabajo: string;
         Procedimiento_Trabajo: string;
