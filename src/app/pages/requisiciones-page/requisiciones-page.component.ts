@@ -13,6 +13,7 @@ import { PedidoCancelDialogComponent } from './pedido-cancel-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
 import { PedidoDetalleDialogValue, PedidoDetalleItemOption, PedidoDetalleUnidadOption } from './pedido-detalle-dialog.models';
+import { PedidoArchivoDialogRow, PedidoArchivosDialogComponent } from './pedido-archivos-dialog.component';
 import { PedidoRechazoDialogComponent, PedidoRechazoDialogResult } from './pedido-rechazo-dialog.component';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { formatDateInputValue, formatDisplayDate } from 'src/app/shared/utils/date.utils';
@@ -61,6 +62,13 @@ interface PedidoDetalleRow {
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
+}
+
+interface PedidoArchivoAdjuntoRow {
+  id: number;
+  pedidoId: number;
+  nombre: string;
+  ruta: string;
 }
 
 interface PedidoReporteCabeceraRow {
@@ -112,6 +120,7 @@ export class RequisicionesPageComponent implements OnInit {
   mostrarEditorPedido = false;
   mostrarDetallePedido = false;
   isLoadingPedidos = false;
+  isLoadingArchivosAdjuntosListado: number | null = null;
   isLoadingApprovalUsers = false;
   isLoadingCentrosCosto = false;
   errorMessage = '';
@@ -143,6 +152,8 @@ export class RequisicionesPageComponent implements OnInit {
   currentDetalleExpandidoPage = 1;
   currentCentroCostoPage = 1;
   archivoFile: File | null = null;
+  archivoFiles: File[] = [];
+  archivosAdjuntosGuardados: PedidoArchivoAdjuntoRow[] = [];
 
   private nextCentroCostoId = 1;
   private deletedCentroCostoIds: number[] = [];
@@ -844,11 +855,14 @@ export class RequisicionesPageComponent implements OnInit {
     this.isLoadingPedidoDetalle = true;
     this.saveErrorMessage = '';
 
+    console.log('[Pedidos][Archivos adjuntos][Ped_Cab_Id enviado]', this.selectedPedidoId);
+
     forkJoin({
       pedidoResponse: this.apiService.getListarPedidoModificar(this.selectedPedidoId),
-      centroCostoResponse: this.apiService.getListarPedidoRegistradoCentroCosto(this.selectedPedidoId)
+      centroCostoResponse: this.apiService.getListarPedidoRegistradoCentroCosto(this.selectedPedidoId),
+      archivosResponse: this.apiService.getListarArchivosAdjuntos(this.selectedPedidoId)
     }).subscribe({
-      next: ({ pedidoResponse, centroCostoResponse }) => {
+      next: ({ pedidoResponse, centroCostoResponse, archivosResponse }) => {
         const pedido = this.extractRecords(pedidoResponse)[0];
 
         if (!pedido) {
@@ -859,6 +873,7 @@ export class RequisicionesPageComponent implements OnInit {
 
         this.populatePedidoEditor(pedido);
         this.populateCentroCostoEditor(centroCostoResponse);
+        this.populateArchivosAdjuntosEditor(archivosResponse);
         this.isLoadingPedidoDetalle = false;
       },
       error: (error: unknown) => {
@@ -1282,20 +1297,34 @@ export class RequisicionesPageComponent implements OnInit {
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      this.archivoFile = input.files[0];
-      this.archivoAdjunto = this.archivoFile.name;
-      this.detalleForm.patchValue({
-        archivo: this.archivoAdjunto
-      });
+      const archivosSeleccionados = Array.from(input.files);
+      const nombresGuardados = new Set(this.archivosAdjuntosGuardados.map((archivo) => archivo.nombre.toLowerCase()));
+      this.archivoFiles = [
+        ...this.archivoFiles,
+        ...archivosSeleccionados.filter((archivo) =>
+          !nombresGuardados.has(archivo.name.toLowerCase()) &&
+          !this.archivoFiles.some((existente) =>
+            existente.name === archivo.name &&
+            existente.size === archivo.size &&
+            existente.lastModified === archivo.lastModified
+          )
+        )
+      ];
+      this.actualizarArchivoAdjuntoFormControl();
+      input.value = '';
     }
   }
 
-  quitarArchivo(): void {
+  quitarArchivo(index?: number): void {
+    if (typeof index === 'number' && this.archivoFiles.length) {
+      this.archivoFiles.splice(index, 1);
+      this.actualizarArchivoAdjuntoFormControl();
+      return;
+    }
+
     this.archivoFile = null;
-    this.archivoAdjunto = 'Sin archivo adjunto';
-    this.detalleForm.patchValue({
-      archivo: this.archivoAdjunto
-    });
+    this.archivoFiles = [];
+    this.actualizarArchivoAdjuntoFormControl();
   }
 
   // verArchivo(): void {
@@ -1306,37 +1335,269 @@ export class RequisicionesPageComponent implements OnInit {
   //   }
   // }
 
-  verArchivo(): void {
-    if (this.archivoFile) {
-      const url = URL.createObjectURL(this.archivoFile);
-      window.open(url, '_blank');
+  verArchivo(index?: number): void {
+    if (typeof index === 'number' && this.archivoFiles[index]) {
+      this.openArchivoLocalEnChrome(this.archivoFiles[index]);
     } else if (this.detalleForm.value.archivo) {
       const nombreArchivo = this.detalleForm.value.archivo;
 
-      this.apiService.getArchivoPedido(nombreArchivo).subscribe({
-        next: (arrayBuffer: ArrayBuffer) => {
-          const extension = nombreArchivo.split('.').pop()?.toLowerCase();
-          let mimeType = 'application/octet-stream';
-
-          switch (extension) {
-            case 'pdf': mimeType = 'application/pdf'; break;
-            case 'png': mimeType = 'image/png'; break;
-            case 'jpg':
-            case 'jpeg': mimeType = 'image/jpeg'; break;
-            case 'gif': mimeType = 'image/gif'; break;
-            case 'txt': mimeType = 'text/plain'; break;
-            case 'sql': mimeType = 'text/plain'; break;
-            case 'csv': mimeType = 'text/csv'; break;
-          }
-          const blob = new Blob([arrayBuffer], { type: mimeType });
-          const url = URL.createObjectURL(blob);
-          window.open(url, '_blank');
-        },
-        error: () => {
-          this.saveErrorMessage = 'No se pudo abrir el archivo.';
-        }
-      });
+      this.abrirArchivoPedidoPorNombre(nombreArchivo);
     }
+  }
+
+  verArchivoAdjunto(archivo: { nombre: string; local: boolean; index: number }): void {
+    if (archivo.local) {
+      this.verArchivo(archivo.index);
+      return;
+    }
+
+    this.abrirArchivoPedidoPorNombre(archivo.nombre);
+  }
+
+  private abrirArchivoPedidoPorNombre(nombreArchivo: string): void {
+    if (!nombreArchivo || nombreArchivo === 'Sin archivo adjunto') {
+      return;
+    }
+
+    this.apiService.getArchivoPedido(nombreArchivo).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        this.openArrayBufferArchivoEnChrome(nombreArchivo, arrayBuffer);
+      },
+      error: () => {
+        this.saveErrorMessage = 'No se pudo abrir el archivo.';
+      }
+    });
+  }
+
+  private openArchivoLocalEnChrome(archivo: File): void {
+    if (this.isTextPreviewFile(archivo.name, archivo.type)) {
+      const reader = new FileReader();
+      reader.onload = () => this.openTextoEnChrome(archivo.name, String(reader.result || ''));
+      reader.onerror = () => {
+        this.saveErrorMessage = 'No se pudo abrir el archivo.';
+      };
+      reader.readAsText(archivo);
+      return;
+    }
+
+    if (this.isOfficePreviewFile(archivo.name)) {
+      this.openArchivoOfficeEnChrome(archivo.name, URL.createObjectURL(archivo), archivo.type || this.getMimeTypeFromFileName(archivo.name));
+      return;
+    }
+
+    this.openArchivoEnChrome(archivo.name, URL.createObjectURL(archivo), archivo.type);
+  }
+
+  private openArrayBufferArchivoEnChrome(nombreArchivo: string, arrayBuffer: ArrayBuffer): void {
+    const mimeType = this.getMimeTypeFromFileName(nombreArchivo);
+
+    if (this.isTextPreviewFile(nombreArchivo, mimeType)) {
+      const contenido = new TextDecoder('utf-8').decode(arrayBuffer);
+      this.openTextoEnChrome(nombreArchivo, contenido);
+      return;
+    }
+
+    if (this.isOfficePreviewFile(nombreArchivo)) {
+      const blob = new Blob([arrayBuffer], { type: mimeType });
+      this.openArchivoOfficeEnChrome(nombreArchivo, URL.createObjectURL(blob), mimeType);
+      return;
+    }
+
+    const blob = new Blob([arrayBuffer], { type: mimeType });
+    this.openArchivoEnChrome(nombreArchivo, URL.createObjectURL(blob), mimeType);
+  }
+
+  private isTextPreviewFile(nombreArchivo: string, mimeType?: string): boolean {
+    const extension = nombreArchivo.split('.').pop()?.toLowerCase() || '';
+    return ['txt', 'sql', 'csv', 'log'].includes(extension) || Boolean(mimeType?.startsWith('text/'));
+  }
+
+  private isOfficePreviewFile(nombreArchivo: string): boolean {
+    const extension = nombreArchivo.split('.').pop()?.toLowerCase() || '';
+    return ['doc', 'docx', 'xls', 'xlsx'].includes(extension);
+  }
+
+  private openArchivoOfficeEnChrome(nombreArchivo: string, url: string, mimeType: string): void {
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    const nombreSeguro = this.escapeHtml(nombreArchivo);
+    ventana.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${nombreSeguro}</title>
+          <style>
+            html, body { margin: 0; width: 100%; height: 100%; background: #f5f5f5; font-family: Arial, sans-serif; }
+            header { padding: 14px 18px; background: #3f3d39; color: #fff; font-weight: 700; }
+            .viewer { width: 100%; height: calc(100% - 52px); border: 0; display: block; }
+            .fallback { padding: 24px; color: #555; }
+            .fallback a { color: #ff8f22; font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <header>${nombreSeguro}</header>
+          <object class="viewer" data="${url}" type="${mimeType}">
+            <div class="fallback">
+              Chrome no puede previsualizar este tipo de archivo directamente.
+              <a href="${url}" target="_blank" rel="noopener">Abrir archivo</a>
+            </div>
+          </object>
+        </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  private openArchivoEnChrome(nombreArchivo: string, url: string, mimeType?: string): void {
+    const extension = nombreArchivo.split('.').pop()?.toLowerCase() || '';
+    const puedePrevisualizar = ['pdf', 'png', 'jpg', 'jpeg', 'gif'].includes(extension) ||
+      Boolean(mimeType?.startsWith('image/') || mimeType === 'application/pdf');
+
+    if (!puedePrevisualizar) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    const nombreSeguro = this.escapeHtml(nombreArchivo);
+    ventana.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${nombreSeguro}</title>
+          <style>
+            html, body { margin: 0; width: 100%; height: 100%; background: #f5f5f5; }
+            .viewer { width: 100%; height: 100%; border: 0; display: block; }
+          </style>
+        </head>
+        <body>
+          <iframe class="viewer" src="${url}" title="${nombreSeguro}"></iframe>
+        </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  private openTextoEnChrome(nombreArchivo: string, contenido: string): void {
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      const blob = new Blob([contenido], { type: 'text/plain' });
+      window.open(URL.createObjectURL(blob), '_blank');
+      return;
+    }
+
+    const nombreSeguro = this.escapeHtml(nombreArchivo);
+    const contenidoSeguro = this.escapeHtml(contenido);
+    ventana.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${nombreSeguro}</title>
+          <style>
+            body { margin: 0; background: #f7f7f7; color: #2f2f2f; font-family: Consolas, Monaco, monospace; }
+            header { padding: 14px 18px; background: #3f3d39; color: #fff; font: 600 14px Arial, sans-serif; }
+            pre { margin: 0; padding: 18px; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.45; }
+          </style>
+        </head>
+        <body>
+          <header>${nombreSeguro}</header>
+          <pre>${contenidoSeguro}</pre>
+        </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  get archivosAdjuntosVista(): Array<{ nombre: string; size?: number; local: boolean; index: number }> {
+    const archivosGuardados = this.archivosAdjuntosGuardados.map((archivo, index) => ({
+      nombre: archivo.nombre,
+      local: false,
+      index
+    }));
+
+    const archivosLocales = this.archivoFiles.map((archivo, index) => ({
+      nombre: archivo.name,
+      size: archivo.size,
+      local: true,
+      index
+    }));
+
+    if (archivosGuardados.length || archivosLocales.length) {
+      return [...archivosGuardados, ...archivosLocales];
+    }
+
+    const nombreArchivo = String(this.detalleForm?.value?.archivo || this.archivoAdjunto || '').trim();
+    if (!nombreArchivo || nombreArchivo === 'Sin archivo adjunto') {
+      return [];
+    }
+
+    return [{
+      nombre: nombreArchivo,
+      local: false,
+      index: 0
+    }];
+  }
+
+  formatFileSize(size?: number): string {
+    if (!size) {
+      return '-';
+    }
+
+    if (size < 1024) {
+      return `${size} B`;
+    }
+
+    if (size < 1024 * 1024) {
+      return `${(size / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  protected getAttachmentDisplayName(): string {
+    const nombresArchivos = [
+      ...this.archivosAdjuntosGuardados.map((archivo) => archivo.nombre),
+      ...this.archivoFiles.map((archivo) => archivo.name)
+    ].filter((nombre) => !!nombre);
+
+    if (!nombresArchivos.length) {
+      return 'Sin archivo adjunto';
+    }
+
+    if (nombresArchivos.length === 1) {
+      return nombresArchivos[0];
+    }
+
+    return nombresArchivos.join(', ');
+  }
+
+  private actualizarArchivoAdjuntoFormControl(): void {
+    this.archivoFile = this.archivoFiles[0] ?? null;
+    this.archivoAdjunto = this.getAttachmentDisplayName();
+    this.detalleForm.patchValue({
+      archivo: this.archivoAdjunto
+    });
   }
 
   verArchivoPedidoListado(item: RequisitionRow, event?: Event): void {
@@ -1351,12 +1612,45 @@ export class RequisicionesPageComponent implements OnInit {
 
     this.apiService.getArchivoPedido(nombreArchivo).subscribe({
       next: (arrayBuffer: ArrayBuffer) => {
-        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        this.openArrayBufferArchivoEnChrome(nombreArchivo, arrayBuffer);
       },
       error: () => {
         this.saveErrorMessage = 'No se pudo abrir el archivo del pedido.';
+      }
+    });
+  }
+
+  abrirArchivosPedidoListado(item: RequisitionRow, event?: Event): void {
+    event?.stopPropagation();
+    this.saveErrorMessage = '';
+    this.isLoadingArchivosAdjuntosListado = item.requisicion;
+    console.log('[Pedidos][Archivos adjuntos listado][Ped_Cab_Id enviado]', item.requisicion);
+
+    this.apiService.getListarArchivosAdjuntos(item.requisicion).subscribe({
+      next: (response) => {
+        console.log('[Pedidos][Archivos adjuntos listado][Respuesta backend]', response);
+        const archivos = this.extractRecords(response)
+          .map((record) => this.mapPedidoArchivoAdjunto(record))
+          .filter((archivo): archivo is PedidoArchivoAdjuntoRow => archivo !== null);
+        console.log('[Pedidos][Archivos adjuntos listado][Mapeados popup]', archivos);
+        this.isLoadingArchivosAdjuntosListado = null;
+
+        this.dialog.open(PedidoArchivosDialogComponent, {
+          width: 'min(720px, 96vw)',
+          maxWidth: '96vw',
+          data: {
+            pedidoCodigo: item.codigo,
+            archivos,
+            verArchivo: (archivo: PedidoArchivoDialogRow) => {
+              this.abrirArchivoPedidoPorNombre(archivo.nombre);
+            }
+          }
+        });
+      },
+      error: (error: unknown) => {
+        console.error('[Pedidos][Archivos adjuntos listado][Error]', error);
+        this.isLoadingArchivosAdjuntosListado = null;
+        this.saveErrorMessage = 'No se pudieron cargar los archivos adjuntos del pedido.';
       }
     });
   }
@@ -2030,6 +2324,14 @@ export class RequisicionesPageComponent implements OnInit {
         return 'text/plain';
       case 'csv':
         return 'text/csv';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       default:
         return 'application/octet-stream';
     }
@@ -2369,6 +2671,8 @@ export class RequisicionesPageComponent implements OnInit {
     this.currentCentroCostoPage = 1;
     this.editandoCentroCostoCantidad = 0;
     this.archivoFile = null;
+    this.archivoFiles = [];
+    this.archivosAdjuntosGuardados = [];
     this.archivoAdjunto = 'Sin archivo adjunto';
     this.saveErrorMessage = '';
     this.isSavingPedido = false;
@@ -2398,6 +2702,9 @@ export class RequisicionesPageComponent implements OnInit {
       archivo: this.getTextValue(item, ['Ped_Arc_Adj_Nom', 'ped_Arc_Adj_Nom', 'pedArcAdjNom']) || 'Sin archivo adjunto'
     });
 
+    this.archivoFile = null;
+    this.archivoFiles = [];
+    this.archivosAdjuntosGuardados = [];
     this.archivoAdjunto = String(this.detalleForm.controls['archivo'].value || 'Sin archivo adjunto');
   }
 
@@ -2432,6 +2739,44 @@ export class RequisicionesPageComponent implements OnInit {
     this.centrosCosto = centros;
     this.currentCentroCostoPage = normalizePaginationPage(this.currentCentroCostoPage, this.centrosCosto.length, this.pageSize);
     this.nextCentroCostoId = centros.reduce((maxId, item) => Math.max(maxId, item.id), 0) + 1;
+  }
+
+  private populateArchivosAdjuntosEditor(response: unknown): void {
+    console.log('[Pedidos][Archivos adjuntos][Respuesta backend]', response);
+    this.archivosAdjuntosGuardados = this.extractRecords(response)
+      .map((item) => this.mapPedidoArchivoAdjunto(item))
+      .filter((archivo): archivo is PedidoArchivoAdjuntoRow => archivo !== null);
+    console.log('[Pedidos][Archivos adjuntos][Mapeados grilla]', this.archivosAdjuntosGuardados);
+    this.actualizarArchivoAdjuntoFormControl();
+  }
+
+  private mapPedidoArchivoAdjunto(item: DataRecord): PedidoArchivoAdjuntoRow | null {
+    const nombre = this.getTextValue(item, [
+      'Ped_Cab_Arc_Nom',
+      'ped_Cab_Arc_Nom',
+      'pedCabArcNom',
+      'Archivo',
+      'archivo',
+      'Nombre',
+      'nombre'
+    ]);
+
+    if (!nombre) {
+      return null;
+    }
+
+    return {
+      id: this.getDecimalValue(item, ['Ped_Cab_Arc_Id', 'ped_Cab_Arc_Id', 'pedCabArcId']) ?? 0,
+      pedidoId: this.getDecimalValue(item, ['Ped_Cab_Id', 'ped_Cab_Id', 'pedCabId']) ?? 0,
+      nombre,
+      ruta: this.getTextValue(item, [
+        'Ped_Cab_Arc_Rut',
+        'ped_Cab_Arc_Rut',
+        'pedCabArcRut',
+        'Ruta',
+        'ruta'
+      ])
+    };
   }
 
   private mapCentroCostoRegistrados(response: unknown): CentroCostoRow[] {

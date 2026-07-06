@@ -83,10 +83,13 @@
                 <td>
                   <button
                     type="button"
-                    class="file-badge file-badge--button"
-                    [disabled]="!item.archivoNombre"
-                    (click)="verArchivoPedidoListado(item, $event)">
-                    {{ item.archivo }}
+                    class="icon-button icon-button--folder"
+                    aria-label="Ver archivos adjuntos"
+                    [disabled]="isLoadingArchivosAdjuntosListado === item.requisicion"
+                    (click)="abrirArchivosPedidoListado(item, $event)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8l1.2 1.2h5.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-10Zm2.5-.7a.7.7 0 0 0-.7.7v10c0 .4.3.7.7.7h13c.4 0 .7-.3.7-.7v-8c0-.4-.3-.7-.7-.7h-6.6l-1.7-1.7a.8.8 0 0 0-.6-.3H5.5Z"/>
+                    </svg>
                   </button>
                 </td>
                 <td>{{ item.fecha }}</td>
@@ -450,22 +453,48 @@
         </label>
 
         <div class="attachment-panel">
-          <div class="attachment-panel__actions">
-            <!-- <button type="button" class="button button--secondary" (click)="adjuntarArchivo()">Adjuntar</button>
-            <button type="button" class="button button--secondary" (click)="quitarArchivo()">Quitar</button>
-            <button type="button" class="button button--secondary" (click)="verArchivo()">Ver</button> -->
-            <input #fileInput type="file" style="display:none" (change)="onFileSelected($event)">
-            <button type="button" class="button button--secondary" (click)="fileInput.click()">Adjuntar</button>
-            <button type="button" class="button button--secondary" (click)="quitarArchivo(); fileInput.value = ''">Quitar</button>
-            <button type="button" class="button button--secondary" (click)="verArchivo()">Ver</button>
+          <div class="attachment-grid">
+            <div class="attachment-grid__header">
+              <h3>Archivo</h3>
+              <input #fileInput type="file" multiple style="display:none" (change)="onFileSelected($event)">
+              <button type="button" class="icon-button attachment-grid__add" aria-label="Adjuntar archivo" (click)="fileInput.click()">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="table-shell attachment-grid__table-shell">
+              <table class="attachment-grid__table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let archivo of archivosAdjuntosVista">
+                    <td>{{ archivo.nombre }}</td>
+                    <td class="attachment-grid__actions-cell">
+                      <button type="button" class="icon-button icon-button--edit" aria-label="Ver archivo" (click)="verArchivoAdjunto(archivo)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M12 5c5 0 8.5 4.4 9.8 6.5a1 1 0 0 1 0 1C20.5 14.6 17 19 12 19s-8.5-4.4-9.8-6.5a1 1 0 0 1 0-1C3.5 9.4 7 5 12 5zm0 2c-3.5 0-6.2 2.7-7.7 5 1.5 2.3 4.2 5 7.7 5s6.2-2.7 7.7-5C18.2 9.7 15.5 7 12 7zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/>
+                        </svg>
+                      </button>
+                      <button type="button" class="icon-button icon-button--danger" aria-label="Quitar archivo" [disabled]="!archivo.local" (click)="archivo.local && quitarArchivo(archivo.index); fileInput.value = ''">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2h4v2H4V6h4l1-2z"/>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!archivosAdjuntosVista.length">
+                    <td colspan="2" class="empty-row">No hay archivos adjuntos.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-
-          <label class="field">
-            <span>Archivo</span>
-            <input type="text" formControlName="archivo" readonly>
-          </label>
-
-          <p class="attachment-panel__hint">{{ archivoAdjunto }}</p>
         </div>
       </section>
     </form>

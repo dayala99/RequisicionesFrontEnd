@@ -468,6 +468,12 @@ export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
     Can_Ing: number;
 }
 
+export interface ActualizarIngresoAlmacenDetalleOrdenCompraRequest {
+    Alm_Det_Id: number;
+    Alm_Det_Can: number;
+    Usr_Mod: string;
+}
+
 export interface ActualizarStockItemRequest {
     Itm_Id: number;
     Ord_Com_Id: number;
@@ -484,6 +490,11 @@ export interface ActualizarStockItemSalidaRequest {
     Alm_Mov_Id: number;
     Alm_Det_Itm_Id: number;
     Can_Ing: number;
+}
+
+export interface ActualizarMotivoRechazoAlmacenRequest {
+    Alm_Mov_Id: number;
+    Alm_Mot_Rch: string;
 }
 
 export interface CambiarEstadoOrdenCompraRequest {
@@ -615,6 +626,20 @@ export interface RegistrarPedidoRequest {
     Ped_For_Pag_Cod: number;
     Ped_Can_Tot: number;
     Usr_Reg: string;
+}
+
+export interface RegistrarArchivoAdjuntoPedidoRequest {
+    Ped_Cab_Arc_Id: number;
+    Ped_Cab_Id: number;
+    Ped_Cab_Arc_Rut?: string;
+    Ped_Cab_Arc_Nom?: string;
+}
+
+export interface RegistrarArchivoAdjuntoOrdenCompraRequest {
+    Ord_Com_Arc_Id: number;
+    Ord_Com_Id: number;
+    Ord_Com_Arc_Rut?: string;
+    Ord_Com_Arc_Nom?: string;
 }
 
 export interface ActualizarPedidoRequest {
@@ -1192,6 +1217,14 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'Item/getListarItem', { headers, params });
     }
 
+    getListarStocksItems(Usr_Cen_Cos_Id: number, Alm_Det_Itm_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Usr_Cen_Cos_Id', String(Usr_Cen_Cos_Id));
+        params = params.append('Alm_Det_Itm_Id', String(Alm_Det_Itm_Id));
+        return this.http.get(this.baseUrl + 'Item/getListarStocksItems', { headers, params });
+    }
+
     registrarItem(item: RegistrarItemRequest): Observable<any> {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'Item/postRegistrarItem', item, { headers });
@@ -1601,6 +1634,11 @@ export class ApiService {
         return this.http.patch(this.baseUrl + 'Almacen/patchActualizarIngresoAlmacenDetalle', detalle, { headers });
     }
 
+    patchActualizarIngresoAlmacenDetalleOrdenCompra(detalle: ActualizarIngresoAlmacenDetalleOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Almacen/patchActualizarIngresoAlmacenDetalleOrdenCompra', detalle, { headers });
+    }
+
     getListarPedidoCorrelativoNuevo(): Observable<any> {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Pedido/getListarPedidoCorrelativoNuevo', { headers });
@@ -1655,6 +1693,11 @@ export class ApiService {
         return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItemSalida', item, { headers });
     }
 
+    patchActualizarMotivoRechazoAlmacen(item: ActualizarMotivoRechazoAlmacenRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Almacen/patchActualizarMotivoRechazoAlmacen', item, { headers });
+    }
+
     getListarItemsAsignadosPedidoCentroCosto(Ped_Cab_Id: number): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -1689,6 +1732,13 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'Pedido/getArchivoPedido', { params, responseType: 'arraybuffer' });
     }
 
+    getListarArchivosAdjuntos(Ped_Cab_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Cab_Id', Ped_Cab_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getListarArchivosAdjuntos', { headers, params });
+    }
+
     getArchivoOrdenCompra(nombreArchivo: string): Observable<ArrayBuffer> {
         let params = new HttpParams().set('nombreArchivo', nombreArchivo);
         return this.http.get(this.baseUrl + 'OrdenCompra/getArchivoOrdenCompra', { params, responseType: 'arraybuffer' });
@@ -1701,6 +1751,53 @@ export class ApiService {
 
     postRegistrarPedido(formData: FormData): Observable<any> {
     return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', formData);
+    }
+
+    postRegistrarArchivoAdjuntoPedido(archivoAdjunto: RegistrarArchivoAdjuntoPedidoRequest, archivo: File): Observable<any> {
+        const formData = new FormData();
+
+        Object.entries(archivoAdjunto).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+
+            formData.append(key, String(value));
+        });
+
+        formData.append('archivo', archivo, archivo.name);
+
+        return this.http.post(this.baseUrl + 'Pedido/postRegistrarArchivoAdjunto', formData);
+    }
+
+    getListarArchivosAdjuntosOrdenCompra(Ord_Com_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Cab_Id', Ord_Com_Id);
+        return this.http.get(this.baseUrl + 'OrdenCompra/getListarArchivosAdjuntosOrdenCompra', { headers, params });
+    }
+
+    postRegistrarArchivoAdjuntoOrdenCompra(archivoAdjunto: RegistrarArchivoAdjuntoOrdenCompraRequest, archivo: File): Observable<any> {
+        const formData = new FormData();
+
+        Object.entries(archivoAdjunto).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+
+            formData.append(key, String(value));
+        });
+
+        formData.append('archivo', archivo, archivo.name);
+
+        return this.http.post(this.baseUrl + 'OrdenCompra/postRegistrarArchivoAdjuntoOrdenCompra', formData);
+    }
+
+    deleteEliminarArchivoAdjuntoOrdenCompra(archivoAdjunto: RegistrarArchivoAdjuntoOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.delete(this.baseUrl + 'OrdenCompra/deleteEliminarArchivoAdjuntoOrdenCompra', {
+            headers,
+            body: archivoAdjunto
+        });
     }
 
     postEnviarCorreo(correo: EnviarCorreoRequest): Observable<any> {

@@ -29,6 +29,8 @@ interface ItemRow {
   subGrpDes: string;
   itmDetMatId: number | null;
   detMatDes: string;
+  uniMedId: number | null;
+  uniMedDes: string;
   flgEst: string;
   estado: string;
   activo: boolean;
@@ -309,6 +311,8 @@ export class ItemPageComponent implements OnInit {
       subGrpDes: this.getTextValue(item, ['Sub_Grp_Des', 'sub_Grp_Des', 'subGrpDes']),
       itmDetMatId: this.getNumberValue(item, ['Itm_Det_Mat_Id', 'itm_Det_Mat_Id', 'itmDetMatId', 'Det_Mat_Id', 'det_Mat_Id']),
       detMatDes: this.getTextValue(item, ['Det_Mat_Des', 'det_Mat_Des', 'detMatDes']),
+      uniMedId: this.getNumberValue(item, ['Uni_Med_Id', 'uni_Med_Id', 'uniMedId']),
+      uniMedDes: this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']),
       flgEst,
       estado: activo ? 'Activo' : 'Inactivo',
       activo

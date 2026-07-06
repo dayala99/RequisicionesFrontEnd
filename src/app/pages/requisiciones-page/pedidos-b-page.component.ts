@@ -4,7 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { from, of } from 'rxjs';
 import { catchError, concatMap, switchMap, toArray } from 'rxjs/operators';
 
-import { ActualizarDetallePedidoRequest, ActualizarPedidoRequest, ApiService, EliminarDetallePedidoRequest, EnviarCorreoPedidoGeneradoProductoRequest, EnviarCorreoPedidoGeneradoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
+import { ActualizarDetallePedidoRequest, ActualizarPedidoRequest, ApiService, EliminarDetallePedidoRequest, EnviarCorreoPedidoGeneradoProductoRequest, EnviarCorreoPedidoGeneradoRequest, RegistrarArchivoAdjuntoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ApprovalUserOption } from './approval-user-selector-dialog.component';
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
@@ -322,11 +322,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       }
     });
 
-    if (this.archivoFile) {
-      formData.append('archivo', this.archivoFile, this.archivoFile.name);
-    } else {
-      formData.append('archivo', new File([], 'sin-archivo-adjunto.txt'), 'sin-archivo-adjunto.txt');
-    }
+    formData.append('archivo', new File([], 'sin-archivo-adjunto.txt'), 'sin-archivo-adjunto.txt');
 
     const saveRequest = this.isEditingPedido && this.selectedPedidoId !== null
       ? this.actualizarPedidoB(this.selectedPedidoId, payload)
@@ -343,7 +339,8 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
           throw new Error('No se recibio el codigo del pedido registrado.');
         }
 
-        return this.sincronizarDetallePedidoB(pedId).pipe(
+        return this.sincronizarArchivosAdjuntosPedidoB(pedId).pipe(
+          switchMap(() => this.sincronizarDetallePedidoB(pedId)),
           switchMap(() => this.enviarCorreoPedidoGeneradoB(pedId, payload))
         );
       })
@@ -803,13 +800,11 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
     console.log('Pedidos B - actualizar pedido payload', {
       cabecera: updatePayload,
-      archivo: this.archivoFile
-        ? {
-            name: this.archivoFile.name,
-            size: this.archivoFile.size,
-            type: this.archivoFile.type
-          }
-        : null,
+      archivos: this.archivoFiles.map((archivo) => ({
+        name: archivo.name,
+        size: archivo.size,
+        type: archivo.type
+      })),
       detallesExistentes: this.pedidoBDetalles
         .filter((detalle) => detalle.persistedId && !detalle.markedForDelete)
         .map((detalle) => this.buildPedidoBDetalleActualizarPayload(detalle)),
@@ -821,7 +816,32 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
         .map((detalle) => ({ Ped_Det_Id: Number(detalle.persistedId) }))
     });
 
-    return this.pedidosBApiService.patchActualizarPedido(updatePayload, this.archivoFile);
+    return this.pedidosBApiService.patchActualizarPedido(updatePayload, null);
+  }
+
+  private sincronizarArchivosAdjuntosPedidoB(pedId: number) {
+    if (!this.archivoFiles.length) {
+      return of([]);
+    }
+
+    return from(this.archivoFiles).pipe(
+      concatMap((archivo) => {
+        const payload: RegistrarArchivoAdjuntoPedidoRequest = {
+          Ped_Cab_Arc_Id: 0,
+          Ped_Cab_Id: pedId,
+          Ped_Cab_Arc_Rut: '',
+          Ped_Cab_Arc_Nom: archivo.name
+        };
+
+        return this.pedidosBApiService.postRegistrarArchivoAdjuntoPedido(payload, archivo).pipe(
+          switchMap((response: unknown) => {
+            this.assertPedidoBSuccessfulResponse(response, `No se pudo registrar el archivo ${archivo.name}.`);
+            return of(response);
+          })
+        );
+      }),
+      toArray()
+    );
   }
 
   private sincronizarDetallePedidoB(pedId: number) {

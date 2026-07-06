@@ -2,8 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
-import { forkJoin, Observable, of } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { forkJoin, from, Observable, of } from 'rxjs';
+import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
 import {
   AsignarOrdenCompraDetallePedidoRequest,
@@ -14,6 +14,7 @@ import {
   DesAsignarOrdenCompraDetallePedidoRequest,
   OrdenCompraFiltro,
   PedidosFiltro,
+  RegistrarArchivoAdjuntoOrdenCompraRequest,
   RegistrarOrdenCompraRequest
 } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
@@ -28,6 +29,7 @@ import {
 } from 'src/app/shared/utils/orden-compra-report-pdf.utils';
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 import { OrdenCompraParcialDialogComponent } from './orden-compra-parcial-dialog.component';
+import { PedidoArchivoDialogRow, PedidoArchivosDialogComponent } from '../requisiciones-page/pedido-archivos-dialog.component';
 
 type DataRecord = Record<string, unknown>;
 type OrdenCompraListadoModo = 'pendientes' | 'generados';
@@ -112,6 +114,22 @@ interface OrdenCompraDetallePedidoRow {
   selected: boolean;
 }
 
+interface OrdenCompraArchivoAdjuntoGuardado {
+  id: number;
+  ordenCompraId: number;
+  nombre: string;
+  ruta: string;
+}
+
+interface OrdenCompraArchivoAdjuntoVista {
+  id: number;
+  ordenCompraId: number;
+  nombre: string;
+  ruta: string;
+  local: boolean;
+  index: number;
+}
+
 interface DetraccionOption {
   id: number;
   descripcion: string;
@@ -164,6 +182,7 @@ export class OrdenCompraPageComponent implements OnInit {
   isLoadingPedidoDetalle = false;
   isSavingOrdenCompra = false;
   isLoadingReporteOrdenCompraId: number | null = null;
+  isLoadingArchivosOrdenCompraListado: number | null = null;
   esParcial = false;
   errorMessage = '';
   saveErrorMessage = '';
@@ -172,7 +191,10 @@ export class OrdenCompraPageComponent implements OnInit {
   ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
   ordenCompraArchivoRuta = '';
   ordenCompraArchivoFile: File | null = null;
+  ordenCompraArchivoFiles: File[] = [];
+  ordenCompraArchivosAdjuntosGuardados: OrdenCompraArchivoAdjuntoGuardado[] = [];
   pedidoArchivoAdjunto = 'Sin archivo adjunto';
+  isLoadingPedidoArchivosAdjuntos = false;
   detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
   private ordenCompraLogoBytes: Uint8Array | null | undefined;
 
@@ -787,6 +809,12 @@ export class OrdenCompraPageComponent implements OnInit {
     request$.pipe(
       switchMap((response: unknown) => {
         this.assertSuccessfulResponse(response, 'No se pudo guardar la orden de compra.');
+        return this.resolveOrdenCompraIdParaAsignacion(response).pipe(
+          switchMap((ordenCompraId) => this.sincronizarArchivosAdjuntosOrdenCompra(ordenCompraId)),
+          map(() => response)
+        );
+      }),
+      switchMap((response: unknown) => {
         return this.sincronizarDetallePedidoSeleccionado(response);
       })
     ).subscribe({
@@ -838,37 +866,88 @@ export class OrdenCompraPageComponent implements OnInit {
       return;
     }
 
-    this.ordenCompraArchivoFile = input.files[0];
-    this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile.name;
+    const archivosSeleccionados = Array.from(input.files);
+    this.ordenCompraArchivoFiles = [
+      ...this.ordenCompraArchivoFiles,
+      ...archivosSeleccionados.filter((archivo) =>
+        !this.ordenCompraArchivosAdjuntosGuardados.some((existente) =>
+          existente.nombre.toLowerCase() === archivo.name.toLowerCase()
+        ) &&
+        !this.ordenCompraArchivoFiles.some((existente) =>
+          existente.name === archivo.name &&
+          existente.size === archivo.size &&
+          existente.lastModified === archivo.lastModified
+        )
+      )
+    ];
+    this.ordenCompraArchivoFile = this.ordenCompraArchivoFiles[0] ?? null;
+    this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile?.name ?? 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = '';
-    this.form.patchValue({
-      archivo: this.ordenCompraArchivoAdjunto
-    });
+    this.actualizarOrdenCompraArchivoFormControl();
+    input.value = '';
   }
 
-  quitarOrdenCompraArchivo(fileInput?: HTMLInputElement): void {
-    this.ordenCompraArchivoFile = null;
-    this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
-    this.ordenCompraArchivoRuta = '';
-    this.form.patchValue({
-      archivo: this.ordenCompraArchivoAdjunto
-    });
+  quitarOrdenCompraArchivoAdjunto(archivo: OrdenCompraArchivoAdjuntoVista, fileInput?: HTMLInputElement): void {
+    if (archivo.local) {
+      this.ordenCompraArchivoFiles.splice(archivo.index, 1);
+      this.ordenCompraArchivoFile = this.ordenCompraArchivoFiles[0] ?? null;
+      this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile?.name ?? 'Sin archivo adjunto';
+      this.actualizarOrdenCompraArchivoFormControl();
+
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      return;
+    }
+
+    if (archivo.id > 0) {
+      const request: RegistrarArchivoAdjuntoOrdenCompraRequest = {
+        Ord_Com_Arc_Id: archivo.id,
+        Ord_Com_Id: archivo.ordenCompraId,
+        Ord_Com_Arc_Rut: archivo.ruta,
+        Ord_Com_Arc_Nom: archivo.nombre
+      };
+
+      this.apiService.deleteEliminarArchivoAdjuntoOrdenCompra(request).subscribe({
+        next: (response: unknown) => {
+          this.assertSuccessfulResponse(response, 'No se pudo eliminar el archivo adjunto de la orden de compra.');
+          this.ordenCompraArchivosAdjuntosGuardados = this.ordenCompraArchivosAdjuntosGuardados
+            .filter((item) => item.id !== archivo.id);
+          this.actualizarOrdenCompraArchivoFormControl();
+        },
+        error: (error: unknown) => {
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo eliminar el archivo adjunto de la orden de compra.');
+        }
+      });
+    } else {
+      this.ordenCompraArchivosAdjuntosGuardados = this.ordenCompraArchivosAdjuntosGuardados
+        .filter((item) => item.nombre !== archivo.nombre);
+      this.actualizarOrdenCompraArchivoFormControl();
+    }
 
     if (fileInput) {
       fileInput.value = '';
     }
   }
 
-  verOrdenCompraArchivo(): void {
+  verOrdenCompraArchivoAdjunto(archivo: OrdenCompraArchivoAdjuntoVista): void {
     this.saveErrorMessage = '';
 
-    if (this.ordenCompraArchivoFile) {
-      const url = URL.createObjectURL(this.ordenCompraArchivoFile);
+    if (archivo.local) {
+      const archivoLocal = this.ordenCompraArchivoFiles[archivo.index];
+
+      if (!archivoLocal) {
+        this.saveErrorMessage = 'No se encontro el archivo para visualizar.';
+        return;
+      }
+
+      const url = URL.createObjectURL(archivoLocal);
       window.open(url, '_blank');
       return;
     }
 
-    const nombreArchivo = String(this.form.controls['archivo'].value || '').trim();
+    const nombreArchivo = archivo.nombre.trim();
 
     if (nombreArchivo && nombreArchivo !== 'Sin archivo adjunto') {
       this.apiService.getArchivoOrdenCompra(nombreArchivo).subscribe({
@@ -886,6 +965,133 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     this.saveErrorMessage = 'No hay archivo adjunto para visualizar.';
+  }
+
+  get ordenCompraArchivosAdjuntosVista(): OrdenCompraArchivoAdjuntoVista[] {
+    const archivosGuardados = this.ordenCompraArchivosAdjuntosGuardados.map((archivo) => ({
+      id: archivo.id,
+      ordenCompraId: archivo.ordenCompraId,
+      nombre: archivo.nombre,
+      ruta: archivo.ruta,
+      local: false,
+      index: -1
+    }));
+    const archivosLocales = this.ordenCompraArchivoFiles.map((archivo, index) => ({
+      id: 0,
+      ordenCompraId: Number(this.form.controls['ordenCompraId'].value) || 0,
+      nombre: archivo.name,
+      ruta: '',
+      local: true,
+      index
+    }));
+
+    return [...archivosGuardados, ...archivosLocales];
+  }
+
+  private actualizarOrdenCompraArchivoFormControl(): void {
+    const archivo = this.ordenCompraArchivosAdjuntosVista
+      .map((item) => item.nombre)
+      .filter((nombre) => !!nombre)
+      .join(', ') || 'Sin archivo adjunto';
+
+    this.ordenCompraArchivoAdjunto = archivo;
+
+    this.form.patchValue({ archivo }, { emitEvent: false });
+  }
+
+  private cargarArchivosAdjuntosOrdenCompra(ordenCompraId: number): void {
+    if (!Number.isInteger(ordenCompraId) || ordenCompraId <= 0) {
+      this.ordenCompraArchivosAdjuntosGuardados = [];
+      this.actualizarOrdenCompraArchivoFormControl();
+      return;
+    }
+
+    this.apiService.getListarArchivosAdjuntosOrdenCompra(ordenCompraId).subscribe({
+      next: (response: unknown) => {
+        const archivos = this.extractRecords(response)
+          .map((item) => this.mapOrdenCompraArchivoAdjunto(item, ordenCompraId))
+          .filter((item): item is OrdenCompraArchivoAdjuntoGuardado => item !== null);
+
+        console.log('[OrdenCompra][Archivos adjuntos][Respuesta backend]', {
+          ordenCompraId,
+          response,
+          archivos
+        });
+
+        this.ordenCompraArchivosAdjuntosGuardados = archivos;
+        this.actualizarOrdenCompraArchivoFormControl();
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando archivos adjuntos de orden de compra:', error);
+        this.ordenCompraArchivosAdjuntosGuardados = [];
+        this.actualizarOrdenCompraArchivoFormControl();
+      }
+    });
+  }
+
+  private sincronizarArchivosAdjuntosOrdenCompra(ordenCompraId: number): Observable<unknown> {
+    if (!this.ordenCompraArchivoFiles.length) {
+      return of([]);
+    }
+
+    return from(this.ordenCompraArchivoFiles).pipe(
+      concatMap((archivo) => {
+        const request: RegistrarArchivoAdjuntoOrdenCompraRequest = {
+          Ord_Com_Arc_Id: 0,
+          Ord_Com_Id: ordenCompraId,
+          Ord_Com_Arc_Nom: archivo.name,
+          Ord_Com_Arc_Rut: ''
+        };
+
+        return this.apiService.postRegistrarArchivoAdjuntoOrdenCompra(request, archivo).pipe(
+          map((response: unknown) => {
+            this.assertSuccessfulResponse(response, `No se pudo registrar el archivo ${archivo.name}.`);
+            return response;
+          })
+        );
+      }),
+      toArray()
+    );
+  }
+
+  private mapOrdenCompraArchivoAdjunto(item: DataRecord, fallbackOrdenCompraId: number): OrdenCompraArchivoAdjuntoGuardado | null {
+    const id = this.getNumberValue(item, [
+      'Ord_Com_Arc_Id',
+      'ord_Com_Arc_Id',
+      'ordComArcId'
+    ]) || 0;
+    const ordenCompraId = this.getNumberValue(item, [
+      'Ord_Com_Id',
+      'ord_Com_Id',
+      'ordComId'
+    ]) || fallbackOrdenCompraId;
+    const nombre = this.getTextValue(item, [
+      'Ord_Com_Arc_Nom',
+      'ord_Com_Arc_Nom',
+      'ordComArcNom',
+      'Archivo',
+      'archivo',
+      'Nombre',
+      'nombre'
+    ]);
+    const ruta = this.getTextValue(item, [
+      'Ord_Com_Arc_Rut',
+      'ord_Com_Arc_Rut',
+      'ordComArcRut',
+      'Ruta',
+      'ruta'
+    ]);
+
+    if (!nombre) {
+      return null;
+    }
+
+    return {
+      id,
+      ordenCompraId,
+      nombre,
+      ruta
+    };
   }
 
   verPedidoArchivo(): void {
@@ -908,6 +1114,162 @@ export class OrdenCompraPageComponent implements OnInit {
         this.saveErrorMessage = 'No se pudo abrir el PDF asignado al pedido.';
       }
     });
+  }
+
+  abrirArchivosPedido(): void {
+    this.saveErrorMessage = '';
+    const pedidoId = Number(this.form.controls['pedidoIdAtencion'].value);
+
+    if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
+      this.saveErrorMessage = 'Ingresa un numero de pedido valido para listar sus archivos.';
+      this.form.controls['pedidoIdAtencion'].markAsTouched();
+      return;
+    }
+
+    this.isLoadingPedidoArchivosAdjuntos = true;
+    console.log('[OrdenCompra][Archivos adjuntos][Ped_Cab_Id enviado]', pedidoId);
+
+    this.apiService.getListarArchivosAdjuntos(pedidoId).subscribe({
+      next: (response: unknown) => {
+        console.log('[OrdenCompra][Archivos adjuntos][Respuesta backend]', response);
+        const archivos = this.extractRecords(response)
+          .map((record) => this.mapPedidoArchivoAdjunto(record))
+          .filter((archivo): archivo is PedidoArchivoDialogRow => archivo !== null);
+        console.log('[OrdenCompra][Archivos adjuntos][Mapeados popup]', archivos);
+        this.isLoadingPedidoArchivosAdjuntos = false;
+
+        this.dialog.open(PedidoArchivosDialogComponent, {
+          width: 'min(720px, 96vw)',
+          maxWidth: '96vw',
+          data: {
+            pedidoCodigo: `PED-${pedidoId}`,
+            archivos,
+            verArchivo: (archivo: PedidoArchivoDialogRow) => this.abrirArchivoPedidoPorNombre(archivo.nombre)
+          }
+        });
+      },
+      error: (error: unknown) => {
+        console.error('[OrdenCompra][Archivos adjuntos][Error]', error);
+        this.isLoadingPedidoArchivosAdjuntos = false;
+        this.saveErrorMessage = 'No se pudieron cargar los archivos adjuntos del pedido.';
+      }
+    });
+  }
+
+  private abrirArchivoPedidoPorNombre(nombreArchivo: string): void {
+    const nombre = nombreArchivo.trim();
+
+    if (!nombre) {
+      this.saveErrorMessage = 'No se encontro el nombre del archivo para visualizar.';
+      return;
+    }
+
+    this.apiService.getArchivoPedido(nombre).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombre) });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: (error: unknown) => {
+        console.error('[OrdenCompra][Archivo adjunto][Error]', error);
+        this.saveErrorMessage = 'No se pudo abrir el archivo del pedido.';
+      }
+    });
+  }
+
+  abrirArchivosOrdenCompraListado(item: OrdenCompraRow, event?: Event): void {
+    event?.stopPropagation();
+    this.errorMessage = '';
+
+    const ordenCompraId = item.ordenCompraId ?? 0;
+
+    if (!Number.isInteger(ordenCompraId) || ordenCompraId <= 0) {
+      this.errorMessage = 'La orden de compra seleccionada no tiene un identificador valido.';
+      return;
+    }
+
+    this.isLoadingArchivosOrdenCompraListado = item.id;
+
+    this.apiService.getListarArchivosAdjuntosOrdenCompra(ordenCompraId).subscribe({
+      next: (response: unknown) => {
+        const archivos = this.extractRecords(response)
+          .map((record) => this.mapOrdenCompraArchivoAdjunto(record, ordenCompraId))
+          .filter((archivo): archivo is OrdenCompraArchivoAdjuntoGuardado => archivo !== null)
+          .map((archivo): PedidoArchivoDialogRow => ({
+            id: archivo.id,
+            pedidoId: archivo.ordenCompraId,
+            nombre: archivo.nombre,
+            ruta: archivo.ruta
+          }));
+
+        this.isLoadingArchivosOrdenCompraListado = null;
+
+        this.dialog.open(PedidoArchivosDialogComponent, {
+          width: 'min(720px, 96vw)',
+          maxWidth: '96vw',
+          data: {
+            pedidoCodigo: `OC-${ordenCompraId}`,
+            archivos,
+            verArchivo: (archivo: PedidoArchivoDialogRow) => this.abrirArchivoOrdenCompraPorNombre(archivo.nombre)
+          }
+        });
+      },
+      error: (error: unknown) => {
+        console.error('[OrdenCompra][Archivos adjuntos listado][Error]', error);
+        this.isLoadingArchivosOrdenCompraListado = null;
+        this.errorMessage = 'No se pudieron cargar los archivos adjuntos de la orden de compra.';
+      }
+    });
+  }
+
+  private abrirArchivoOrdenCompraPorNombre(nombreArchivo: string): void {
+    const nombre = nombreArchivo.trim();
+
+    if (!nombre) {
+      this.errorMessage = 'No hay archivo adjunto para visualizar.';
+      return;
+    }
+
+    this.apiService.getArchivoOrdenCompra(nombre).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombre) });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      },
+      error: (error: unknown) => {
+        console.error('Error abriendo archivo de orden de compra:', error);
+        this.errorMessage = 'No se pudo abrir el archivo de la orden de compra.';
+      }
+    });
+  }
+
+  private mapPedidoArchivoAdjunto(item: DataRecord): PedidoArchivoDialogRow | null {
+    const nombre = this.getTextValue(item, [
+      'Ped_Cab_Arc_Nom',
+      'ped_Cab_Arc_Nom',
+      'pedCabArcNom',
+      'Archivo',
+      'archivo',
+      'Nombre',
+      'nombre'
+    ]);
+
+    if (!nombre) {
+      return null;
+    }
+
+    return {
+      id: this.getNumberValue(item, ['Ped_Cab_Arc_Id', 'ped_Cab_Arc_Id', 'pedCabArcId']) ?? 0,
+      pedidoId: this.getNumberValue(item, ['Ped_Cab_Id', 'ped_Cab_Id', 'pedCabId']) ?? 0,
+      nombre,
+      ruta: this.getTextValue(item, [
+        'Ped_Cab_Arc_Rut',
+        'ped_Cab_Arc_Rut',
+        'pedCabArcRut',
+        'Ruta',
+        'ruta'
+      ])
+    };
   }
 
   formatCurrency(value: number): string {
@@ -990,6 +1352,8 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = '';
     this.ordenCompraArchivoFile = null;
+    this.ordenCompraArchivoFiles = [];
+    this.ordenCompraArchivosAdjuntosGuardados = [];
     this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
     this.syncTotalesCalculados();
   }
@@ -1025,7 +1389,7 @@ export class OrdenCompraPageComponent implements OnInit {
       Usr_Reg: currentUser
     };
 
-    return this.apiService.postRegistrarOrdenCompra(request, this.ordenCompraArchivoFile);
+    return this.apiService.postRegistrarOrdenCompra(request, null);
   }
 
   private buildActualizarOrdenCompraRequest(): Observable<unknown> | null {
@@ -1068,7 +1432,7 @@ export class OrdenCompraPageComponent implements OnInit {
         : null
     });
 
-    return this.apiService.patchActualizarOrdenCompra(request, this.ordenCompraArchivoFile);
+    return this.apiService.patchActualizarOrdenCompra(request, null);
   }
 
   private buildOrdenCompraPayloadBase(): Omit<RegistrarOrdenCompraRequest, 'Usr_Reg'> | null {
@@ -1383,6 +1747,7 @@ export class OrdenCompraPageComponent implements OnInit {
     this.esParcial = false;
     this.aplicarModoCentrosCosto();
     this.mostrarEditor = true;
+    this.cargarArchivosAdjuntosOrdenCompra(ordenCompra.ordenCompraId ?? 0);
 
     if (ordenCompra.pedidoIdAtencion) {
       this.cargarCentrosCostoDesdePedido();
@@ -1417,6 +1782,16 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenCompraArchivoAdjunto = item.archivo || 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = item.archivoRuta;
     this.ordenCompraArchivoFile = null;
+    this.ordenCompraArchivoFiles = [];
+    this.ordenCompraArchivosAdjuntosGuardados = item.archivo && item.archivo !== 'Sin archivo adjunto'
+      ? [{
+          id: 0,
+          ordenCompraId: item.ordenCompraId ?? 0,
+          nombre: item.archivo,
+          ruta: item.archivoRuta
+        }]
+      : [];
+    this.actualizarOrdenCompraArchivoFormControl();
   }
 
   private getOrdenCompraSeleccionada(): OrdenCompraRow | null {

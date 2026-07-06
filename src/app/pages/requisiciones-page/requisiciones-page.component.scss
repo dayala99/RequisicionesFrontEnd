@@ -769,6 +769,69 @@
   font-size: 0.92rem;
 }
 
+.attachment-grid {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 48rem;
+}
+
+.attachment-grid__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.attachment-grid__header h3 {
+  margin: 0;
+}
+
+.attachment-grid__add {
+  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.attachment-grid__table-shell {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.attachment-grid__table {
+  width: 100%;
+  min-width: 32rem;
+  border-collapse: collapse;
+}
+
+.attachment-grid__table th,
+.attachment-grid__table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.attachment-grid__table th {
+  background: var(--text-primary);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.attachment-grid__table tbody tr:nth-child(even) {
+  background: var(--surface-muted);
+}
+
+.attachment-grid__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.attachment-grid__actions-cell {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
 .field--small input {
   min-width: 0;
 }

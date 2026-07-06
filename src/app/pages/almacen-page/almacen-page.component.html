@@ -72,7 +72,7 @@
             type="button"
             class="button button--primary"
             (click)="abrirSalidaManual()">
-            Generar salida
+            Generar Consumo
           </button>
           <button
             *ngFor="let action of actionButtons"
@@ -90,39 +90,67 @@
         <table class="almacen-table">
           <thead>
             <tr>
+              <th *ngIf="isListadoSalida">Acciones</th>
               <th>Nro. Movimiento</th>
               <th>Tipo de Ingreso</th>
               <th>Centro de Costo</th>
               <th>Almacen</th>
               <th>Fecha Registro</th>
               <th>Registrado Por</th>
-              <th>Estado Aprobacion</th>
-              <th>Acciones</th>
+              <th *ngIf="isListadoIngresado">Estado Aprobacion</th>
+              <th *ngIf="isListadoSalida">Estado Consumo</th>
+              <th>{{ isListadoSalida ? 'Editar' : 'Acciones' }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr *ngIf="isLoadingAlmacen">
-              <td colspan="8" class="empty-row">Cargando ingresos de almacen...</td>
+              <td [attr.colspan]="isListadoSalida ? 9 : 8" class="empty-row">Cargando ingresos de almacen...</td>
             </tr>
 
             <tr *ngIf="!isLoadingAlmacen && !errorMessage && !filteredAlmacenes.length">
-              <td colspan="8" class="empty-row">No se encontraron movimientos de almacen.</td>
+              <td [attr.colspan]="isListadoSalida ? 9 : 8" class="empty-row">No se encontraron movimientos de almacen.</td>
             </tr>
 
             <tr *ngFor="let item of paginatedAlmacenes; trackBy: trackByAlmacen" class="almacen-table__row">
+              <td *ngIf="isListadoSalida">
+                <div class="table-action-group">
+                  <button
+                    type="button"
+                    class="button button--primary button--table-action"
+                    [disabled]="!esEstadoConsumoPendiente(item)"
+                    (click)="aprobarConsumoSalida(item)">
+                    Despachar
+                  </button>
+                  <button
+                    type="button"
+                    class="button button--secondary button--table-action"
+                    [disabled]="!esEstadoConsumoPendiente(item)"
+                    (click)="rechazarConsumoSalida(item)">
+                    Rechazar
+                  </button>
+                </div>
+              </td>
               <td>{{ item.movimientoId }}</td>
               <td>{{ item.tipoIngreso }}</td>
               <td>{{ item.centroCosto }}</td>
               <td>{{ item.almacen }}</td>
               <td>{{ item.fechaRegistro }}</td>
               <td>{{ item.registradoPor }}</td>
-              <td>
+              <td *ngIf="isListadoIngresado">
                 <span class="status-badge" [attr.data-state]="item.estadoAprobacion.toLowerCase()">{{ item.estadoAprobacion }}</span>
               </td>
+              <td *ngIf="isListadoSalida">
+                <span class="status-badge" [attr.data-state]="item.estadoConsumo.toLowerCase()">{{ item.estadoConsumo }}</span>
+              </td>
               <td>
-                <button type="button" class="button button--secondary button--table-action" (click)="editarMovimiento(item)">
-                  Editar
+                <button
+                  type="button"
+                  class="table-action"
+                  aria-label="Editar movimiento"
+                  [disabled]="!puedeEditarMovimiento(item)"
+                  (click)="editarMovimiento(item)">
+                  &#9998;
                 </button>
               </td>
             </tr>
@@ -527,6 +555,23 @@
                 </mat-option>
               </mat-select>
             </mat-form-field>
+
+            <div class="salida-stock-grid">
+              <label class="field">
+                <span>Disponible</span>
+                <input type="number" formControlName="stockDisponible" class="input--readonly" readonly>
+              </label>
+
+              <label class="field">
+                <span>Reservado</span>
+                <input type="number" formControlName="stockReservado" class="input--readonly" readonly>
+              </label>
+
+              <label class="field">
+                <span>Stock Total</span>
+                <input type="number" formControlName="stockTotal" class="input--readonly" readonly>
+              </label>
+            </div>
 
             <label class="field">
               <span>Cantidad</span>

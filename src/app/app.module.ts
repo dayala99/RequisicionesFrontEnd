@@ -68,6 +68,7 @@ import { PedidoDetalleDeleteDialogComponent } from './pages/requisiciones-page/p
 import { PedidoDetalleDialogComponent } from './pages/requisiciones-page/pedido-detalle-dialog.component';
 import { PedidoDetalleItemSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-item-selector-dialog.component';
 import { PedidoDetalleUnidadSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-unidad-selector-dialog.component';
+import { PedidoArchivosDialogComponent } from './pages/requisiciones-page/pedido-archivos-dialog.component';
 import { PedidoRechazoDialogComponent } from './pages/requisiciones-page/pedido-rechazo-dialog.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { SubGrupoItemEditDialogComponent } from './pages/sub-grupo-item-page/sub-grupo-item-edit-dialog.component';
@@ -165,6 +166,7 @@ const APP_DATE_FORMATS = {
     PedidoDetalleDialogComponent,
     PedidoDetalleItemSelectorDialogComponent,
     PedidoDetalleUnidadSelectorDialogComponent,
+    PedidoArchivosDialogComponent,
     PedidoRechazoDialogComponent,
     RequisicionesPageComponent,
     PedidosBPageComponent,

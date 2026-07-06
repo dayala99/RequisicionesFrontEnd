@@ -7,7 +7,9 @@ import { catchError, forkJoin, of } from 'rxjs';
 
 import {
   AlmacenFiltro,
+  ActualizarMotivoRechazoAlmacenRequest,
   ActualizarPedidoDetalleIngresoAlmacenRequest,
+  ActualizarIngresoAlmacenDetalleOrdenCompraRequest,
   ActualizarIngresoAlmacenDetalleRequest,
   ActualizarIngresoAlmacenRequest,
   ActualizarStockItemIngresoDirectoRequest,
@@ -23,6 +25,8 @@ import {
 } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ProviderRecord } from 'src/app/features/provider-form/provider-form.models';
+import { ConfirmacionAccionDialogComponent } from '../inspecciones-page/confirmacion-accion-dialog.component';
+import { PedidoRechazoDialogComponent, PedidoRechazoDialogResult } from '../requisiciones-page/pedido-rechazo-dialog.component';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { formatDateRequestValue, formatDisplayDate } from 'src/app/shared/utils/date.utils';
 import { PedidoDetalleItemOption, PedidoDetalleUnidadOption } from '../requisiciones-page/pedido-detalle-dialog.models';
@@ -44,6 +48,7 @@ interface AlmacenRow {
   fechaRegistro: string;
   registradoPor: string;
   estadoAprobacion: string;
+  estadoConsumo: string;
 }
 
 interface OrdenCompraPendienteAlmacenRow {
@@ -66,6 +71,7 @@ interface OrdenCompraPendienteAlmacenRow {
 
 interface IngresoOrdenDetalleRow {
   id: number;
+  almacenDetalleId: number;
   pedidoDetalleId: number;
   itemId: number;
   itemCodigo: string;
@@ -92,11 +98,14 @@ interface SalidaItemRow {
   subGrupo: string;
   detalleMaterial: string;
   stock: number;
+  reservado: number;
+  disponible: number;
 }
 
 interface SalidaDetalleDraft {
   detalleId: number;
   itemId: number;
+  itemDescripcion: string;
   unidadId: number;
   cantidad: number;
   fecha: string;
@@ -188,7 +197,7 @@ export class AlmacenPageComponent implements OnInit {
   ingresoOrdenUbicacionId = 1;
   private pendingEditMovimientoId: number | null = null;
   private pendingEditCabeceraRecord: DataRecord | null = null;
-  private pendingEditDetalleRecord: DataRecord | null = null;
+  private pendingEditDetalleRecords: DataRecord[] = [];
   private currentEditDetalleId = 0;
   private currentEditFlgEst = 'A';
   private isIngresoOrdenEditMode = false;
@@ -266,7 +275,8 @@ export class AlmacenPageComponent implements OnInit {
         item.almacen,
         item.fechaRegistro,
         item.registradoPor,
-        item.estadoAprobacion
+        item.estadoAprobacion,
+        item.estadoConsumo
       ];
 
       return searchableValues.some((value) => String(value).toLowerCase().includes(search));
@@ -499,7 +509,7 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   generarSalidaItem(item: SalidaItemRow): void {
-    if ((item.stock ?? 0) <= 0) {
+    if ((item.disponible ?? 0) <= 0) {
       this.snackBar.open('Stock Insuficiente', 'Cerrar', {
         duration: 3500,
         horizontalPosition: 'center',
@@ -723,12 +733,16 @@ export class AlmacenPageComponent implements OnInit {
         materialDescription: '',
         unidadId: 0,
         unidadCode: '',
-        unidadDescription: ''
+        unidadDescription: '',
+        stockDisponible: 0,
+        stockReservado: 0,
+        stockTotal: 0
       });
       return;
     }
 
     const selectedUnit = this.unidadOptions.find((unit) => unit.id === selectedItem.unitId);
+    const stockInfo = this.getSalidaStockInfo(selectedItem.id);
 
     row.patchValue({
       materialId: selectedItem.id,
@@ -736,8 +750,13 @@ export class AlmacenPageComponent implements OnInit {
       materialDescription: selectedItem.description,
       unidadId: selectedUnit?.id ?? selectedItem.unitId ?? 0,
       unidadCode: selectedUnit?.code ?? selectedItem.unitCode ?? '',
-      unidadDescription: selectedUnit?.description ?? selectedItem.unitDescription ?? ''
+      unidadDescription: selectedUnit?.description ?? selectedItem.unitDescription ?? '',
+      stockDisponible: stockInfo.disponible,
+      stockReservado: stockInfo.reservado,
+      stockTotal: stockInfo.stockTotal
     });
+
+    this.cargarStockSalidaMaterialRow(index);
   }
 
   onSalidaUnidadChange(index: number, unidadIdRaw: number | string): void {
@@ -784,6 +803,13 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
+    const materialSinDisponible = this.getMaterialSalidaSinDisponible();
+
+    if (materialSinDisponible) {
+      this.mostrarStockInsuficiente(materialSinDisponible);
+      return;
+    }
+
     const cabeceraPayload = this.buildRegistrarSalidaAlmacenPayload();
 
     if (!cabeceraPayload) {
@@ -801,11 +827,7 @@ export class AlmacenPageComponent implements OnInit {
     );
 
     if (hasStockInsuficiente) {
-      this.snackBar.open('Stock Insuficiente', 'Cerrar', {
-        duration: 3500,
-        horizontalPosition: 'center',
-        verticalPosition: 'top'
-      });
+      this.mostrarStockInsuficiente(this.getPrimerMaterialSalidaConStockInsuficiente(salidaDetalles));
       return;
     }
 
@@ -877,6 +899,13 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
+    const materialSinDisponible = this.getMaterialSalidaSinDisponible();
+
+    if (materialSinDisponible) {
+      this.mostrarStockInsuficiente(materialSinDisponible);
+      return;
+    }
+
     const cabeceraPayload = this.buildActualizarIngresoAlmacenPayload();
 
     if (!cabeceraPayload) {
@@ -895,11 +924,7 @@ export class AlmacenPageComponent implements OnInit {
     });
 
     if (hasStockInsuficiente) {
-      this.snackBar.open('Stock Insuficiente', 'Cerrar', {
-        duration: 3500,
-        horizontalPosition: 'center',
-        verticalPosition: 'top'
-      });
+      this.mostrarStockInsuficiente(this.getPrimerMaterialSalidaConStockInsuficiente(salidaDetalles, true));
       return;
     }
 
@@ -1183,17 +1208,37 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
+    const rowsSeleccionados = this.ingresoOrdenDetalles.filter((item) => item.seleccionado);
+    console.log('[Almacen][Actualizar ingreso por orden][rows grilla]', this.ingresoOrdenDetalles);
+    console.log('[Almacen][Actualizar ingreso por orden][rows seleccionados]', rowsSeleccionados);
+    console.table(rowsSeleccionados.map((item) => ({
+      id: item.id,
+      almacenDetalleId: item.almacenDetalleId,
+      pedidoDetalleId: item.pedidoDetalleId,
+      itemId: item.itemId,
+      itemCodigo: item.itemCodigo,
+      itemDescripcion: item.itemDescripcion,
+      unidadId: item.unidadId,
+      centroCostoId: item.centroCostoId,
+      cantidadIngresar: item.cantidadIngresar,
+      compra: item.compra,
+      ingresado: item.ingresado,
+      pendiente: item.pendiente
+    })));
+
     const detallePayloads = this.buildActualizarPedidoDetalleIngresoAlmacenPayloads();
+    const detalleAlmacenPayloads = this.buildActualizarIngresoAlmacenDetalleOrdenCompraPayloads();
     const stockPayloads = this.buildActualizarStockItemPayloads();
 
     console.log('[Almacen][Actualizar ingreso por orden]', {
       cabecera: this.ingresoOrdenSeleccionada,
       detallesGrilla: this.ingresoOrdenDetalles,
       detallePayloads,
+      detalleAlmacenPayloads,
       stockPayloads
     });
 
-    if (!this.ingresoOrdenSeleccionada || !detallePayloads.length || !stockPayloads.length) {
+    if (!this.ingresoOrdenSeleccionada || !detallePayloads.length || !detalleAlmacenPayloads.length || !stockPayloads.length) {
       return;
     }
 
@@ -1201,7 +1246,14 @@ export class AlmacenPageComponent implements OnInit {
     this.saveErrorMessage = '';
 
     this.actualizarStockIngresoOrden(stockPayloads, () => {
-      forkJoin(detallePayloads.map((detalle) => this.apiService.patchActualizarPedidoDetalleIngresoAlmacen(detalle))).subscribe({
+      const detallePedidoRequests = detallePayloads.map((detalle) =>
+        this.apiService.patchActualizarPedidoDetalleIngresoAlmacen(detalle)
+      );
+      const detalleAlmacenRequests = detalleAlmacenPayloads.map((detalle) =>
+        this.apiService.patchActualizarIngresoAlmacenDetalleOrdenCompra(detalle)
+      );
+
+      forkJoin([...detallePedidoRequests, ...detalleAlmacenRequests]).subscribe({
         next: (detalleResponses: unknown[]) => {
           try {
             detalleResponses.forEach((response) => {
@@ -1304,12 +1356,21 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   editarMovimiento(item: AlmacenRow): void {
+    const isSalidaMovimiento = this.esMovimientoSalida(item);
+    if (isSalidaMovimiento && !this.esEstadoConsumoPendiente(item)) {
+      this.snackBar.open('No se puede editar una salida despachada o rechazada.', 'Cerrar', {
+        duration: 3500,
+        horizontalPosition: 'center',
+        verticalPosition: 'top'
+      });
+      return;
+    }
+
     if (this.esIngresoPorOrden(item)) {
       this.editarIngresoOrden(item);
       return;
     }
 
-    const isSalidaMovimiento = this.esMovimientoSalida(item);
     this.errorMessage = '';
     this.saveErrorMessage = '';
     this.isLoadingEditor = true;
@@ -1328,7 +1389,8 @@ export class AlmacenPageComponent implements OnInit {
       next: ({ cabecera, detalle }) => {
         console.log('getListarIngresoAlmacenModificar response', cabecera);
         const cabeceraRecord = this.extractRecords(cabecera)[0] ?? null;
-        const detalleRecord = this.extractRecords(detalle)[0] ?? null;
+        const detalleRecords = this.extractRecords(detalle);
+        const detalleRecord = detalleRecords[0] ?? null;
 
         if (!cabeceraRecord && !detalleRecord) {
           this.isLoadingEditor = false;
@@ -1338,7 +1400,7 @@ export class AlmacenPageComponent implements OnInit {
 
         this.pendingEditMovimientoId = item.movimientoId;
         this.pendingEditCabeceraRecord = cabeceraRecord;
-        this.pendingEditDetalleRecord = detalleRecord;
+        this.pendingEditDetalleRecords = detalleRecords;
         this.tryPatchPendingEditForm();
         this.isLoadingEditor = false;
       },
@@ -1347,6 +1409,148 @@ export class AlmacenPageComponent implements OnInit {
         this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el ingreso seleccionado para editar.');
       }
     });
+  }
+
+  aprobarConsumoSalida(item: AlmacenRow): void {
+    if (!this.validarEstadoConsumoPendiente(item)) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '460px',
+      disableClose: true,
+      data: {
+        titulo: 'Despachar consumo',
+        mensaje: `Se actualizara el stock del movimiento ${item.movimientoId}. ¿Deseas continuar?`,
+        textoConfirmar: 'Despachar',
+        textoCancelar: 'Cancelar',
+        tipo: 'normal'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean | undefined) => {
+      if (confirmado) {
+        this.ejecutarDespachoSalida(item);
+      }
+    });
+  }
+
+  private ejecutarDespachoSalida(item: AlmacenRow): void {
+    const payload: ActualizarStockItemSalidaRequest = {
+      Alm_Mov_Id: item.movimientoId,
+      Alm_Det_Itm_Id: 0,
+      Can_Ing: 0
+    };
+
+    this.errorMessage = '';
+    this.isLoadingAlmacen = true;
+    console.log('[Almacen][Salida][Despachar consumo] payload:', payload);
+
+    this.apiService.patchActualizarStockItemSalida(payload).subscribe({
+      next: (response: unknown) => {
+        this.isLoadingAlmacen = false;
+
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo despachar el consumo de salida.');
+        } catch (error: unknown) {
+          this.errorMessage = this.resolveErrorMessage(error, 'No se pudo despachar el consumo de salida.');
+          return;
+        }
+
+        this.snackBar.open('Consumo despachado correctamente.', 'Cerrar', {
+          duration: 3000,
+          horizontalPosition: 'center',
+          verticalPosition: 'top'
+        });
+        this.cargarListadoSeleccionado();
+      },
+      error: (error: unknown) => {
+        this.isLoadingAlmacen = false;
+        console.log('[Almacen][Salida][Despachar consumo] error:', error);
+        this.errorMessage = this.resolveErrorMessage(error, 'No se pudo despachar el consumo de salida.');
+      }
+    });
+  }
+
+  rechazarConsumoSalida(item: AlmacenRow): void {
+    if (!this.validarEstadoConsumoPendiente(item)) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(PedidoRechazoDialogComponent, {
+      width: '520px',
+      disableClose: true,
+      data: {
+        titulo: 'Rechazar consumo',
+        etiquetaMotivo: 'Motivo del rechazo',
+        textoError: 'Ingresa el motivo del rechazo.',
+        textoConfirmar: 'Guardar motivo'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result?: PedidoRechazoDialogResult) => {
+      const motivo = String(result?.motivo || '').trim();
+
+      if (!motivo) {
+        return;
+      }
+
+      const payload: ActualizarMotivoRechazoAlmacenRequest = {
+        Alm_Mov_Id: item.movimientoId,
+        Alm_Mot_Rch: motivo
+      };
+
+      this.errorMessage = '';
+      this.isLoadingAlmacen = true;
+      console.log('[Almacen][Salida][Rechazar consumo] payload:', payload);
+
+      this.apiService.patchActualizarMotivoRechazoAlmacen(payload).subscribe({
+        next: (response: unknown) => {
+          this.isLoadingAlmacen = false;
+
+          try {
+            this.assertSuccessfulResponse(response, 'No se pudo registrar el motivo del rechazo.');
+          } catch (error: unknown) {
+            this.errorMessage = this.resolveErrorMessage(error, 'No se pudo registrar el motivo del rechazo.');
+            return;
+          }
+
+          this.snackBar.open('Consumo rechazado correctamente.', 'Cerrar', {
+            duration: 3000,
+            horizontalPosition: 'center',
+            verticalPosition: 'top'
+          });
+          this.cargarListadoSeleccionado();
+        },
+        error: (error: unknown) => {
+          this.isLoadingAlmacen = false;
+          console.log('[Almacen][Salida][Rechazar consumo] error:', error);
+          this.errorMessage = this.resolveErrorMessage(error, 'No se pudo registrar el motivo del rechazo.');
+        }
+      });
+    });
+  }
+
+  esEstadoConsumoPendiente(item: AlmacenRow): boolean {
+    const estado = String(item.estadoConsumo || '').trim().toLowerCase();
+    return estado === 'pendiente' || estado === 'p';
+  }
+
+  puedeEditarMovimiento(item: AlmacenRow): boolean {
+    return !this.esMovimientoSalida(item) || this.esEstadoConsumoPendiente(item);
+  }
+
+  private validarEstadoConsumoPendiente(item: AlmacenRow): boolean {
+    if (this.esEstadoConsumoPendiente(item)) {
+      return true;
+    }
+
+    this.snackBar.open('Solo se puede despachar o rechazar cuando el estado de consumo es Pendiente.', 'Cerrar', {
+      duration: 3500,
+      horizontalPosition: 'center',
+      verticalPosition: 'top'
+    });
+    return false;
   }
 
   private abrirIngresoDirecto(): void {
@@ -1446,6 +1650,9 @@ export class AlmacenPageComponent implements OnInit {
       unidadId: unidadOption?.id ?? unidadId ?? 0,
       unidadCode: unidadOption?.code || materialOption?.unitCode || item.unidadCodigo,
       unidadDescription: unidadOption?.description || materialOption?.unitDescription || item.unidadDescripcion,
+      stockDisponible: item.disponible,
+      stockReservado: item.reservado,
+      stockTotal: item.stock,
       cantidad: 1,
       fecha: this.getTodayDateValue()
     });
@@ -1473,6 +1680,7 @@ export class AlmacenPageComponent implements OnInit {
           this.ingresoDirectoForm.patchValue({
             centroCostoSolicitanteId: centroCostoId
           });
+          this.actualizarStocksSalidaMateriales();
         }
 
         console.log('[Almacen][Salida] Datos usuario solicitante:', {
@@ -1536,6 +1744,9 @@ export class AlmacenPageComponent implements OnInit {
       unidadId: [0, Validators.required],
       unidadCode: [''],
       unidadDescription: [''],
+      stockDisponible: [{ value: 0, disabled: true }],
+      stockReservado: [{ value: 0, disabled: true }],
+      stockTotal: [{ value: 0, disabled: true }],
       cantidad: [1, [Validators.required, Validators.min(0.001)]],
       originalCantidad: [0],
       fecha: [this.getTodayDateValue(), Validators.required]
@@ -1559,14 +1770,15 @@ export class AlmacenPageComponent implements OnInit {
   private clearPendingEditData(): void {
     this.pendingEditMovimientoId = null;
     this.pendingEditCabeceraRecord = null;
-    this.pendingEditDetalleRecord = null;
+    this.pendingEditDetalleRecords = [];
   }
 
   private patchIngresoDirectoFormForEdit(
     movimientoId: number,
     cabeceraRecord: DataRecord | null,
-    detalleRecord: DataRecord | null
+    detalleRecords: DataRecord[]
   ): void {
+    const detalleRecord = detalleRecords[0] ?? null;
     const sourceRecord = detalleRecord ?? cabeceraRecord ?? {};
     const ubicacion = this.resolveUbicacionCodigo(detalleRecord, cabeceraRecord);
     const solicitanteId = this.resolveSolicitanteId(detalleRecord, cabeceraRecord);
@@ -1589,6 +1801,7 @@ export class AlmacenPageComponent implements OnInit {
       || (unidadId > 0 ? String(unidadId) : '');
     const unidadDescription = unidadOption?.description
       || this.getTextValue(sourceRecord, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'Unidad', 'unidad']);
+    const salidaStockInfo = this.getSalidaStockInfo(materialId);
 
     this.ingresoDirectoForm.patchValue({
       movimientoId: String(movimientoId),
@@ -1609,18 +1822,52 @@ export class AlmacenPageComponent implements OnInit {
     });
 
     if (this.isSalidaMode) {
-      this.resetSalidaMateriales();
-      this.patchSalidaMaterialRowFromValues(0, {
-        detalleId: this.currentEditDetalleId,
-        materialId,
-        materialCode,
-        materialDescription,
-        unidadId,
-        unidadCode,
-        unidadDescription,
-        cantidad,
-        originalCantidad: cantidad,
-        fecha: this.parseDateValue(this.getTextValue(sourceRecord, ['Alm_Det_Fec', 'alm_Det_Fec', 'almDetFec', 'Fec_Reg', 'fec_Reg', 'fecReg']))
+      this.ingresoDirectoForm.controls['solicitanteId'].disable({ emitEvent: false });
+      this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].disable({ emitEvent: false });
+      while (this.salidaMaterialesForm.length) {
+        this.salidaMaterialesForm.removeAt(0);
+      }
+
+      const salidaDetalleRecords = detalleRecords.length ? detalleRecords : [sourceRecord];
+
+      salidaDetalleRecords.forEach((record, index) => {
+        const recordMaterialOption = this.resolveItemOption(record);
+        const recordUnidadOption = this.resolveUnidadOption(record);
+        const recordDetalleId = this.getNumberValue(record, ['Alm_Det_Id', 'alm_Det_Id', 'almDetId']) ?? 0;
+        const recordCantidad = this.getDecimalValue(record, ['Alm_Det_Can', 'alm_Det_Can', 'almDetCan', 'Cantidad', 'cantidad']) ?? 1;
+        const recordMaterialId = recordMaterialOption?.id
+          ?? this.getNumberValue(record, ['Alm_Det_Itm_Id', 'alm_Det_Itm_Id', 'almDetItmId', 'Itm_Id', 'itm_Id', 'itmId'])
+          ?? 0;
+        const recordMaterialCode = recordMaterialOption?.code || (recordMaterialId > 0 ? String(recordMaterialId) : '');
+        const recordMaterialDescription = recordMaterialOption?.description
+          || this.getTextValue(record, ['Itm_Des', 'itm_Des', 'itmDes', 'Material', 'material']);
+        const recordUnidadId = recordUnidadOption?.id
+          ?? this.getNumberValue(record, ['Alm_Det_Uni_Med_Id', 'alm_Det_Uni_Med_Id', 'almDetUniMedId', 'Uni_Med_Id', 'uni_Med_Id', 'uniMedId'])
+          ?? 0;
+        const recordUnidadCode = recordUnidadOption?.code
+          || this.getTextValue(record, ['Uni_Med_Cod', 'uni_Med_Cod', 'uniMedCod'])
+          || (recordUnidadId > 0 ? String(recordUnidadId) : '');
+        const recordUnidadDescription = recordUnidadOption?.description
+          || this.getTextValue(record, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'Unidad', 'unidad']);
+        const recordSalidaStockInfo = this.getSalidaStockInfo(recordMaterialId);
+
+        this.salidaMaterialesForm.push(this.createSalidaMaterialGroup());
+        this.patchSalidaMaterialRowFromValues(index, {
+          detalleId: recordDetalleId,
+          materialId: recordMaterialId,
+          materialCode: recordMaterialCode,
+          materialDescription: recordMaterialDescription,
+          unidadId: recordUnidadId,
+          unidadCode: recordUnidadCode,
+          unidadDescription: recordUnidadDescription,
+          stockDisponible: recordSalidaStockInfo.disponible,
+          stockReservado: recordSalidaStockInfo.reservado,
+          stockTotal: recordSalidaStockInfo.stockTotal,
+          cantidad: recordCantidad,
+          originalCantidad: recordCantidad,
+          fecha: this.parseDateValue(this.getTextValue(record, ['Alm_Det_Fec', 'alm_Det_Fec', 'almDetFec', 'Fec_Reg', 'fec_Reg', 'fecReg']))
+        });
+        this.cargarStockSalidaMaterialRow(index);
       });
     }
   }
@@ -1633,7 +1880,7 @@ export class AlmacenPageComponent implements OnInit {
     this.patchIngresoDirectoFormForEdit(
       this.pendingEditMovimientoId,
       this.pendingEditCabeceraRecord,
-      this.pendingEditDetalleRecord
+      this.pendingEditDetalleRecords
     );
 
     const solicitanteId = String(this.ingresoDirectoForm.controls['solicitanteId'].value || '').trim();
@@ -2158,6 +2405,34 @@ export class AlmacenPageComponent implements OnInit {
     }));
   }
 
+  private buildActualizarIngresoAlmacenDetalleOrdenCompraPayloads(): ActualizarIngresoAlmacenDetalleOrdenCompraRequest[] {
+    const seleccionados = this.ingresoOrdenDetalles.filter((item) => item.seleccionado);
+    const currentUser = this.getCurrentOperator();
+
+    if (!seleccionados.length) {
+      this.saveErrorMessage = 'Selecciona al menos un producto para actualizar el detalle de almacen.';
+      return [];
+    }
+
+    const detalleSinAlmacenId = seleccionados.find((item) => !Number.isInteger(item.almacenDetalleId) || item.almacenDetalleId <= 0);
+    if (detalleSinAlmacenId) {
+      this.saveErrorMessage = `El producto ${detalleSinAlmacenId.itemDescripcion} no tiene Alm_Det_Id para actualizar el detalle de almacen.`;
+      return [];
+    }
+
+    const detalleSinCantidad = seleccionados.find((item) => !Number.isFinite(item.cantidadIngresar) || Number(item.cantidadIngresar) <= 0);
+    if (detalleSinCantidad) {
+      this.saveErrorMessage = `Ingresa una cantidad valida para actualizar el detalle de almacen de ${detalleSinCantidad.itemDescripcion}.`;
+      return [];
+    }
+
+    return seleccionados.map((item) => ({
+      Alm_Det_Id: item.almacenDetalleId,
+      Alm_Det_Can: Number(item.cantidadIngresar),
+      Usr_Mod: currentUser
+    }));
+  }
+
   private buildActualizarStockItemPayloads(): ActualizarStockItemRequest[] {
     const cabecera = this.ingresoOrdenSeleccionada;
     const seleccionados = this.ingresoOrdenDetalles.filter((item) => item.seleccionado);
@@ -2318,13 +2593,132 @@ export class AlmacenPageComponent implements OnInit {
 
   private getStockDisponibleSalida(materialIdRaw?: number): number {
     const materialId = materialIdRaw ?? Number(this.ingresoDirectoForm.controls['materialId'].value);
+    const materialRow = this.salidaMaterialRows.find((row) => Number(row.controls['materialId'].value) === materialId);
+    const rowDisponible = Number(materialRow?.controls['stockDisponible']?.value);
+
+    if (Number.isFinite(rowDisponible)) {
+      return rowDisponible;
+    }
 
     if (this.salidaItemSeleccionado && this.salidaItemSeleccionado.itemId === materialId) {
-      return this.salidaItemSeleccionado.stock;
+      return this.salidaItemSeleccionado.disponible;
     }
 
     const selectedItem = this.salidaItems.find((item) => item.itemId === materialId);
-    return selectedItem?.stock ?? 0;
+    return selectedItem?.disponible ?? 0;
+  }
+
+  private getMaterialSalidaSinDisponible(): string {
+    const row = this.salidaMaterialRows.find((item) => {
+      const materialId = Number(item.controls['materialId'].value);
+      const disponible = Number(item.controls['stockDisponible'].value);
+      return Number.isInteger(materialId) && materialId > 0 && (!Number.isFinite(disponible) || disponible <= 0);
+    });
+
+    return row ? String(row.controls['materialDescription'].value || '').trim() : '';
+  }
+
+  private getPrimerMaterialSalidaConStockInsuficiente(
+    detalles: SalidaDetalleDraft[],
+    incluirCantidadOriginal = false
+  ): string {
+    const detalle = detalles.find((item) => {
+      const disponible = this.getStockDisponibleSalida(item.itemId) + (incluirCantidadOriginal ? item.originalCantidad : 0);
+      return item.cantidad > disponible;
+    });
+
+    return detalle?.itemDescripcion || '';
+  }
+
+  private tieneMaterialSalidaSinDisponible(): boolean {
+    return this.salidaMaterialRows.some((row) => {
+      const materialId = Number(row.controls['materialId'].value);
+      const disponible = Number(row.controls['stockDisponible'].value);
+      return Number.isInteger(materialId) && materialId > 0 && (!Number.isFinite(disponible) || disponible <= 0);
+    });
+  }
+
+  private mostrarStockInsuficiente(materialDescripcion = ''): void {
+    const material = materialDescripcion.trim();
+    const mensaje = material ? `Stock Insuficiente para el material ${material}` : 'Stock Insuficiente';
+
+    this.snackBar.open(mensaje, 'Cerrar', {
+      duration: 3500,
+      horizontalPosition: 'center',
+      verticalPosition: 'top'
+    });
+  }
+
+  private getSalidaStockInfo(materialIdRaw?: number): { disponible: number; reservado: number; stockTotal: number } {
+    const materialId = Number(materialIdRaw);
+    const selectedItem = this.salidaItems.find((item) => item.itemId === materialId);
+    const stockTotal = selectedItem?.stock ?? 0;
+    const reservado = selectedItem?.reservado ?? 0;
+    const disponible = selectedItem?.disponible ?? Math.max(stockTotal - reservado, 0);
+
+    return {
+      disponible: this.normalizeDecimal(disponible),
+      reservado: this.normalizeDecimal(reservado),
+      stockTotal: this.normalizeDecimal(stockTotal)
+    };
+  }
+
+  private actualizarStocksSalidaMateriales(): void {
+    this.salidaMaterialRows.forEach((_, index) => this.cargarStockSalidaMaterialRow(index));
+  }
+
+  private cargarStockSalidaMaterialRow(index: number): void {
+    const row = this.getSalidaMaterialRow(index);
+    const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
+    const materialId = Number(row?.controls['materialId'].value);
+
+    if (!row || !Number.isInteger(centroCostoId) || centroCostoId <= 0 || !Number.isInteger(materialId) || materialId <= 0) {
+      this.patchStockSalidaMaterialRow(row, 0, 0, 0);
+      return;
+    }
+
+    this.apiService.getListarStocksItems(centroCostoId, materialId).subscribe({
+      next: (response: unknown) => {
+        const record = this.extractRecords(response)[0] ?? {};
+        const disponible = this.getDecimalValue(record, ['Disponible', 'disponible']) ?? 0;
+        const reservado = this.getDecimalValue(record, ['Reservado', 'reservado']) ?? 0;
+        const stockTotal = this.getDecimalValue(record, ['Total', 'total']) ?? 0;
+
+        console.log('[Almacen][Salida][getListarStocksItems]', {
+          index,
+          Usr_Cen_Cos_Id: centroCostoId,
+          Alm_Det_Itm_Id: materialId,
+          response,
+          disponible,
+          reservado,
+          stockTotal
+        });
+
+        this.patchStockSalidaMaterialRow(row, disponible, reservado, stockTotal);
+      },
+      error: (error: unknown) => {
+        console.error('[Almacen][Salida] No se pudo listar stock del item.', {
+          index,
+          Usr_Cen_Cos_Id: centroCostoId,
+          Alm_Det_Itm_Id: materialId,
+          error
+        });
+        const fallback = this.getSalidaStockInfo(materialId);
+        this.patchStockSalidaMaterialRow(row, fallback.disponible, fallback.reservado, fallback.stockTotal);
+      }
+    });
+  }
+
+  private patchStockSalidaMaterialRow(row: FormGroup | null, disponible: number, reservado: number, stockTotal: number): void {
+    if (!row) {
+      return;
+    }
+
+    row.patchValue({
+      stockDisponible: this.normalizeDecimal(disponible),
+      stockReservado: this.normalizeDecimal(reservado),
+      stockTotal: this.normalizeDecimal(stockTotal)
+    });
   }
 
   private actualizarStockIngresoDirecto(stockPayload: ActualizarStockItemIngresoDirectoRequest, onSuccess: () => void): void {
@@ -2408,6 +2802,7 @@ export class AlmacenPageComponent implements OnInit {
     for (const row of this.salidaMaterialRows) {
       const detalleId = Number(row.controls['detalleId'].value || 0);
       const itemId = Number(row.controls['materialId'].value);
+      const itemDescripcion = String(row.controls['materialDescription'].value || '').trim();
       const unidadId = Number(row.controls['unidadId'].value);
       const cantidad = Number(row.controls['cantidad'].value);
       const originalCantidad = Number(row.controls['originalCantidad'].value || 0);
@@ -2433,7 +2828,7 @@ export class AlmacenPageComponent implements OnInit {
         return [];
       }
 
-      drafts.push({ detalleId, itemId, unidadId, cantidad, fecha, originalCantidad });
+      drafts.push({ detalleId, itemId, itemDescripcion, unidadId, cantidad, fecha, originalCantidad });
     }
 
     return drafts;
@@ -2548,34 +2943,30 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
-    const stockPayload = this.buildActualizarStockItemSalidaPayload(movimientoId, detallePayload);
+    console.log('[Almacen][Salida][Guardar][Detalle sin actualizar stock]', detallePayload);
 
-    console.log('[Almacen][Salida][Guardar][Stock antes de detalle] payload:', stockPayload);
-
-    this.actualizarStockSalida(stockPayload, () => {
-      this.apiService.postRegistrarIngresoAlmacenDetalle(detallePayload).subscribe({
-        next: (detalleResponse: unknown) => {
-          try {
-            this.assertSuccessfulResponse(detalleResponse, 'No se pudo registrar el detalle de la salida de almacen.');
-          } catch (error: unknown) {
-            this.isSavingIngreso = false;
-            this.saveErrorMessage = this.resolveErrorMessage(
-              error,
-              `Se registro el movimiento ${movimientoId}, pero no se pudo registrar el detalle de la salida.`
-            );
-            return;
-          }
-
-          this.registrarDetallesSalidaSecuencial(movimientoId, detallePayloads, index + 1, onSuccess);
-        },
-        error: (error: unknown) => {
+    this.apiService.postRegistrarIngresoAlmacenDetalle(detallePayload).subscribe({
+      next: (detalleResponse: unknown) => {
+        try {
+          this.assertSuccessfulResponse(detalleResponse, 'No se pudo registrar el detalle de la salida de almacen.');
+        } catch (error: unknown) {
           this.isSavingIngreso = false;
           this.saveErrorMessage = this.resolveErrorMessage(
             error,
             `Se registro el movimiento ${movimientoId}, pero no se pudo registrar el detalle de la salida.`
           );
+          return;
         }
-      });
+
+        this.registrarDetallesSalidaSecuencial(movimientoId, detallePayloads, index + 1, onSuccess);
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(
+          error,
+          `Se registro el movimiento ${movimientoId}, pero no se pudo registrar el detalle de la salida.`
+        );
+      }
     });
   }
 
@@ -2592,48 +2983,34 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
-    const stockPayload = this.buildActualizarStockItemSalidaPayload(movimientoId, {
-      Alm_Mov_Id: movimientoId,
-      Alm_Det_Itm_Id: detallePayload.Alm_Det_Itm_Id,
-      Alm_Det_Uni_Med_Id: detallePayload.Alm_Det_Uni_Med_Id,
-      Alm_Det_Can: detallePayload.Alm_Det_Can,
-      Alm_Det_Doc_Nro: detallePayload.Alm_Det_Doc_Nro,
-      Alm_Det_Fec: detallePayload.Alm_Det_Fec,
-      Alm_Det_Cen_Cos_Id: detallePayload.Alm_Det_Cen_Cos_Id,
-      Alm_Det_Prv_Id: detallePayload.Alm_Det_Prv_Id,
-      Usr_Reg: detallePayload.Usr_Reg
-    });
+    console.log('[Almacen][Salida][Actualizar][Detalle sin actualizar stock]', detallePayload);
 
-    console.log('[Almacen][Salida][Actualizar][Stock antes de detalle] payload:', stockPayload);
+    const request$ = 'Alm_Det_Id' in detallePayload
+      ? this.apiService.patchActualizarIngresoAlmacenDetalle(detallePayload)
+      : this.apiService.postRegistrarIngresoAlmacenDetalle(detallePayload);
 
-    this.actualizarStockSalida(stockPayload, () => {
-      const request$ = 'Alm_Det_Id' in detallePayload
-        ? this.apiService.patchActualizarIngresoAlmacenDetalle(detallePayload)
-        : this.apiService.postRegistrarIngresoAlmacenDetalle(detallePayload);
-
-      request$.subscribe({
-        next: (detalleResponse: unknown) => {
-          try {
-            this.assertSuccessfulResponse(detalleResponse, 'No se pudo guardar el detalle de la salida de almacen.');
-          } catch (error: unknown) {
-            this.isSavingIngreso = false;
-            this.saveErrorMessage = this.resolveErrorMessage(
-              error,
-              `Se actualizo el movimiento ${movimientoId}, pero no se pudo guardar el detalle de la salida.`
-            );
-            return;
-          }
-
-          this.guardarDetallesSalidaActualizacionSecuencial(movimientoId, detallePayloads, index + 1, onSuccess);
-        },
-        error: (error: unknown) => {
+    request$.subscribe({
+      next: (detalleResponse: unknown) => {
+        try {
+          this.assertSuccessfulResponse(detalleResponse, 'No se pudo guardar el detalle de la salida de almacen.');
+        } catch (error: unknown) {
           this.isSavingIngreso = false;
           this.saveErrorMessage = this.resolveErrorMessage(
             error,
             `Se actualizo el movimiento ${movimientoId}, pero no se pudo guardar el detalle de la salida.`
           );
+          return;
         }
-      });
+
+        this.guardarDetallesSalidaActualizacionSecuencial(movimientoId, detallePayloads, index + 1, onSuccess);
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(
+          error,
+          `Se actualizo el movimiento ${movimientoId}, pero no se pudo guardar el detalle de la salida.`
+        );
+      }
     });
   }
 
@@ -2994,6 +3371,7 @@ export class AlmacenPageComponent implements OnInit {
       || this.resolveTipoIngresoDescripcion(tipoIngresoId)
       || `Tipo ${tipoIngresoId}`;
     const estadoAprobacion = this.resolveEstadoAprobacion(item);
+    const estadoConsumo = this.resolveEstadoConsumo(item);
 
     return {
       id: movimientoId || index + 1,
@@ -3009,7 +3387,8 @@ export class AlmacenPageComponent implements OnInit {
       almacen: this.getTextValue(item, ['Ubi_Des', 'ubi_Des', 'ubiDes']) || this.resolveUbicacionDescripcion(item),
       fechaRegistro: formatDisplayDate(this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg', 'Fecha', 'fecha'])) || '-',
       registradoPor: this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom', 'RegistradoPor', 'registradoPor']) || this.resolveSolicitanteNombre(solicitanteDocumento),
-      estadoAprobacion
+      estadoAprobacion,
+      estadoConsumo
     };
   }
 
@@ -3108,6 +3487,7 @@ export class AlmacenPageComponent implements OnInit {
 
     return {
       id: index + 1,
+      almacenDetalleId: this.getNumberValue(item, ['Alm_Det_Id', 'alm_Det_Id', 'almDetId']) ?? 0,
       pedidoDetalleId,
       itemId,
       itemCodigo: this.getTextValue(item, ['Itm_Cod', 'itm_Cod', 'itmCod']) || (itemId ? String(itemId) : '-'),
@@ -3268,6 +3648,10 @@ export class AlmacenPageComponent implements OnInit {
       return null;
     }
 
+    const stock = this.getStockValue(item);
+    const reservado = this.getReservadoValue(item);
+    const disponible = Math.max(stock - reservado, 0);
+
     return {
       itemId,
       itemCodigo: this.getTextValue(item, ['Itm_Cod', 'itm_Cod', 'itmCod']) || String(itemId),
@@ -3278,7 +3662,9 @@ export class AlmacenPageComponent implements OnInit {
       grupo: this.getTextValue(item, ['Grp_Des', 'grp_Des', 'grpDes']) || '-',
       subGrupo: this.getTextValue(item, ['Sub_Grp_Des', 'sub_Grp_Des', 'subGrpDes']) || '-',
       detalleMaterial: this.getTextValue(item, ['Det_Mat_Des', 'det_Mat_Des', 'detMatDes']) || '-',
-      stock: this.getStockValue(item)
+      stock,
+      reservado,
+      disponible
     };
   }
 
@@ -3385,6 +3771,19 @@ export class AlmacenPageComponent implements OnInit {
       default:
         return '-';
     }
+  }
+
+  private resolveEstadoConsumo(item: DataRecord): string {
+    return this.getTextValue(item, [
+      'Flg_Est_Alm_Des',
+      'flg_Est_Alm_Des',
+      'flgEstAlmDes',
+      'EstadoConsumo',
+      'estadoConsumo',
+      'Flg_Est_Alm',
+      'flg_Est_Alm',
+      'flgEstAlm'
+    ]) || '-';
   }
 
   private resolveTipoIngresoDescripcion(tipoIngresoId: number): string {
@@ -3610,6 +4009,19 @@ export class AlmacenPageComponent implements OnInit {
       ?? this.findDataValue(item, 'canStk')
       ?? this.findDataValue(item, 'Stock')
       ?? this.findDataValue(item, 'stock');
+    const value = Number(rawValue);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  private getReservadoValue(item: DataRecord): number {
+    const rawValue = this.findDataValue(item, 'Can_Res')
+      ?? this.findDataValue(item, 'can_Res')
+      ?? this.findDataValue(item, 'canRes')
+      ?? this.findDataValue(item, 'Can_Reservado')
+      ?? this.findDataValue(item, 'can_Reservado')
+      ?? this.findDataValue(item, 'canReservado')
+      ?? this.findDataValue(item, 'Reservado')
+      ?? this.findDataValue(item, 'reservado');
     const value = Number(rawValue);
     return Number.isFinite(value) ? value : 0;
   }
