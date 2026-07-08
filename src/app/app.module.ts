@@ -97,6 +97,7 @@ import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/obser
 import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
 import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
 import { WeReportComponent } from './pages/inspecciones-page/we-report/we-report.component';
+import { WeReportArchivosDialogComponent } from './pages/inspecciones-page/we-report-archivos-dialog.component';
 import { SeleccionCapturaFotoDialogComponent } from './pages/inspecciones-page/seleccion-captura-foto-dialog.component';
 import { CapturaFotoDialogComponent } from './pages/inspecciones-page/captura-foto-dialog.component';
 
@@ -199,6 +200,7 @@ const APP_DATE_FORMATS = {
     InspeccionMedioAmbienteComponent,
     InspeccionPrevencionComponent,
     WeReportComponent,
+    WeReportArchivosDialogComponent,
     SeleccionCapturaFotoDialogComponent,
     CapturaFotoDialogComponent,
     GridPaginationComponent,

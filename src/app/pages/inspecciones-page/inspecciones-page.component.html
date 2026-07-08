@@ -279,19 +279,59 @@
             <thead>
               <tr>
                 <th class="col-id-hidden">#</th>
+                <th>Nro</th>
                 <th>Reportante</th>
-                <th>Tipo de Reporte</th>
-                <th>Área</th>
+                <th>Tipo</th>
+                <th>Área donde se detectó</th>
                 <th>Cliente</th>
-                <th>Subestación</th>
-                <th>Potencial</th>
-                <th>Stop Work</th>
+                <th>Descripción</th>
+                <th>Acciones Inmediatas</th>
+                <th>Archivos</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td colspan="9" class="table-empty">No se encontró ningún registro</td>
+              <tr *ngIf="cargandoWeReport">
+                <td colspan="10" class="table-empty">Cargando registros...</td>
+              </tr>
+
+              <tr *ngFor="let wr of weReportPaginados">
+                <td class="col-id-hidden">{{ wr.We_Report_Id }}</td>
+                <td>{{ wr.Codigo_We_Report || '-' }}</td>
+                <td>{{ wr.Usr_Nom || '-' }}</td>
+                <td>{{ wr.Reporte_Tipo || '-' }}</td>
+                <td>{{ wr.Cen_Cos_Des || '-' }}</td>
+                <td>{{ wr.Cliente_Nombre || '-' }}</td>
+                <td>{{ wr.Report_Descripcion || '-' }}</td>
+                <td>{{ wr.Report_Acciones_Inmediata || '-' }}</td>
+                <td>
+                  <button type="button" class="table-action" aria-label="Ver archivos" title="Archivos" (click)="abrirArchivosWeReport(wr)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path>
+                      <path d="M3 10h18"></path>
+                    </svg>
+                  </button>
+                </td>
+                <td>
+                  <button type="button" class="table-action" aria-label="Editar We Report" title="Editar">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                    </svg>
+                  </button>
+                  <button type="button" class="table-action table-action--delete" aria-label="Eliminar We Report" title="Eliminar" (click)="eliminarWeReport(wr)" [disabled]="eliminandoWeReport">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 6h18"></path>
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                      <path d="M10 11v6"></path>
+                      <path d="M14 11v6"></path>
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="!cargandoWeReport && weReportPaginados.length === 0">
+                <td colspan="10" class="table-empty">No se encontró ningún registro</td>
               </tr>
             </tbody>
           </table>
@@ -299,10 +339,11 @@
       </ng-container>
 
       <div class="table-footer">
+
         <span>Mostrando del {{ desdeMostrado }} al {{ hastaMostrado }} de {{ totalFiltrados }} registros</span>
         <div class="table-pagination">
-          <button type="button">Anterior</button>
-          <button type="button">Siguiente</button>
+          <button type="button" (click)="irPaginaAnterior()" [disabled]="paginaActualActiva <= 1">Anterior</button>
+          <button type="button" (click)="irPaginaSiguiente()" [disabled]="paginaActualActiva >= totalPaginasActivas">Siguiente</button>
         </div>
       </div>
     </div>

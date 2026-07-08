@@ -55,6 +55,10 @@ export interface EliminarObservacionPlaneadaRequest {
     Usr_Mod: string;
 }
 
+export interface EliminarWeReportRequest {
+    We_Report_Id: number;
+}
+
 export interface ConsultarEstadoObservacionesRequest {
     Estado: 'A' | 'I';
 }
@@ -1884,6 +1888,17 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'OrdenCompra/getArchivoOrdenCompra', { params, responseType: 'arraybuffer' });
     }
 
+    getArchivoWeReport(rutaArchivo: string): Observable<ArrayBuffer> {
+        const params = new HttpParams().set('rutaArchivo', rutaArchivo);
+        return this.http.get(this.baseUrl + 'Inspecciones/getArchivoWeReport', { params, responseType: 'arraybuffer' });
+    }
+
+    deleteEliminarWeReport(We_Report_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = { We_Report_Id: We_Report_Id.toString() };
+        return this.http.delete(this.baseUrl + 'Inspecciones/deleteEliminarWeReport', { headers, params });
+    }
+
     // postRegistrarPedido(pedido: RegistrarPedidoRequest): Observable<any> {
     //     const headers = this.Header;
     //     return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', pedido, { headers });
@@ -2155,6 +2170,16 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     getListarTiposReporte(): Observable<any> {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Inspecciones/getListarTiposReporte', { headers });
+    }
+
+    getFiltrarWeReport(Fecha_Desde: string, Fecha_Hasta: string, Estado: 'A' | 'I'): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams()
+            .set('Fecha_Desde', Fecha_Desde)
+            .set('Fecha_Hasta', Fecha_Hasta)
+            .set('Estado', Estado);
+
+        return this.http.get(this.baseUrl + 'Inspecciones/getFiltrarWeReport', { headers, params });
     }
 
     // NUEVO: listado simple (sin filtros) de subestaciones para el combo de We Report

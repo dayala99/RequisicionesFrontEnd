@@ -284,8 +284,8 @@ export class WeReportComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const foto1 = this.fotosEvento[0]?.file ?? null;
-    const foto2 = this.fotosAcciones[0]?.file ?? null;
+    const foto1 = this.fotosEvento.map(item => item.file);
+    const foto2 = this.fotosAcciones.map(item => item.file);
 
     const formData = new FormData();
     formData.append('Usr_Cod', usrCod);
@@ -301,11 +301,11 @@ export class WeReportComponent implements OnInit, OnDestroy {
     formData.append('Report_Aplica', aplicaStopWork === 'SI' ? 'S' : 'N');
     formData.append('Usr_Reg', usrCod);
 
-    if (foto1) {
-      formData.append('Report_Foto1', foto1, foto1.name);
+    for (const archivo of foto1) {
+      formData.append('Report_Foto1', archivo, archivo.name);
     }
-    if (foto2) {
-      formData.append('Report_Foto2', foto2, foto2.name);
+    for (const archivo of foto2) {
+      formData.append('Report_Foto2', archivo, archivo.name);
     }
     const fd = formData as any;
 
@@ -427,11 +427,9 @@ export class WeReportComponent implements OnInit, OnDestroy {
     };
 
     if (tipo === 'evento') {
-      this.liberarArchivos(this.fotosEvento);
-      this.fotosEvento = [nuevo];
+      this.fotosEvento = [...this.fotosEvento, nuevo];
     } else {
-      this.liberarArchivos(this.fotosAcciones);
-      this.fotosAcciones = [nuevo];
+      this.fotosAcciones = [...this.fotosAcciones, nuevo];
     }
   }
 
