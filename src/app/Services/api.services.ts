@@ -59,6 +59,10 @@ export interface ConsultarEstadoObservacionesRequest {
     Estado: 'A' | 'I';
 }
 
+export interface TipoReporteItem {
+    Reporte_Id?: number;
+    Reporte_Tipo?: string;
+}
 
 export interface ObservacionPlaneadaDetalleResponse {
     Usr_Cod?: string;
@@ -2146,6 +2150,21 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     getListarJefesArea(): Observable<any> {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Inspecciones/getListarJefesArea', { headers });
+    }
+
+    getListarTiposReporte(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarTiposReporte', { headers });
+    }
+
+    // NUEVO: listado simple (sin filtros) de subestaciones para el combo de We Report
+    getListarSubEstacionesReporte(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarSubEstacionesReporte', { headers });
+    }
+
+    postInsertarWeReport(formData: FormData): Observable<any> {
+        return this.http.post(this.baseUrl + 'Inspecciones/postInsertarWeReport', formData);
     }
 
     // NUEVO: obtiene Cen_Cos_Des y DNI del jefe a partir de su Usr_Cod

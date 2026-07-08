@@ -271,6 +271,33 @@
           </table>
         </div>
       </ng-container>
+
+      <!-- ── Tabla We Report ── -->
+      <ng-container *ngIf="tabActivo === 'we-report'">
+        <div class="table-wrapper">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th class="col-id-hidden">#</th>
+                <th>Reportante</th>
+                <th>Tipo de Reporte</th>
+                <th>Área</th>
+                <th>Cliente</th>
+                <th>Subestación</th>
+                <th>Potencial</th>
+                <th>Stop Work</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="9" class="table-empty">No se encontró ningún registro</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+
       <div class="table-footer">
         <span>Mostrando del {{ desdeMostrado }} al {{ hastaMostrado }} de {{ totalFiltrados }} registros</span>
         <div class="table-pagination">
@@ -297,6 +324,12 @@
     <ng-container *ngTemplateOutlet="vistaPrevencion"></ng-container>
   </ng-container>
 
+
+  <!-- ── We Report (formulario) ── -->
+  <ng-container *ngSwitchCase="'we-report-form'">
+    <ng-container *ngTemplateOutlet="vistaWeReport"></ng-container>
+  </ng-container>
+
 </ng-container>
 
 <ng-template #vistaObservaciones>
@@ -319,4 +352,8 @@
     [modoEdicion]="modoFormulario === 'editar'"
     [inspeccionId]="inspeccionIdSeleccionado"
     (volver)="volverAInspecciones()"></app-inspeccion-prevencion>
+</ng-template>
+
+<ng-template #vistaWeReport>
+  <app-we-report (volver)="volverAInspecciones()"></app-we-report>
 </ng-template>

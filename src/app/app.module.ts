@@ -96,6 +96,9 @@ import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/con
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
 import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
 import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
+import { WeReportComponent } from './pages/inspecciones-page/we-report/we-report.component';
+import { SeleccionCapturaFotoDialogComponent } from './pages/inspecciones-page/seleccion-captura-foto-dialog.component';
+import { CapturaFotoDialogComponent } from './pages/inspecciones-page/captura-foto-dialog.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -195,6 +198,9 @@ const APP_DATE_FORMATS = {
     ObservacionesPlaneadasComponent,
     InspeccionMedioAmbienteComponent,
     InspeccionPrevencionComponent,
+    WeReportComponent,
+    SeleccionCapturaFotoDialogComponent,
+    CapturaFotoDialogComponent,
     GridPaginationComponent,
   ],
   imports: [

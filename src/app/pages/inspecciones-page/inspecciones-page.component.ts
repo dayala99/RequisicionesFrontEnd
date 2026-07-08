@@ -59,7 +59,7 @@ const LABEL_NUEVO: Record<TabActivo, string> = {
   styleUrls: ['./inspecciones-page.component.scss'],
 })
 export class InspeccionesPageComponent implements OnInit {
-  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' = 'inspecciones';
+  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'we-report-form' = 'inspecciones';
 
   tabActivo: TabActivo = 'observaciones';
 
@@ -107,6 +107,13 @@ export class InspeccionesPageComponent implements OnInit {
 
   cambiarTab(tab: TabActivo): void {
     this.tabActivo = tab;
+    this.vistaActual = 'inspecciones';
+
+    if (tab === 'we-report') {
+      this.closeCombos();
+      return;
+    }
+
     this.buscarRegistros();
   }
 
@@ -115,6 +122,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.inspeccionIdSeleccionado = null;
+    this.closeCombos();
 
     switch (this.tabActivo) {
       case 'medio-ambiente':
@@ -122,6 +130,9 @@ export class InspeccionesPageComponent implements OnInit {
         break;
       case 'prevencion':
         this.vistaActual = 'prevencion';
+        break;
+      case 'we-report':
+        this.vistaActual = 'we-report-form';
         break;
       default:
         this.vistaActual = 'observaciones-planeadas';
@@ -276,6 +287,11 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
+  closeCombos(): void {
+    // En esta vista no hay combos desplegables propios todavía,
+    // pero el método se mantiene para compatibilidad con las llamadas existentes.
+  }
+
   // ── Volver ──────────────────────────────────────────────────────
   volverAInspecciones(): void {
     this.vistaActual = 'inspecciones';
@@ -283,6 +299,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.inspeccionIdSeleccionado = null;
+    this.closeCombos();
     this.buscarRegistros();
   }
 
@@ -291,7 +308,7 @@ export class InspeccionesPageComponent implements OnInit {
       this.cargarMedioAmbiente();
     } else if (this.tabActivo === 'prevencion') {
       this.cargarPrevencion();
-    } else {
+    } else if (this.tabActivo === 'observaciones') {
       this.cargarObservacionesPlaneadas();
     }
   }
