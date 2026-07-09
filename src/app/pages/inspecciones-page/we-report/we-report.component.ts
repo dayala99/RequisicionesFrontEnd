@@ -100,8 +100,6 @@ export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
   anonimoBloqueadoEnEdicion = false;
   private rutaFoto1Existente = '';
   private rutaFoto2Existente = '';
-  private eliminarFoto1Existente = false;
-  private eliminarFoto2Existente = false;
 
   constructor(
     private readonly fb: FormBuilder,
@@ -324,8 +322,6 @@ export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
 
-        this.eliminarFoto1Existente = false;
-        this.eliminarFoto2Existente = false;
         this.rutaFoto1Existente = this.texto(item['Report_Foto1_Ubicacion'] ?? item['report_Foto1_Ubicacion']);
         this.rutaFoto2Existente = this.texto(item['Report_Foto2_Ubicacion'] ?? item['report_Foto2_Ubicacion']);
 
@@ -376,6 +372,8 @@ export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
 
         this.fotosEvento = this.crearArchivosExistentesDesdeRutas(this.rutaFoto1Existente, 'Foto 1');
         this.fotosAcciones = this.crearArchivosExistentesDesdeRutas(this.rutaFoto2Existente, 'Foto 2');
+        this.actualizarRutasExistentesDesdeLista('evento', this.fotosEvento);
+        this.actualizarRutasExistentesDesdeLista('acciones', this.fotosAcciones);
 
         if (clienteId) {
           this.cargarSubestacionesPorCliente(clienteId);
@@ -515,8 +513,8 @@ private extraerUnico<T>(response: unknown): T | null {
       return;
     }
 
-    const foto1 = this.fotosEvento.find(item => !!item.file)?.file ?? null;
-    const foto2 = this.fotosAcciones.find(item => !!item.file)?.file ?? null;
+    const foto1 = this.fotosEvento[0]?.file ?? null;
+    const foto2 = this.fotosAcciones[0]?.file ?? null;
     const formData = new FormData();
     formData.append('Usr_Cod', usrCod);
     formData.append('Report_Anonimo', this.esAnonimo ? 'S' : 'N');
@@ -535,28 +533,8 @@ private extraerUnico<T>(response: unknown): T | null {
 
     if (this.modoEdicion && this.weReportId) {
       formData.append('We_Report_Id', String(this.weReportId));
-
-      if (foto1) {
-        formData.append('Report_Foto1', foto1, foto1.name);
-        formData.append('Eliminar_Report_Foto1', 'N');
-      } else if (this.eliminarFoto1Existente) {
-        formData.append('Report_Foto1_Ubicacion', '');
-        formData.append('Eliminar_Report_Foto1', 'S');
-      } else if (this.rutaFoto1Existente) {
-        formData.append('Report_Foto1_Ubicacion', this.rutaFoto1Existente);
-        formData.append('Eliminar_Report_Foto1', 'N');
-      }
-
-      if (foto2) {
-        formData.append('Report_Foto2', foto2, foto2.name);
-        formData.append('Eliminar_Report_Foto2', 'N');
-      } else if (this.eliminarFoto2Existente) {
-        formData.append('Report_Foto2_Ubicacion', '');
-        formData.append('Eliminar_Report_Foto2', 'S');
-      } else if (this.rutaFoto2Existente) {
-        formData.append('Report_Foto2_Ubicacion', this.rutaFoto2Existente);
-        formData.append('Eliminar_Report_Foto2', 'N');
-      }
+      if (foto1) { formData.append('Report_Foto1', foto1, foto1.name); } else if (this.rutaFoto1Existente) { formData.append('Report_Foto1_Ubicacion', this.rutaFoto1Existente); }
+      if (foto2) { formData.append('Report_Foto2', foto2, foto2.name); } else if (this.rutaFoto2Existente) { formData.append('Report_Foto2_Ubicacion', this.rutaFoto2Existente); }
     } else {
       if (foto1) { formData.append('Report_Foto1', foto1, foto1.name); }
       if (foto2) { formData.append('Report_Foto2', foto2, foto2.name); }
@@ -578,8 +556,6 @@ private extraerUnico<T>(response: unknown): T | null {
         this.subestaciones = [];
         this.rutaFoto1Existente = '';
         this.rutaFoto2Existente = '';
-        this.eliminarFoto1Existente = false;
-        this.eliminarFoto2Existente = false;
         this.volver.emit();
       },
       error: (err: unknown) => {
@@ -662,17 +638,17 @@ private extraerUnico<T>(response: unknown): T | null {
 
   eliminarArchivo(tipo: 'evento' | 'acciones', id: string): void {
     if (tipo === 'evento') {
-      const archivo = this.fotosEvento.find(item => item.id === id);
-      if (archivo?.existente) {
-        this.eliminarFoto1Existente = true;
-      }
+      const encontrado = this.fotosEvento.find(item => item.id === id);
       this.fotosEvento = this.removerArchivo(this.fotosEvento, id);
-    } else {
-      const archivo = this.fotosAcciones.find(item => item.id === id);
-      if (archivo?.existente) {
-        this.eliminarFoto2Existente = true;
+      if (encontrado?.existente) {
+        this.actualizarRutasExistentesDesdeLista('evento', this.fotosEvento);
       }
+    } else {
+      const encontrado = this.fotosAcciones.find(item => item.id === id);
       this.fotosAcciones = this.removerArchivo(this.fotosAcciones, id);
+      if (encontrado?.existente) {
+        this.actualizarRutasExistentesDesdeLista('acciones', this.fotosAcciones);
+      }
     }
   }
 
@@ -712,14 +688,14 @@ private extraerUnico<T>(response: unknown): T | null {
       existente: false
     };
 
+    this.limpiarRutasExistentes(tipo);
+
     if (tipo === 'evento') {
       this.liberarArchivos(this.fotosEvento);
       this.fotosEvento = [nuevo];
-      this.eliminarFoto1Existente = false;
     } else {
       this.liberarArchivos(this.fotosAcciones);
       this.fotosAcciones = [nuevo];
-      this.eliminarFoto2Existente = false;
     }
   }
 
@@ -727,6 +703,30 @@ private extraerUnico<T>(response: unknown): T | null {
     const encontrado = lista.find(item => item.id === id);
     if (encontrado && !encontrado.existente && encontrado.url) { URL.revokeObjectURL(encontrado.url); }
     return lista.filter(item => item.id !== id);
+  }
+
+  private limpiarRutasExistentes(tipo: 'evento' | 'acciones'): void {
+    if (tipo === 'evento') {
+      this.rutaFoto1Existente = '';
+    } else {
+      this.rutaFoto2Existente = '';
+    }
+  }
+
+  private actualizarRutasExistentesDesdeLista(tipo: 'evento' | 'acciones', lista: ArchivoImagenItem[]): void {
+    const rutas = lista
+      .filter(item => item.existente && !!item.ruta)
+      .map(item => item.ruta!.trim())
+      .filter(ruta => ruta.length > 0);
+
+    const rutasUnicas = Array.from(new Set(rutas));
+    const valor = rutasUnicas.join('\n');
+
+    if (tipo === 'evento') {
+      this.rutaFoto1Existente = valor;
+    } else {
+      this.rutaFoto2Existente = valor;
+    }
   }
 
   private liberarArchivos(lista: ArchivoImagenItem[]): void {

@@ -364,7 +364,7 @@ export class InspeccionesPageComponent implements OnInit {
 
   abrirArchivosWeReport(registro: WeReportListado): void {
     this.dialog.open(WeReportArchivosDialogComponent, {
-      width: '980px',
+      width: '920px',
       maxWidth: '96vw',
       autoFocus: false,
       disableClose: false,
