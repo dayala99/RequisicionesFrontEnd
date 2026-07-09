@@ -102,22 +102,16 @@ export class InspeccionesPageComponent implements OnInit {
   // ── We Report ───────────────────────────────────────────────────
   registrosWeReport: WeReportListado[] = [];
   cargandoWeReport = false;
-  eliminandoWeReport = false;
 
   registrosPorPagina = 10;
-  paginaActualPorTab: Record<TabActivo, number> = {
-    prevencion: 1,
-    'medio-ambiente': 1,
-    observaciones: 1,
-    'stop-work': 1,
-    'we-report': 1,
-  };
   opcionesRegistros = [10, 25, 50, 100, 0];
+  paginaActual = 1;
 
   modoFormulario: 'nuevo' | 'editar' = 'nuevo';
   observacionIdSeleccionado: number | null = null;
   codigoObsSeleccionado: string | null = null;
   inspeccionIdSeleccionado: number | null = null;
+  weReportIdSeleccionado: number | null = null;
 
   constructor(
     private readonly apiService: ApiService,
@@ -136,8 +130,8 @@ export class InspeccionesPageComponent implements OnInit {
   cambiarTab(tab: TabActivo): void {
     this.tabActivo = tab;
     this.vistaActual = 'inspecciones';
+    this.paginaActual = 1;
     this.closeCombos();
-    this.reiniciarPaginacion(tab);
     this.buscarRegistros();
   }
 
@@ -146,6 +140,8 @@ export class InspeccionesPageComponent implements OnInit {
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.inspeccionIdSeleccionado = null;
+    this.weReportIdSeleccionado = null;
+    this.paginaActual = 1;
     this.closeCombos();
 
     switch (this.tabActivo) {
@@ -311,26 +307,29 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
-  abrirArchivosWeReport(registro: WeReportListado): void {
-    this.dialog.open(WeReportArchivosDialogComponent, {
-      width: '980px',
-      maxWidth: '96vw',
-      autoFocus: false,
-      disableClose: false,
-      panelClass: 'we-report-archivos-dialog-panel',
-      data: registro
-    });
+
+  editarWeReport(registro: WeReportListado): void {
+    this.modoFormulario = 'editar';
+    this.weReportIdSeleccionado = registro.We_Report_Id;
+    this.inspeccionIdSeleccionado = null;
+    this.observacionIdSeleccionado = null;
+    this.codigoObsSeleccionado = null;
+    this.vistaActual = 'we-report-form';
   }
 
   eliminarWeReport(registro: WeReportListado): void {
-    const codigo = (registro.Codigo_We_Report ?? '').trim() || `#${registro.We_Report_Id}`;
+    const codigo = (registro.Codigo_We_Report ?? '').trim();
+    if (!codigo) {
+      alert('No se encontró el código del We Report para eliminar.');
+      return;
+    }
 
     const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
       width: '460px',
       disableClose: true,
       data: {
         titulo: 'Eliminar We Report',
-        mensaje: `Se eliminará el registro ${codigo}. Esta acción lo dejará inactivo.`,
+        mensaje: `Se eliminará el We Report ${codigo}. Esta acción cambiará su estado a inactivo.`,
         textoConfirmar: 'Confirmar eliminación',
         textoCancelar: 'Volver',
         tipo: 'peligro'
@@ -342,26 +341,35 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
-  private ejecutarEliminacionWeReport(weReportId: number): void {
-    if (!weReportId) {
-      alert('No se encontró el identificador del We Report para eliminar.');
+  private ejecutarEliminacionWeReport(id: number): void {
+    const usuario = (this.authService.getCurrentUser?.() ?? '').trim();
+    if (!usuario) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
       return;
     }
 
-    this.eliminandoWeReport = true;
-    this.apiService.deleteEliminarWeReport(weReportId).subscribe({
+    this.apiService.postEliminarWeReport({ We_Report_Id: id, Usr_Mod: usuario }).subscribe({
       next: (response: unknown) => {
-        this.eliminandoWeReport = false;
         if (this.esRespuestaExitosa(response)) {
-          this.cargarWeReport();
+          this.buscarRegistros();
         } else {
           alert(this.getRespuestaMensaje(response) || 'No se pudo eliminar el We Report.');
         }
       },
       error: (error: unknown) => {
-        this.eliminandoWeReport = false;
         alert(this.getErrorMessage(error, 'No se pudo eliminar el We Report.'));
       }
+    });
+  }
+
+  abrirArchivosWeReport(registro: WeReportListado): void {
+    this.dialog.open(WeReportArchivosDialogComponent, {
+      width: '980px',
+      maxWidth: '96vw',
+      autoFocus: false,
+      disableClose: false,
+      panelClass: 'we-report-archivos-dialog-panel',
+      data: registro
     });
   }
 
@@ -377,8 +385,9 @@ export class InspeccionesPageComponent implements OnInit {
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.inspeccionIdSeleccionado = null;
+    this.weReportIdSeleccionado = null;
+    this.paginaActual = 1;
     this.closeCombos();
-    this.reiniciarPaginacion(this.tabActivo);
     this.buscarRegistros();
   }
 
@@ -400,93 +409,13 @@ export class InspeccionesPageComponent implements OnInit {
   // ── Filtros ─────────────────────────────────────────────────────
   cambiarFiltroDesde(valor: Date | null): void { this.filtroDesde = valor; }
   cambiarFiltroHasta(valor: Date | null): void { this.filtroHasta = valor; }
-  cambiarBusqueda(valor: string): void {
-    this.busquedaGeneral = valor ?? '';
-    this.reiniciarPaginacion(this.tabActivo);
-  }
-  cambiarEstado(valor: string): void {
-    this.estadoFiltro = valor === 'A' ? 'A' : 'I';
-    this.reiniciarPaginacion(this.tabActivo);
-  }
+  cambiarBusqueda(valor: string): void { this.busquedaGeneral = valor ?? ''; this.paginaActual = 1; }
+  cambiarEstado(valor: string): void { this.estadoFiltro = valor === 'A' ? 'A' : 'I'; this.paginaActual = 1; }
 
   cambiarRegistrosPorPagina(valor: string): void {
     const numero = this.toNumber(valor);
     this.registrosPorPagina = numero >= 0 ? numero : 10;
-    this.reiniciarPaginacion(this.tabActivo);
-  }
-
-  irPaginaAnterior(): void {
-    const actual = this.obtenerPaginaActualActiva();
-    if (actual > 1) {
-      this.establecerPaginaActiva(actual - 1);
-    }
-  }
-
-  irPaginaSiguiente(): void {
-    const actual = this.obtenerPaginaActualActiva();
-    const total = this.obtenerTotalPaginasActivas();
-    if (actual < total) {
-      this.establecerPaginaActiva(actual + 1);
-    }
-  }
-
-  private reiniciarPaginacion(tab: TabActivo): void {
-    this.paginaActualPorTab[tab] = 1;
-  }
-
-  private asegurarPaginaValida(tab: TabActivo): void {
-    this.establecerPaginaActiva(this.obtenerPaginaActual(tab), tab);
-  }
-
-  private establecerPaginaActiva(pagina: number, tab: TabActivo = this.tabActivo): void {
-    this.paginaActualPorTab[tab] = Math.max(1, Math.min(pagina || 1, this.obtenerTotalPaginas(tab)));
-  }
-
-  private obtenerPaginaActualActiva(): number {
-    return this.obtenerPaginaActual(this.tabActivo);
-  }
-
-  private obtenerPaginaActual(tab: TabActivo): number {
-    return this.paginaActualPorTab[tab] ?? 1;
-  }
-
-  private obtenerTotalPaginasActivas(): number {
-    return this.obtenerTotalPaginas(this.tabActivo);
-  }
-
-  private obtenerTotalPaginas(tab: TabActivo): number {
-    if (this.registrosPorPagina <= 0) { return 1; }
-    const total = this.obtenerListaFiltrada(tab).length;
-    return Math.max(1, Math.ceil(total / this.registrosPorPagina));
-  }
-
-  private obtenerListaFiltrada(tab: TabActivo): Array<unknown> {
-    switch (tab) {
-      case 'medio-ambiente': return this.medioAmbienteFiltrado;
-      case 'prevencion': return this.prevencionFiltrado;
-      case 'we-report': return this.weReportFiltrados;
-      default: return this.observacionesFiltradas;
-    }
-  }
-
-  private obtenerListaFiltradaActiva(): Array<unknown> {
-    return this.obtenerListaFiltrada(this.tabActivo);
-  }
-
-  private obtenerListaPaginadaActiva(): Array<unknown> {
-    switch (this.tabActivo) {
-      case 'medio-ambiente': return this.medioAmbientePaginado;
-      case 'prevencion': return this.prevencionPaginado;
-      case 'we-report': return this.weReportPaginados;
-      default: return this.observacionesPaginadas;
-    }
-  }
-
-  private paginarLista<T>(items: T[], tab: TabActivo): T[] {
-    if (this.registrosPorPagina <= 0) { return items; }
-    const pagina = this.obtenerPaginaActual(tab);
-    const inicio = (pagina - 1) * this.registrosPorPagina;
-    return items.slice(inicio, inicio + this.registrosPorPagina);
+    this.paginaActual = 1;
   }
 
   // ── Getters paginación Observaciones ───────────────────────────
@@ -502,7 +431,8 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   get observacionesPaginadas(): ObservacionPlaneadaListado[] {
-    return this.paginarLista(this.observacionesFiltradas, 'observaciones');
+    if (this.registrosPorPagina <= 0) { return this.observacionesFiltradas; }
+    return this.observacionesFiltradas.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
   }
 
   // ── Getters paginación Medio Ambiente ──────────────────────────
@@ -518,7 +448,8 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   get medioAmbientePaginado(): MedioAmbienteListado[] {
-    return this.paginarLista(this.medioAmbienteFiltrado, 'medio-ambiente');
+    if (this.registrosPorPagina <= 0) { return this.medioAmbienteFiltrado; }
+    return this.medioAmbienteFiltrado.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
   }
 
   // ── Getters paginación Prevención ─────────────────────────────
@@ -534,7 +465,8 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   get prevencionPaginado(): PrevencionListado[] {
-    return this.paginarLista(this.prevencionFiltrado, 'prevencion');
+    if (this.registrosPorPagina <= 0) { return this.prevencionFiltrado; }
+    return this.prevencionFiltrado.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
   }
 
   // ── Getters paginación We Report ───────────────────────────────
@@ -550,37 +482,60 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   get weReportPaginados(): WeReportListado[] {
-    return this.paginarLista(this.weReportFiltrados, 'we-report');
+    if (this.registrosPorPagina <= 0) { return this.weReportFiltrados; }
+    return this.weReportFiltrados.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
   }
 
   get totalFiltrados(): number {
-    return this.obtenerListaFiltradaActiva().length;
+    if (this.tabActivo === 'medio-ambiente') {
+      return this.medioAmbienteFiltrado.length;
+    }
+
+    if (this.tabActivo === 'prevencion') {
+      return this.prevencionFiltrado.length;
+    }
+
+    if (this.tabActivo === 'we-report') {
+      return this.weReportFiltrados.length;
+    }
+
+    return this.observacionesFiltradas.length;
   }
 
   get totalMostrado(): number {
-    return this.obtenerListaPaginadaActiva().length;
+    if (this.tabActivo === 'medio-ambiente') {
+      return this.medioAmbientePaginado.length;
+    }
+
+    if (this.tabActivo === 'prevencion') {
+      return this.prevencionPaginado.length;
+    }
+
+    if (this.tabActivo === 'we-report') {
+      return this.weReportPaginados.length;
+    }
+
+    return this.observacionesPaginadas.length;
   }
 
-  get desdeMostrado(): number {
-    const total = this.totalFiltrados;
-    if (total === 0) { return 0; }
-    if (this.registrosPorPagina <= 0) { return 1; }
-    return ((this.obtenerPaginaActualActiva() - 1) * this.registrosPorPagina) + 1;
+  get desdeMostrado(): number { return this.totalFiltrados > 0 ? this.inicioPagina + 1 : 0; }
+  get hastaMostrado(): number { return this.totalFiltrados > 0 ? Math.min(this.inicioPagina + this.totalMostrado, this.totalFiltrados) : 0; }
+  get totalPaginas(): number { return this.registrosPorPagina <= 0 ? 1 : Math.max(1, Math.ceil(this.totalFiltrados / this.registrosPorPagina)); }
+  get puedeIrAnterior(): boolean { return this.registrosPorPagina > 0 && this.paginaActual > 1; }
+  get puedeIrSiguiente(): boolean { return this.registrosPorPagina > 0 && this.paginaActual < this.totalPaginas; }
+  get inicioPagina(): number { return this.registrosPorPagina <= 0 ? 0 : (this.paginaActual - 1) * this.registrosPorPagina; }
+
+  paginaAnterior(): void {
+    if (this.puedeIrAnterior) { this.paginaActual--; }
   }
 
-  get hastaMostrado(): number {
-    const total = this.totalFiltrados;
-    if (total === 0) { return 0; }
-    if (this.registrosPorPagina <= 0) { return total; }
-    return Math.min(this.obtenerPaginaActualActiva() * this.registrosPorPagina, total);
+  paginaSiguiente(): void {
+    if (this.puedeIrSiguiente) { this.paginaActual++; }
   }
 
-  get paginaActualActiva(): number {
-    return this.obtenerPaginaActualActiva();
-  }
-
-  get totalPaginasActivas(): number {
-    return this.obtenerTotalPaginasActivas();
+  private ajustarPaginaActual(): void {
+    this.paginaActual = Math.min(this.paginaActual, this.totalPaginas);
+    if (this.paginaActual < 1) { this.paginaActual = 1; }
   }
 
   // ── Carga de datos ──────────────────────────────────────────────
@@ -609,13 +564,12 @@ export class InspeccionesPageComponent implements OnInit {
           Motivo_Nombre:     this.texto(item?.['Motivo_Nombre']     ?? item?.['motivo_Nombre']),
           Obs_Detalle:       this.texto(item?.['Obs_Detalle']       ?? item?.['obs_Detalle']),
         }));
+        this.ajustarPaginaActual();
         this.cargandoObservacionesPlaneadas = false;
-        this.asegurarPaginaValida('observaciones');
       },
       error: () => {
         this.observacionesPlaneadas = [];
         this.cargandoObservacionesPlaneadas = false;
-        this.asegurarPaginaValida('observaciones');
       }
     });
   }
@@ -646,13 +600,12 @@ export class InspeccionesPageComponent implements OnInit {
           Orden_Trabajo:  this.texto(item?.['Orden_Trabajo']  ?? item?.['orden_Trabajo']),
           Tipo_Nombre:    this.texto(item?.['Tipo_Nombre']    ?? item?.['tipo_Nombre']),
         }));
+        this.ajustarPaginaActual();
         this.cargandoPrevencion = false;
-        this.asegurarPaginaValida('prevencion');
       },
       error: () => {
         this.registrosPrevencion = [];
         this.cargandoPrevencion = false;
-        this.asegurarPaginaValida('prevencion');
       }
     });
   }
@@ -683,13 +636,12 @@ export class InspeccionesPageComponent implements OnInit {
           Orden_Trabajo:      this.texto(item?.['Orden_Trabajo']      ?? item?.['orden_Trabajo']),
           Tipo_Nombre:        this.texto(item?.['Tipo_Nombre']        ?? item?.['tipo_Nombre']),
         }));
+        this.ajustarPaginaActual();
         this.cargandoMedioAmbiente = false;
-        this.asegurarPaginaValida('medio-ambiente');
       },
       error: () => {
         this.registrosMedioAmbiente = [];
         this.cargandoMedioAmbiente = false;
-        this.asegurarPaginaValida('medio-ambiente');
       }
     });
   }
@@ -722,13 +674,12 @@ export class InspeccionesPageComponent implements OnInit {
           Report_Potencial: this.texto(item?.['Report_Potencial'] ?? item?.['report_Potencial']),
           Report_Aplica: this.texto(item?.['Report_Aplica'] ?? item?.['report_Aplica']),
         }));
+        this.ajustarPaginaActual();
         this.cargandoWeReport = false;
-        this.asegurarPaginaValida('we-report');
       },
       error: () => {
         this.registrosWeReport = [];
         this.cargandoWeReport = false;
-        this.asegurarPaginaValida('we-report');
       }
     });
   }

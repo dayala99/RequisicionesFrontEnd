@@ -5,27 +5,18 @@ import { Subscription } from 'rxjs';
 import { ApiService } from 'src/app/Services/api.services';
 
 export interface WeReportListadoDialogData {
-  We_Report_Id?: number;
-  Codigo_We_Report?: string;
-  Usr_Nom?: string;
-  Reporte_Tipo?: string;
-  Cen_Cos_Des?: string;
-  Cliente_Nombre?: string;
-  Report_Descripcion?: string;
-  Report_Acciones_Inmediata?: string;
-  Report_Foto1_Ubicacion?: string;
-  Report_Foto2_Ubicacion?: string;
-  Report_Potencial?: string;
-  Report_Aplica?: string;
-  // Compatibilidad con versiones anteriores / payloads de pantalla
-  codigo?: string;
-  tipoReporte?: string;
-  area?: string;
-  cliente?: string;
-  descripcionEvento?: string;
-  accionesInmediatas?: string;
-  foto1Ruta?: string;
-  foto2Ruta?: string;
+  We_Report_Id: number;
+  Codigo_We_Report: string;
+  Usr_Nom: string;
+  Reporte_Tipo: string;
+  Cen_Cos_Des: string;
+  Cliente_Nombre: string;
+  Report_Descripcion: string;
+  Report_Acciones_Inmediata: string;
+  Report_Foto1_Ubicacion?: string | null;
+  Report_Foto2_Ubicacion?: string | null;
+  Report_Potencial: string;
+  Report_Aplica: string;
 }
 
 interface ArchivoVistaItem {
@@ -41,6 +32,7 @@ interface ArchivoVistaItem {
 export class WeReportArchivosDialogComponent implements OnInit, OnDestroy {
   archivosFoto1: ArchivoVistaItem[] = [];
   archivosFoto2: ArchivoVistaItem[] = [];
+
   private readonly suscripciones: Subscription[] = [];
 
   constructor(
@@ -50,8 +42,8 @@ export class WeReportArchivosDialogComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.archivosFoto1 = this.crearArchivos('Foto 1', this.obtenerTexto(this.data.foto1Ruta, this.data.Report_Foto1_Ubicacion));
-    this.archivosFoto2 = this.crearArchivos('Foto 2', this.obtenerTexto(this.data.foto2Ruta, this.data.Report_Foto2_Ubicacion));
+    this.archivosFoto1 = this.crearArchivos('Foto 1', this.data.Report_Foto1_Ubicacion);
+    this.archivosFoto2 = this.crearArchivos('Foto 2', this.data.Report_Foto2_Ubicacion);
   }
 
   ngOnDestroy(): void {
@@ -63,9 +55,14 @@ export class WeReportArchivosDialogComponent implements OnInit, OnDestroy {
   }
 
   verArchivo(ruta: string): void {
+    if (!ruta) {
+      alert('No hay ruta de archivo.');
+      return;
+    }
+
     const sub = this.apiService.getArchivoWeReport(ruta).subscribe({
       next: (buffer: ArrayBuffer) => {
-        const blob = new Blob([buffer], { type: 'image/jpeg' });
+        const blob = new Blob([buffer], { type: this.obtenerMimeType(ruta) });
         const url = URL.createObjectURL(blob);
         const ventana = window.open(url, '_blank', 'noopener,noreferrer');
         if (ventana) {
@@ -85,16 +82,6 @@ export class WeReportArchivosDialogComponent implements OnInit, OnDestroy {
     return item.ruta;
   }
 
-  private obtenerTexto(...valores: Array<string | null | undefined>): string {
-    for (const valor of valores) {
-      const texto = (valor ?? '').toString().trim();
-      if (texto.length > 0) {
-        return texto;
-      }
-    }
-    return '';
-  }
-
   private crearArchivos(prefijo: string, rutas?: string | null): ArchivoVistaItem[] {
     if (!rutas) {
       return [];
@@ -105,8 +92,19 @@ export class WeReportArchivosDialogComponent implements OnInit, OnDestroy {
       .map((r: string) => r.trim())
       .filter((r: string) => r.length > 0)
       .map((ruta: string, index: number) => {
-        const nombre = ruta.split(/[\\\/]/).pop() || `${prefijo} ${index + 1}`;
+        const nombre = ruta.split(/[\\\/]/).pop()?.trim() || `${prefijo} ${index + 1}`;
         return { nombre, ruta };
       });
+  }
+
+  private obtenerMimeType(nombreArchivo: string): string {
+    const nombre = (nombreArchivo || '').toLowerCase();
+    if (nombre.endsWith('.png')) return 'image/png';
+    if (nombre.endsWith('.jpg') || nombre.endsWith('.jpeg')) return 'image/jpeg';
+    if (nombre.endsWith('.webp')) return 'image/webp';
+    if (nombre.endsWith('.gif')) return 'image/gif';
+    if (nombre.endsWith('.bmp')) return 'image/bmp';
+    if (nombre.endsWith('.pdf')) return 'application/pdf';
+    return 'application/octet-stream';
   }
 }

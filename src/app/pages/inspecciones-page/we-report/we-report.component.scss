@@ -206,3 +206,51 @@
     word-break: break-word;
   }
 }
+
+.anonymous-row--locked {
+  display: inline-flex;
+  align-items: center;
+}
+
+.anonymous-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  border: 1px dashed var(--accent);
+  border-radius: 999px;
+  background: rgba(255, 158, 49, 0.08);
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+
+.uploaded-list {
+  max-height: 18rem;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.uploaded-item {
+  min-width: 0;
+}
+
+@media (min-width: 701px) {
+  .uploaded-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+  .uploaded-item {
+    align-items: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .uploaded-list {
+    max-height: 16rem;
+  }
+  .uploaded-item {
+    width: 100%;
+  }
+}

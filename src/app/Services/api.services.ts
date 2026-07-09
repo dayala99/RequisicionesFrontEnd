@@ -55,8 +55,27 @@ export interface EliminarObservacionPlaneadaRequest {
     Usr_Mod: string;
 }
 
+export interface WeReportActualizarRequest {
+    We_Report_Id: number;
+    Usr_Cod: string;
+    Report_Anonimo: string;
+    Reporte_Id: number;
+    Cen_Cos_Id: number;
+    Cliente_Id: number;
+    Subestacion_Id: number;
+    Report_Descripcion: string;
+    Report_Foto1_Ubicacion?: string;
+    Report_Acciones_Inmediata: string;
+    Report_Foto2_Ubicacion?: string;
+    Report_Acciones_Propuestas: string;
+    Report_Potencial: string;
+    Report_Aplica: string;
+    Usr_Mod: string;
+}
+
 export interface EliminarWeReportRequest {
     We_Report_Id: number;
+    Usr_Mod: string;
 }
 
 export interface ConsultarEstadoObservacionesRequest {
@@ -1893,12 +1912,6 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'Inspecciones/getArchivoWeReport', { params, responseType: 'arraybuffer' });
     }
 
-    deleteEliminarWeReport(We_Report_Id: number): Observable<any> {
-        const headers = this.Header;
-        const params = { We_Report_Id: We_Report_Id.toString() };
-        return this.http.delete(this.baseUrl + 'Inspecciones/deleteEliminarWeReport', { headers, params });
-    }
-
     // postRegistrarPedido(pedido: RegistrarPedidoRequest): Observable<any> {
     //     const headers = this.Header;
     //     return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', pedido, { headers });
@@ -2190,6 +2203,21 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
 
     postInsertarWeReport(formData: FormData): Observable<any> {
         return this.http.post(this.baseUrl + 'Inspecciones/postInsertarWeReport', formData);
+    }
+
+    getMostrarActualizarWeReport(We_Report_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('We_Report_Id', String(We_Report_Id));
+        return this.http.get(this.baseUrl + 'Inspecciones/getMostrarActualizarWeReport', { headers, params });
+    }
+
+    postActualizarWeReport(formData: FormData): Observable<any> {
+        return this.http.post(this.baseUrl + 'Inspecciones/postActualizarWeReport', formData);
+    }
+
+    postEliminarWeReport(payload: EliminarWeReportRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Inspecciones/postEliminarWeReport', payload, { headers });
     }
 
     // NUEVO: obtiene Cen_Cos_Des y DNI del jefe a partir de su Usr_Cod

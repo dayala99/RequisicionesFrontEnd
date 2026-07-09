@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 
@@ -32,19 +32,26 @@ interface SubestacionItem {
 
 interface ArchivoImagenItem {
   id: string;
-  file: File;
+  file?: File;
   url: string;
+  nombre: string;
+  ruta?: string;
+  existente?: boolean;
 }
 
-type ComboKey = 'tipoReporte' | 'areaDetectada' | 'cliente' | 'subestacion' | 'potencial' | 'aplicaStopWork';
+type EstadoWeReport = 'A' | 'I';
+
+type ComboKey = 'tipoReporte' | 'areaDetectada' | 'cliente' | 'subestacion' | 'potencial' | 'aplicaStopWork' | 'estado';
 
 @Component({
   selector: 'app-we-report',
   templateUrl: './we-report.component.html',
   styleUrls: ['./we-report.component.scss']
 })
-export class WeReportComponent implements OnInit, OnDestroy {
+export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
   @Output() volver = new EventEmitter<void>();
+  @Input() modoEdicion = false;
+  @Input() weReportId: number | null = null;
 
   @ViewChild('fotoEventoCameraInput') private fotoEventoCameraInput?: ElementRef<HTMLInputElement>;
   @ViewChild('fotoEventoGalleryInput') private fotoEventoGalleryInput?: ElementRef<HTMLInputElement>;
@@ -70,6 +77,7 @@ export class WeReportComponent implements OnInit, OnDestroy {
     subestacion: false,
     potencial: false,
     aplicaStopWork: false,
+    estado: false,
   };
 
   comboSearch: Record<ComboKey, string> = {
@@ -79,6 +87,7 @@ export class WeReportComponent implements OnInit, OnDestroy {
     subestacion: '',
     potencial: '',
     aplicaStopWork: '',
+    estado: '',
   };
 
   cargandoReportante = false;
@@ -87,8 +96,12 @@ export class WeReportComponent implements OnInit, OnDestroy {
   cargandoClientes = false;
   cargandoSubestaciones = false;
   guardando = false;
-
-
+  cargandoEdicion = false;
+  anonimoBloqueadoEnEdicion = false;
+  private rutaFoto1Existente = '';
+  private rutaFoto2Existente = '';
+  private eliminarFoto1Existente = false;
+  private eliminarFoto2Existente = false;
 
   constructor(
     private readonly fb: FormBuilder,
@@ -108,14 +121,26 @@ export class WeReportComponent implements OnInit, OnDestroy {
       accionesPropuestas: ['', Validators.required],
       potencial: ['', Validators.required],
       aplicaStopWork: ['NO', Validators.required],
+      estado: ['A', Validators.required],
     });
   }
 
   ngOnInit(): void {
-    this.cargarReportante();
+    if (!this.modoEdicion) {
+      this.cargarReportante();
+    }
     this.cargarTiposReporte();
     this.cargarAreas();
     this.cargarClientes();
+    if (this.modoEdicion && this.weReportId) {
+      setTimeout(() => this.cargarDatosEdicion(this.weReportId as number), 0);
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if ((changes['modoEdicion'] || changes['weReportId']) && this.modoEdicion && this.weReportId) {
+      setTimeout(() => this.cargarDatosEdicion(this.weReportId as number), 0);
+    }
   }
 
   ngOnDestroy(): void {
@@ -135,10 +160,21 @@ export class WeReportComponent implements OnInit, OnDestroy {
     return !!this.form.get('anonimo')?.value;
   }
 
-  get reportanteNombre(): string { return this.reportante.nombre || '-'; }
-  get reportanteCargo(): string { return this.reportante.cargo || '-'; }
-  get reportanteArea(): string { return this.reportante.area || '-'; }
-  get reportanteEmail(): string { return this.reportante.email || '-'; }
+  get reportanteNombreDisplay(): string {
+    return this.modoEdicion && this.esAnonimo ? 'ANONIMO' : (this.reportante.nombre || '-');
+  }
+
+  get reportanteCargoDisplay(): string {
+    return this.modoEdicion && this.esAnonimo ? 'ANONIMO' : (this.reportante.cargo || '-');
+  }
+
+  get reportanteAreaDisplay(): string {
+    return this.modoEdicion && this.esAnonimo ? 'ANONIMO' : (this.reportante.area || '-');
+  }
+
+  get reportanteEmailDisplay(): string {
+    return this.modoEdicion && this.esAnonimo ? 'ANONIMO' : (this.reportante.email || '-');
+  }
 
   get tipoReporteDisplay(): string {
     const id = this.toNumber(this.form.get('tipoReporte')?.value);
@@ -174,6 +210,18 @@ export class WeReportComponent implements OnInit, OnDestroy {
 
   get stopWorkOptions(): Array<'NO' | 'SI'> {
     return ['NO', 'SI'];
+  }
+
+  get estadoDisplay(): string {
+    const estado = this.normalizarEstadoReporte(this.texto(this.form.get('estado')?.value));
+    return estado === 'I' ? 'Inactivo' : 'Activo';
+  }
+
+  get estadoOptions(): Array<{ value: EstadoWeReport; label: string }> {
+    return [
+      { value: 'A', label: 'Activo' },
+      { value: 'I', label: 'Inactivo' },
+    ];
   }
 
   get tiposReporteFiltrados(): TipoReporteItem[] {
@@ -221,7 +269,7 @@ export class WeReportComponent implements OnInit, OnDestroy {
   }
 
   closeCombos(): void {
-    this.comboOpen = { tipoReporte: false, areaDetectada: false, cliente: false, subestacion: false, potencial: false, aplicaStopWork: false };
+    this.comboOpen = { tipoReporte: false, areaDetectada: false, cliente: false, subestacion: false, potencial: false, aplicaStopWork: false, estado: false };
   }
 
   onSearchChange(combo: ComboKey, event: Event): void {
@@ -265,6 +313,189 @@ export class WeReportComponent implements OnInit, OnDestroy {
     this.closeCombos();
   }
 
+  private cargarDatosEdicion(weReportId: number): void {
+    this.cargandoEdicion = true;
+    this.apiService.getMostrarActualizarWeReport(weReportId).subscribe({
+      next: (response: unknown) => {
+        const item = this.extraerUnico<Record<string, unknown>>(response);
+        if (!item) {
+          this.cargandoEdicion = false;
+          alert('No se pudo cargar la información del We Report para editar.');
+          return;
+        }
+
+        this.eliminarFoto1Existente = false;
+        this.eliminarFoto2Existente = false;
+        this.rutaFoto1Existente = this.texto(item['Report_Foto1_Ubicacion'] ?? item['report_Foto1_Ubicacion']);
+        this.rutaFoto2Existente = this.texto(item['Report_Foto2_Ubicacion'] ?? item['report_Foto2_Ubicacion']);
+
+        const reporteId = this.toNumber(item['Reporte_Id'] ?? item['reporte_Id']);
+        const areaId = this.toNumber(item['Cen_Cos_Id'] ?? item['cen_Cos_Id']);
+        const clienteId = this.toNumber(item['Cliente_Id'] ?? item['cliente_Id']);
+        const subId = this.toNumber(item['Subestacion_Id'] ?? item['subestacion_Id']);
+        const estado = this.normalizarEstadoReporte(this.texto(item['Estado'] ?? item['estado']));
+
+        const esAnonimo = this.normalizarMarca(this.texto(item['Report_Anonimo'] ?? item['report_Anonimo'])) === 'S';
+        this.anonimoBloqueadoEnEdicion = esAnonimo;
+
+        if (esAnonimo) {
+          this.reportante = {
+            nombre: 'ANONIMO',
+            cargo: 'ANONIMO',
+            area: 'ANONIMO',
+            email: 'ANONIMO',
+          };
+        } else {
+          this.reportante = {
+            nombre: this.texto(item['Usr_Nom'] ?? item['usr_Nom']) || this.reportante.nombre,
+            cargo: this.texto(item['Cargo_Nombre'] ?? item['cargo_Nombre']) || this.reportante.cargo,
+            area: this.texto(item['Cen_Cos_Des_Usr'] ?? item['cen_Cos_Des_Usr'] ?? item['Cen_Cos_Des'] ?? item['cen_Cos_Des']) || this.reportante.area,
+            email: this.texto(item['Usr_Corr'] ?? item['usr_Corr']) || this.reportante.email,
+          };
+        }
+
+        this.form.patchValue({
+          anonimo: esAnonimo,
+          tipoReporte: reporteId || '',
+          areaDetectada: areaId || '',
+          cliente: clienteId || '',
+          subestacion: subId || '',
+          descripcionEvento: this.texto(item['Report_Descripcion'] ?? item['report_Descripcion']),
+          accionesInmediatas: this.texto(item['Report_Acciones_Inmediata'] ?? item['report_Acciones_Inmediata']),
+          accionesPropuestas: this.texto(item['Report_Acciones_Propuestas'] ?? item['report_Acciones_Propuestas']),
+          potencial: this.texto(item['Report_Potencial'] ?? item['report_Potencial']) || 'MEDIO',
+          aplicaStopWork: this.normalizarMarca(this.texto(item['Report_Aplica'] ?? item['report_Aplica'])) === 'S' ? 'SI' : 'NO',
+          estado,
+        });
+
+        if (esAnonimo) {
+          this.form.get('anonimo')?.disable({ emitEvent: false });
+        } else {
+          this.form.get('anonimo')?.enable({ emitEvent: false });
+        }
+
+        this.fotosEvento = this.crearArchivosExistentesDesdeRutas(this.rutaFoto1Existente, 'Foto 1');
+        this.fotosAcciones = this.crearArchivosExistentesDesdeRutas(this.rutaFoto2Existente, 'Foto 2');
+
+        if (clienteId) {
+          this.cargarSubestacionesPorCliente(clienteId);
+        }
+
+        this.cargandoEdicion = false;
+      },
+      error: () => {
+        this.cargandoEdicion = false;
+        alert('No se pudo cargar la información del We Report para editar.');
+      }
+    });
+  }
+
+
+private dividirRutas(rutas: string): string[] {
+  return (rutas ?? '')
+    .split(/[\r\n|;,]+/g)
+    .map((r: string) => r.trim())
+    .filter((r: string) => r.length > 0);
+}
+
+private crearArchivosExistentesDesdeRutas(rutas: string, prefijo: string): ArchivoImagenItem[] {
+  const lista = this.dividirRutas(rutas);
+  if (lista.length === 0) {
+    return [];
+  }
+
+  return lista.map((ruta: string, index: number) => {
+    const nombre = ruta.split(/[\\\/]/).pop() || `${prefijo} ${index + 1}`;
+    return this.crearArchivoExistente(ruta, nombre);
+  });
+}
+
+  private texto(valor: unknown): string {
+  if (valor === null || valor === undefined) {
+    return '';
+  }
+  return String(valor).trim();
+}
+
+private normalizarTexto(value: string): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+private normalizarEstadoReporte(valor: string): EstadoWeReport {
+  const limpio = this.normalizarTexto(valor);
+  if (limpio.startsWith('i') || limpio.includes('inactivo')) {
+    return 'I';
+  }
+  return 'A';
+}
+
+private crearArchivoExistente(ruta: string, nombre: string): ArchivoImagenItem {
+  return {
+    id: `existente-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    url: '',
+    nombre,
+    ruta,
+    existente: true
+  };
+}
+
+private obtenerMimeType(nombreArchivo: string): string {
+  const ext = (nombreArchivo || '').split('.').pop()?.toLowerCase() || '';
+  switch (ext) {
+    case 'png': return 'image/png';
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    case 'gif': return 'image/gif';
+    case 'webp': return 'image/webp';
+    case 'bmp': return 'image/bmp';
+    case 'svg': return 'image/svg+xml';
+    default: return 'application/octet-stream';
+  }
+}
+
+private encontrarIdPorTexto<T>(lista: T[], campo: string, valor: string): number | '' {
+  const buscado = this.normalizarTexto((valor ?? '').trim());
+  if (!buscado) { return ''; }
+
+  const encontrado = lista.find(item => {
+    const record = item as Record<string, unknown>;
+    return this.normalizarTexto(this.texto(record[campo])).includes(buscado);
+  });
+
+  if (!encontrado) { return ''; }
+
+  const id = encontrado as Record<string, unknown>;
+  for (const key of ['Reporte_Id', 'Cen_Cos_Id', 'Cliente_Id', 'Subestacion_Id']) {
+    if (typeof id[key] === 'number' || typeof id[key] === 'string') {
+      const n = Number(id[key]);
+      if (!Number.isNaN(n) && n > 0) { return n; }
+    }
+  }
+  return '';
+}
+
+private normalizarMarca(valor: string): string {
+  const limpio = (valor ?? '').trim().toUpperCase();
+  if (limpio.startsWith('S') || limpio.startsWith('Y') || limpio === 'SI') { return 'S'; }
+  return 'N';
+}
+
+private extraerUnico<T>(response: unknown): T | null {
+  if (Array.isArray(response) && response.length > 0) { return response[0] as T; }
+  if (response && typeof response === 'object') {
+    const r = response as Record<string, unknown>;
+    for (const k of ['Elements','elements','Data','data','Result','result','items','Items','response','Response']) {
+      const v = r[k];
+      if (Array.isArray(v) && v.length > 0) { return v[0] as T; }
+    }
+    return response as unknown as T;
+  }
+  return null;
+}
   guardar(): void {
     this.form.markAllAsTouched();
     if (this.form.invalid) {
@@ -284,9 +515,8 @@ export class WeReportComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const foto1 = this.fotosEvento.map(item => item.file);
-    const foto2 = this.fotosAcciones.map(item => item.file);
-
+    const foto1 = this.fotosEvento.find(item => !!item.file)?.file ?? null;
+    const foto2 = this.fotosAcciones.find(item => !!item.file)?.file ?? null;
     const formData = new FormData();
     formData.append('Usr_Cod', usrCod);
     formData.append('Report_Anonimo', this.esAnonimo ? 'S' : 'N');
@@ -299,33 +529,63 @@ export class WeReportComponent implements OnInit, OnDestroy {
     formData.append('Report_Acciones_Propuestas', String(this.form.get('accionesPropuestas')?.value ?? ''));
     formData.append('Report_Potencial', String(this.form.get('potencial')?.value ?? ''));
     formData.append('Report_Aplica', aplicaStopWork === 'SI' ? 'S' : 'N');
+    formData.append('Estado', this.normalizarEstadoReporte(this.texto(this.form.get('estado')?.value)));
     formData.append('Usr_Reg', usrCod);
+    formData.append('Usr_Mod', usrCod);
 
-    for (const archivo of foto1) {
-      formData.append('Report_Foto1', archivo, archivo.name);
+    if (this.modoEdicion && this.weReportId) {
+      formData.append('We_Report_Id', String(this.weReportId));
+
+      if (foto1) {
+        formData.append('Report_Foto1', foto1, foto1.name);
+        formData.append('Eliminar_Report_Foto1', 'N');
+      } else if (this.eliminarFoto1Existente) {
+        formData.append('Report_Foto1_Ubicacion', '');
+        formData.append('Eliminar_Report_Foto1', 'S');
+      } else if (this.rutaFoto1Existente) {
+        formData.append('Report_Foto1_Ubicacion', this.rutaFoto1Existente);
+        formData.append('Eliminar_Report_Foto1', 'N');
+      }
+
+      if (foto2) {
+        formData.append('Report_Foto2', foto2, foto2.name);
+        formData.append('Eliminar_Report_Foto2', 'N');
+      } else if (this.eliminarFoto2Existente) {
+        formData.append('Report_Foto2_Ubicacion', '');
+        formData.append('Eliminar_Report_Foto2', 'S');
+      } else if (this.rutaFoto2Existente) {
+        formData.append('Report_Foto2_Ubicacion', this.rutaFoto2Existente);
+        formData.append('Eliminar_Report_Foto2', 'N');
+      }
+    } else {
+      if (foto1) { formData.append('Report_Foto1', foto1, foto1.name); }
+      if (foto2) { formData.append('Report_Foto2', foto2, foto2.name); }
     }
-    for (const archivo of foto2) {
-      formData.append('Report_Foto2', archivo, archivo.name);
-    }
-    const fd = formData as any;
 
     this.guardando = true;
-    this.apiService.postInsertarWeReport(formData).subscribe({
+    const peticion = this.modoEdicion ? this.apiService.postActualizarWeReport(formData) : this.apiService.postInsertarWeReport(formData);
+    peticion.subscribe({
       next: (response: unknown) => {
         this.guardando = false;
         console.log('[WeReport] guardado correctamente', response);
-        this.form.reset({ anonimo: false, aplicaStopWork: 'NO' });
+        this.form.reset({ anonimo: false, aplicaStopWork: 'NO', estado: 'A' });
+        this.form.get('anonimo')?.enable({ emitEvent: false });
+        this.anonimoBloqueadoEnEdicion = false;
         this.liberarArchivos(this.fotosEvento);
         this.liberarArchivos(this.fotosAcciones);
         this.fotosEvento = [];
         this.fotosAcciones = [];
         this.subestaciones = [];
+        this.rutaFoto1Existente = '';
+        this.rutaFoto2Existente = '';
+        this.eliminarFoto1Existente = false;
+        this.eliminarFoto2Existente = false;
         this.volver.emit();
       },
       error: (err: unknown) => {
         this.guardando = false;
         console.error('[WeReport] error al guardar', err);
-        alert('No se pudo registrar We Report. Revisa los datos y vuelve a intentar.');
+        alert('No se pudo guardar We Report. Revisa los datos y vuelve a intentar.');
       }
     });
   }
@@ -381,13 +641,37 @@ export class WeReportComponent implements OnInit, OnDestroy {
   onFotoAccionesChange(event: Event): void { this.agregarArchivos(event, 'acciones'); }
 
   abrirArchivo(archivo: ArchivoImagenItem): void {
-    window.open(archivo.url, '_blank', 'noopener,noreferrer');
+    if (archivo.existente && archivo.ruta) {
+      this.apiService.getArchivoWeReport(archivo.ruta).subscribe({
+        next: (blob: ArrayBuffer) => {
+          const mimeType = this.obtenerMimeType(archivo.nombre);
+          const fileBlob = new Blob([blob], { type: mimeType });
+          const objectUrl = URL.createObjectURL(fileBlob);
+          window.open(objectUrl, '_blank', 'noopener,noreferrer');
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+        },
+        error: () => alert('No se pudo abrir la imagen existente.')
+      });
+      return;
+    }
+
+    if (archivo.url) {
+      window.open(archivo.url, '_blank', 'noopener,noreferrer');
+    }
   }
 
   eliminarArchivo(tipo: 'evento' | 'acciones', id: string): void {
     if (tipo === 'evento') {
+      const archivo = this.fotosEvento.find(item => item.id === id);
+      if (archivo?.existente) {
+        this.eliminarFoto1Existente = true;
+      }
       this.fotosEvento = this.removerArchivo(this.fotosEvento, id);
     } else {
+      const archivo = this.fotosAcciones.find(item => item.id === id);
+      if (archivo?.existente) {
+        this.eliminarFoto2Existente = true;
+      }
       this.fotosAcciones = this.removerArchivo(this.fotosAcciones, id);
     }
   }
@@ -423,25 +707,33 @@ export class WeReportComponent implements OnInit, OnDestroy {
     const nuevo: ArchivoImagenItem = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       file,
-      url: URL.createObjectURL(file)
+      url: URL.createObjectURL(file),
+      nombre: file.name,
+      existente: false
     };
 
     if (tipo === 'evento') {
-      this.fotosEvento = [...this.fotosEvento, nuevo];
+      this.liberarArchivos(this.fotosEvento);
+      this.fotosEvento = [nuevo];
+      this.eliminarFoto1Existente = false;
     } else {
-      this.fotosAcciones = [...this.fotosAcciones, nuevo];
+      this.liberarArchivos(this.fotosAcciones);
+      this.fotosAcciones = [nuevo];
+      this.eliminarFoto2Existente = false;
     }
   }
 
   private removerArchivo(lista: ArchivoImagenItem[], id: string): ArchivoImagenItem[] {
     const encontrado = lista.find(item => item.id === id);
-    if (encontrado) { URL.revokeObjectURL(encontrado.url); }
+    if (encontrado && !encontrado.existente && encontrado.url) { URL.revokeObjectURL(encontrado.url); }
     return lista.filter(item => item.id !== id);
   }
 
   private liberarArchivos(lista: ArchivoImagenItem[]): void {
     for (const archivo of lista) {
-      URL.revokeObjectURL(archivo.url);
+      if (!archivo.existente && archivo.url) {
+        URL.revokeObjectURL(archivo.url);
+      }
     }
   }
 

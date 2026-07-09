@@ -3,18 +3,14 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { ApiService } from 'src/app/Services/api.services';
 
 export interface WeReportArchivosDialogData {
-  codigo?: string;
-  tipoReporte?: string;
-  area?: string;
-  cliente?: string;
-  descripcionEvento?: string;
-  accionesInmediatas?: string;
-  foto1Ruta?: string;
-  foto2Ruta?: string;
-  Report_Descripcion?: string;
-  Report_Acciones_Inmediata?: string;
-  Report_Foto1_Ubicacion?: string;
-  Report_Foto2_Ubicacion?: string;
+  codigo: string;
+  tipoReporte: string;
+  area: string;
+  cliente: string;
+  descripcionEvento: string;
+  accionesInmediatas: string;
+  foto1Ruta: string;
+  foto2Ruta: string;
 }
 
 interface VistaArchivo {
@@ -46,25 +42,15 @@ export class WeReportArchivosDialogComponent {
     this.secciones = [
       {
         titulo: 'Descripción del Evento',
-        descripcion: this.obtenerTexto(data.descripcionEvento, data.Report_Descripcion),
-        archivos: this.crearArchivos('Foto 1', this.obtenerTexto(data.foto1Ruta, data.Report_Foto1_Ubicacion)),
+        descripcion: data.descripcionEvento || '-',
+        archivos: this.crearArchivos('Foto 1', data.foto1Ruta),
       },
       {
         titulo: 'Acciones Inmediatas',
-        descripcion: this.obtenerTexto(data.accionesInmediatas, data.Report_Acciones_Inmediata),
-        archivos: this.crearArchivos('Foto 2', this.obtenerTexto(data.foto2Ruta, data.Report_Foto2_Ubicacion)),
+        descripcion: data.accionesInmediatas || '-',
+        archivos: this.crearArchivos('Foto 2', data.foto2Ruta),
       }
     ];
-  }
-
-  private obtenerTexto(...valores: Array<string | null | undefined>): string {
-    for (const valor of valores) {
-      const texto = (valor ?? '').toString().trim();
-      if (texto.length > 0) {
-        return texto;
-      }
-    }
-    return '';
   }
 
   private crearArchivos(etiqueta: string, rutas: string | null | undefined): VistaArchivo[] {
@@ -73,7 +59,7 @@ export class WeReportArchivosDialogComponent {
     }
 
     return rutas
-      .split(/[\r\n|;,]+/g)
+      .split(/\r?\n|\s*[;,|]\s*/g)
       .map((ruta, index) => {
         const rutaLimpia = ruta.trim();
         return {
