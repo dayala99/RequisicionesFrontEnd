@@ -372,8 +372,6 @@ export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
 
         this.fotosEvento = this.crearArchivosExistentesDesdeRutas(this.rutaFoto1Existente, 'Foto 1');
         this.fotosAcciones = this.crearArchivosExistentesDesdeRutas(this.rutaFoto2Existente, 'Foto 2');
-        this.actualizarRutasExistentesDesdeLista('evento', this.fotosEvento);
-        this.actualizarRutasExistentesDesdeLista('acciones', this.fotosAcciones);
 
         if (clienteId) {
           this.cargarSubestacionesPorCliente(clienteId);
@@ -494,6 +492,7 @@ private extraerUnico<T>(response: unknown): T | null {
   }
   return null;
 }
+
   guardar(): void {
     this.form.markAllAsTouched();
     if (this.form.invalid) {
@@ -513,8 +512,13 @@ private extraerUnico<T>(response: unknown): T | null {
       return;
     }
 
-    const foto1 = this.fotosEvento[0]?.file ?? null;
-    const foto2 = this.fotosAcciones[0]?.file ?? null;
+    const fotosEventoNuevas = this.fotosEvento.filter(archivo => !archivo.existente && !!archivo.file && archivo.file.size > 0);
+    const fotosEventoExistentes = this.fotosEvento
+      .filter(archivo => archivo.existente && !!archivo.ruta)
+      .map(archivo => archivo.ruta!.trim())
+      .filter(ruta => ruta.length > 0);
+
+    const foto2Actual = this.fotosAcciones[0] ?? null;
     const formData = new FormData();
     formData.append('Usr_Cod', usrCod);
     formData.append('Report_Anonimo', this.esAnonimo ? 'S' : 'N');
@@ -533,13 +537,40 @@ private extraerUnico<T>(response: unknown): T | null {
 
     if (this.modoEdicion && this.weReportId) {
       formData.append('We_Report_Id', String(this.weReportId));
-      if (foto1) { formData.append('Report_Foto1', foto1, foto1.name); } else if (this.rutaFoto1Existente) { formData.append('Report_Foto1_Ubicacion', this.rutaFoto1Existente); }
-      if (foto2) { formData.append('Report_Foto2', foto2, foto2.name); } else if (this.rutaFoto2Existente) { formData.append('Report_Foto2_Ubicacion', this.rutaFoto2Existente); }
-    } else {
-      if (foto1) { formData.append('Report_Foto1', foto1, foto1.name); }
-      if (foto2) { formData.append('Report_Foto2', foto2, foto2.name); }
     }
 
+    for (const archivo of fotosEventoNuevas) {
+      formData.append('Report_Foto1', archivo.file!, archivo.file!.name);
+    }
+    for (const ruta of fotosEventoExistentes) {
+      formData.append('Report_Foto1_Ubicacion', ruta);
+    }
+
+    if (foto2Actual?.file) {
+      formData.append('Report_Foto2', foto2Actual.file, foto2Actual.file.name);
+    } else if (foto2Actual?.existente && foto2Actual.ruta) {
+      formData.append('Report_Foto2_Ubicacion', foto2Actual.ruta);
+    }
+
+    console.log('[WeReport] guardando formulario', {
+      modoEdicion: this.modoEdicion,
+      weReportId: this.weReportId,
+      fotosEventoNuevas: fotosEventoNuevas.map(archivo => archivo.file?.name),
+      fotosEventoExistentes,
+      foto2Actual: foto2Actual ? {
+        nombre: foto2Actual.nombre,
+        existente: foto2Actual.existente ?? false,
+        ruta: foto2Actual.ruta ?? '',
+      } : null,
+    });
+
+    formData.forEach((valor, clave) => {
+  if (valor instanceof File) {
+    console.log(`[WeReport] ${clave}`, `File: ${valor.name} (${valor.size} bytes)`);
+  } else {
+    console.log(`[WeReport] ${clave}`, valor);
+  }
+});
     this.guardando = true;
     const peticion = this.modoEdicion ? this.apiService.postActualizarWeReport(formData) : this.apiService.postInsertarWeReport(formData);
     peticion.subscribe({
@@ -638,17 +669,9 @@ private extraerUnico<T>(response: unknown): T | null {
 
   eliminarArchivo(tipo: 'evento' | 'acciones', id: string): void {
     if (tipo === 'evento') {
-      const encontrado = this.fotosEvento.find(item => item.id === id);
       this.fotosEvento = this.removerArchivo(this.fotosEvento, id);
-      if (encontrado?.existente) {
-        this.actualizarRutasExistentesDesdeLista('evento', this.fotosEvento);
-      }
     } else {
-      const encontrado = this.fotosAcciones.find(item => item.id === id);
       this.fotosAcciones = this.removerArchivo(this.fotosAcciones, id);
-      if (encontrado?.existente) {
-        this.actualizarRutasExistentesDesdeLista('acciones', this.fotosAcciones);
-      }
     }
   }
 
@@ -679,6 +702,7 @@ private extraerUnico<T>(response: unknown): T | null {
     input.value = '';
   }
 
+
   private agregarArchivoDirecto(tipo: 'evento' | 'acciones', file: File): void {
     const nuevo: ArchivoImagenItem = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
@@ -688,11 +712,8 @@ private extraerUnico<T>(response: unknown): T | null {
       existente: false
     };
 
-    this.limpiarRutasExistentes(tipo);
-
     if (tipo === 'evento') {
-      this.liberarArchivos(this.fotosEvento);
-      this.fotosEvento = [nuevo];
+      this.fotosEvento = [...this.fotosEvento, nuevo];
     } else {
       this.liberarArchivos(this.fotosAcciones);
       this.fotosAcciones = [nuevo];
@@ -703,30 +724,6 @@ private extraerUnico<T>(response: unknown): T | null {
     const encontrado = lista.find(item => item.id === id);
     if (encontrado && !encontrado.existente && encontrado.url) { URL.revokeObjectURL(encontrado.url); }
     return lista.filter(item => item.id !== id);
-  }
-
-  private limpiarRutasExistentes(tipo: 'evento' | 'acciones'): void {
-    if (tipo === 'evento') {
-      this.rutaFoto1Existente = '';
-    } else {
-      this.rutaFoto2Existente = '';
-    }
-  }
-
-  private actualizarRutasExistentesDesdeLista(tipo: 'evento' | 'acciones', lista: ArchivoImagenItem[]): void {
-    const rutas = lista
-      .filter(item => item.existente && !!item.ruta)
-      .map(item => item.ruta!.trim())
-      .filter(ruta => ruta.length > 0);
-
-    const rutasUnicas = Array.from(new Set(rutas));
-    const valor = rutasUnicas.join('\n');
-
-    if (tipo === 'evento') {
-      this.rutaFoto1Existente = valor;
-    } else {
-      this.rutaFoto2Existente = valor;
-    }
   }
 
   private liberarArchivos(lista: ArchivoImagenItem[]): void {
