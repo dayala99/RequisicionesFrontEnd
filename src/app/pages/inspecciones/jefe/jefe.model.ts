@@ -1,21 +1,11 @@
 export interface JefeItem {
   id: number | null;
-  nombre: string;
-  dni: string;
-  area: string;
+  tipoReporte: string;
   estado: string;
-  cenCosId?: number | null;
-}
-
-export interface CentroCostoOption {
-  id: number;
-  descripcion: string;
 }
 
 export interface JefeFilter {
   Id?: number;
-  Nombre?: string;
-  Dni?: string;
+  Reporte_Tipo?: string;
   Estado?: string;
-  Cen_Cos_Id?: number;
 }

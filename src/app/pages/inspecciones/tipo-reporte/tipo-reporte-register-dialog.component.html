@@ -1,23 +1,21 @@
 <div class="dialog-card">
   <header class="dialog-card__header">
     <div>
-      <p class="dialog-card__eyebrow">Administracion</p>
+      <p class="dialog-card__eyebrow">Administración</p>
       <h2>{{ esEdicion ? 'Editar Tipo Reporte' : 'Nuevo Tipo Reporte' }}</h2>
       <p class="dialog-card__description">
-        {{ esEdicion ? 'Actualiza el tipo de reporte y su estado.' : 'Registra un nuevo tipo de reporte.' }}
+        {{ esEdicion ? 'Actualiza el nombre y estado del tipo de reporte.' : 'Registra un nuevo tipo de reporte.' }}
       </p>
     </div>
 
     <button type="button" class="dialog-card__close" (click)="cerrar()" aria-label="Cerrar">&times;</button>
   </header>
 
-  <p *ngIf="cargandoDatosJefe" class="dialog-loading">Cargando información del tipo de reporte...</p>
-
   <form class="dialog-form" [formGroup]="form" (ngSubmit)="guardar()">
     <div class="dialog-grid">
       <label class="field field--full">
         <span>Tipo de Reporte</span>
-        <input type="text" formControlName="tipoReporte" maxlength="55" placeholder="Ingrese Tipo Reporte">
+        <input type="text" formControlName="reporteTipo" placeholder="Ingrese Tipo de Reporte">
       </label>
 
       <label class="field field--full" *ngIf="esEdicion">
@@ -33,7 +31,7 @@
 
     <footer class="dialog-actions">
       <button type="button" class="btn btn-secondary" (click)="cerrar()">Cancelar</button>
-      <button type="submit" class="btn btn-primary" [disabled]="guardando || cargandoDatosJefe">
+      <button type="submit" class="btn btn-primary" [disabled]="guardando">
         {{ guardando ? 'Guardando...' : (esEdicion ? 'Actualizar' : 'Guardar') }}
       </button>
     </footer>

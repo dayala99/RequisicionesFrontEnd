@@ -201,12 +201,29 @@ export interface UnidadMedidaFiltro {
 
 export interface JefeFiltro {
     Id?: number;
-    Nombre?: string;
-    Dni?: string;
+    Reporte_Tipo?: string;
     Estado?: string;
-    Cen_Cos_Id?: number;
-    Fecha?: string;
 }
+
+export type JefeFilter = JefeFiltro;
+
+export interface ActualizarStopReportRequest {
+    Stop_Work_Id?: number;
+    We_Report_Cod?: string;
+    Usr_Cod: string;
+    Stop_Supervisor: string;
+    Stop_Inspector: string;
+    Cliente_Id: number;
+    Subestacion_Id: number;
+    Stop_OP: string;
+    Stop_Trabajo: string;
+    Stop_Procedimiento: string;
+    Tipo_Riesgo_Id: number;
+    Estado?: 'A' | 'I' | string;
+    Usr_Reg?: string;
+    Usr_Mod?: string;
+}
+
 
 export interface MotivoFiltro {
     Id?: number;
@@ -228,15 +245,14 @@ export interface ActualizarMotivoRequest {
 
 
 export interface RegistrarJefeRequest {
-    Nombre: string;
-    Fecha: string;
+    Reporte_Tipo: string;
+    Usr_Reg: string;
 }
 
 export interface ActualizarJefeRequest {
-    Id: number;
-    Nombre: string;
-    Dni: string;
-    Cen_Cos_Id: number;
+    Reporte_Id: number;
+    Reporte_Tipo: string;
+    Estado: string;
     Usr_Mod: string;
 }
 
@@ -1311,21 +1327,15 @@ export class ApiService {
         let params = new HttpParams();
 
         params = params.append('Id', filtros.Id ?? 0);
-        params = params.append('Nombre', filtros.Nombre ?? '');
-        params = params.append('Dni', filtros.Dni ?? '');
+        params = params.append('Reporte_Tipo', filtros.Reporte_Tipo ?? '');
         params = params.append('Estado', filtros.Estado ?? 'A');
-        params = params.append('Cen_Cos_Id', filtros.Cen_Cos_Id ?? 0);
-
-        if (filtros.Fecha) {
-            params = params.append('Fecha', filtros.Fecha);
-        }
 
         return this.http.get(this.baseUrl + 'Jefe/getListarJefe', { headers, params });
     }
 
     getConsultarDatosJefe(jefeId: number): Observable<any> {
         const headers = this.Header;
-        const params = new HttpParams().append('Jefe_Id', jefeId);
+        const params = new HttpParams().append('Reporte_Id', jefeId);
         return this.http.get(this.baseUrl + 'Jefe/getConsultarDatosJefe', { headers, params });
     }
 
@@ -1343,6 +1353,26 @@ export class ApiService {
         const headers = this.Header;
         const params = new HttpParams().append('Usr_Mod', usrMod);
         return this.http.delete(this.baseUrl + `Jefe/deleteEliminarJefe/${id}`, { headers, params });
+    }
+
+    getListarTipoReporte(filtros: { Reporte_Id?: number; Reporte_Tipo?: string; Estado?: string } = {}): Observable<any> {
+        return this.getListarJefe({
+            Id: filtros.Reporte_Id,
+            Reporte_Tipo: filtros.Reporte_Tipo,
+            Estado: filtros.Estado,
+        });
+    }
+
+    registrarTipoReporte(tipoReporte: RegistrarJefeRequest): Observable<any> {
+        return this.registrarJefe(tipoReporte);
+    }
+
+    actualizarTipoReporte(tipoReporte: ActualizarJefeRequest): Observable<any> {
+        return this.actualizarJefe(tipoReporte);
+    }
+
+    eliminarTipoReporte(id: number, usrMod: string): Observable<any> {
+        return this.eliminarJefe(id, usrMod);
     }
 
     getListarCliente(filtros: { Id?: number; Nombre?: string; Estado?: string } = {}): Observable<any> {
@@ -2425,6 +2455,66 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     }
 
 
+
+    // ─── Stop Report ───────────────────────────────────────────────
+
+    postInsertarStopReport(payload: ActualizarStopReportRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(
+            this.baseUrl + 'Inspecciones/postInsertarStopReport',
+            payload,
+            { headers }
+        );
+    }
+
+    putActualizarStopReport(payload: ActualizarStopReportRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.put(
+            this.baseUrl + 'Inspecciones/putActualizarStopReport',
+            payload,
+            { headers }
+        );
+    }
+
+    getListarSupervisoresResponsables(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarSupervisoresResponsables', { headers });
+    }
+
+    getListarInspectoresCliente(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarInspectoresCliente', { headers });
+    }
+
+    getListarTiposRiesgo(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Inspecciones/getListarTiposRiesgo', { headers });
+    }
+
+    getMostrarStopReport(Stop_Work_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Stop_Work_Id', Stop_Work_Id);
+        return this.http.get(this.baseUrl + 'Inspecciones/getMostrarStopReport', { headers, params });
+    }
+
+    getFiltrarStopReport(Fecha_Desde: string, Fecha_Hasta: string, Estado: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .append('Fecha_Desde', Fecha_Desde)
+            .append('Fecha_Hasta', Fecha_Hasta)
+            .append('Estado', Estado);
+        return this.http.get(this.baseUrl + 'Inspecciones/getFiltrarStopReport', { headers, params });
+    }
+
+    deleteEliminarStopReport(Stop_Work_Id: number, Usr_Mod: string): Observable<any> {
+        const headers = this.Header;
+        const id = String(Stop_Work_Id ?? '').trim();
+        const params = {
+            Stop_Work_Id: id,
+            Usr_Mod
+        };
+        return this.http.delete(this.baseUrl + 'Inspecciones/deleteEliminarStopReport', { headers, params });
+    }
 
     // ─── Prevención ────────────────────────────────────────────────
     postInsertarPrevencion(payload: {

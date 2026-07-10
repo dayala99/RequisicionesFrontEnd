@@ -77,16 +77,16 @@ import { TipoServicioRegisterDialogComponent } from './pages/tipo-servicio-page/
 import { UnidadMedidaEditDialogComponent } from './pages/unidad-medida-page/unidad-medida-edit-dialog.component';
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/unidad-medida-register-dialog.component';
-import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
+import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
 import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
 import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
 import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
-import { JefeRegisterDialogComponent } from './pages/inspecciones/jefe/jefe-register-dialog.component';
+import { TipoReporteRegisterDialogComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-register-dialog.component';
 import { ClienteRegisterDialogComponent } from './pages/inspecciones/cliente/cliente-register-dialog.component';
-import { JefeService } from './pages/inspecciones/jefe/jefe.service';
+import { TipoReporteService } from './pages/inspecciones/tipo-reporte/tipo-reporte.service';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
@@ -96,6 +96,7 @@ import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/con
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
 import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
 import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
+import { InspeccionStopReportComponent } from './pages/inspecciones-page/inspeccion-stop-report/inspeccion-stop-report.component';
 import { WeReportComponent } from './pages/inspecciones-page/we-report/we-report.component';
 import { WeReportArchivosDialogComponent } from './pages/inspecciones-page/we-report-archivos-dialog.component';
 import { SeleccionCapturaFotoDialogComponent } from './pages/inspecciones-page/seleccion-captura-foto-dialog.component';
@@ -181,14 +182,14 @@ const APP_DATE_FORMATS = {
     UnidadMedidaPageComponent,
     UnidadMedidaRegisterDialogComponent,
     UnidadMedidaEditDialogComponent,
-    JefePageComponent,
+    TipoReportePageComponent,
     ClientePageComponent,
     TipoInspeccionPageComponent,
     RiesgoPageComponent,
     ReportePageComponent,
     MotivoPageComponent,
     SubestacionPageComponent,
-    JefeRegisterDialogComponent,
+    TipoReporteRegisterDialogComponent,
     ClienteRegisterDialogComponent,
     LoginPageComponent,
     UsuariosPageComponent,
@@ -199,6 +200,7 @@ const APP_DATE_FORMATS = {
     ObservacionesPlaneadasComponent,
     InspeccionMedioAmbienteComponent,
     InspeccionPrevencionComponent,
+    InspeccionStopReportComponent,
     WeReportComponent,
     WeReportArchivosDialogComponent,
     SeleccionCapturaFotoDialogComponent,
@@ -235,7 +237,7 @@ const APP_DATE_FORMATS = {
       provide: MAT_DATE_FORMATS,
       useValue: APP_DATE_FORMATS
     },
-    JefeService
+    TipoReporteService
   ],
   bootstrap: [AppComponent]
 })

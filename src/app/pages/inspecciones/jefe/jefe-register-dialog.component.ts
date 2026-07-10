@@ -1,8 +1,10 @@
+import { CommonModule } from '@angular/common';
 import { Component, Inject, OnInit } from '@angular/core';
+import { ReactiveFormsModule } from '@angular/forms';
 import { FormBuilder, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
-import { CentroCostoOption, JefeItem } from './jefe.model';
+import { JefeItem } from './jefe.model';
 import { ActualizarJefeRequest, JefeService, RegistrarJefeRequest } from './jefe.service';
 
 export interface JefeRegisterDialogData {
@@ -11,23 +13,19 @@ export interface JefeRegisterDialogData {
 }
 
 @Component({
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
   selector: 'app-jefe-register-dialog',
   templateUrl: './jefe-register-dialog.component.html',
   styleUrls: ['./jefe-register-dialog.component.scss']
 })
 export class JefeRegisterDialogComponent implements OnInit {
-  centroCostos: CentroCostoOption[] = [];
-  cargandoCentrosCosto = false;
   cargandoDatosJefe = false;
   guardando = false;
   saveError = '';
 
-  private cenCosDesPendiente = '';
-
   readonly form = this.fb.group({
-    nombre: ['', [Validators.required, Validators.maxLength(100)]],
-    dni: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(8)]],
-    cenCosId: [null as number | null, [Validators.required]],
+    tipoReporte: ['', [Validators.required, Validators.maxLength(55)]],
     estado: ['A', [Validators.required]]
   });
 
@@ -43,8 +41,6 @@ export class JefeRegisterDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarCentroCostos();
-
     if (this.esEdicion) {
       this.cargarDatosJefe();
     }
@@ -78,9 +74,7 @@ export class JefeRegisterDialogComponent implements OnInit {
     }
 
     const payload: RegistrarJefeRequest = {
-      Nombre: String(this.form.value.nombre ?? '').trim(),
-      Dni: String(this.form.value.dni ?? '').trim(),
-      Cen_Cos_Id: Number(this.form.value.cenCosId),
+      Reporte_Tipo: String(this.form.value.tipoReporte ?? '').trim(),
       Usr_Reg: usrReg
     };
 
@@ -92,9 +86,9 @@ export class JefeRegisterDialogComponent implements OnInit {
         this.dialogRef.close(true);
       },
       error: (error: unknown) => {
-        console.error('Error registrando jefe', error);
+        console.error('Error registrando tipo reporte', error);
         this.guardando = false;
-        this.saveError = 'No se pudo registrar el jefe.';
+        this.saveError = 'No se pudo registrar el tipo de reporte.';
       }
     });
   }
@@ -108,15 +102,13 @@ export class JefeRegisterDialogComponent implements OnInit {
 
     const id = this.data?.jefe?.id;
     if (!id) {
-      this.saveError = 'No se pudo identificar al jefe a actualizar.';
+      this.saveError = 'No se pudo identificar al tipo de reporte a actualizar.';
       return;
     }
 
     const payload: ActualizarJefeRequest = {
-      Id: id,
-      Nombre: String(this.form.value.nombre ?? '').trim(),
-      Dni: String(this.form.value.dni ?? '').trim(),
-      Cen_Cos_Id: Number(this.form.value.cenCosId),
+      Reporte_Id: id,
+      Reporte_Tipo: String(this.form.value.tipoReporte ?? '').trim(),
       Estado: this.normalizarEstado(this.form.value.estado),
       Usr_Mod: usrMod
     };
@@ -129,26 +121,9 @@ export class JefeRegisterDialogComponent implements OnInit {
         this.dialogRef.close(true);
       },
       error: (error: unknown) => {
-        console.error('Error actualizando jefe', error);
+        console.error('Error actualizando tipo reporte', error);
         this.guardando = false;
-        this.saveError = 'No se pudo actualizar el jefe.';
-      }
-    });
-  }
-
-  private cargarCentroCostos(): void {
-    this.cargandoCentrosCosto = true;
-
-    this.jefeService.listarCentroCostosActivos().subscribe({
-      next: (response: unknown) => {
-        this.centroCostos = this.jefeService.mapCentroCostoOptions(response);
-        this.cargandoCentrosCosto = false;
-        this.preseleccionarCentroCosto();
-      },
-      error: (error: unknown) => {
-        console.error('Error cargando centros de costo', error);
-        this.centroCostos = [];
-        this.cargandoCentrosCosto = false;
+        this.saveError = 'No se pudo actualizar el tipo de reporte.';
       }
     });
   }
@@ -174,28 +149,13 @@ export class JefeRegisterDialogComponent implements OnInit {
         };
 
         this.form.patchValue({
-          nombre: this.extraerTexto(fuente, [
-            'nombre',
-            'Nombre',
-            'Jef_Nombre',
-            'jef_Nombre',
-            'Jefe_Nombre',
-            'jefe_Nombre'
-          ]),
-          dni: this.extraerTexto(fuente, [
-            'dni',
-            'Dni',
-            'DNI',
-            'Jef_DNI',
-            'jef_DNI',
-            'Jefe_DNI',
-            'jefe_DNI'
-          ]),
-          cenCosId: this.extraerNumero(fuente, [
-            'cenCosId',
-            'Cen_Cos_Id',
-            'cen_Cos_Id',
-            'cen_cos_id'
+          tipoReporte: this.extraerTexto(fuente, [
+            'tipoReporte',
+            'Reporte_Tipo',
+            'reporte_Tipo',
+            'reporte_tipo',
+            'Tipo_Reporte',
+            'tipo_reporte'
           ]),
           estado: this.normalizarEstado(this.extraerTexto(fuente, [
             'estado',
@@ -203,50 +163,14 @@ export class JefeRegisterDialogComponent implements OnInit {
           ]))
         });
 
-        this.cenCosDesPendiente = this.extraerTexto(fuente, [
-          'cenCosDes',
-          'Cen_Cos_Des',
-          'cen_Cos_Des',
-          'descripcionCentroCosto',
-          'area'
-        ]);
-
         this.cargandoDatosJefe = false;
-        this.preseleccionarCentroCosto();
       },
       error: (error: unknown) => {
-        console.error('Error consultando datos del jefe', error);
+        console.error('Error consultando datos del tipo reporte', error);
         this.cargandoDatosJefe = false;
-        this.saveError = 'No se pudo cargar la información del jefe.';
+        this.saveError = 'No se pudo cargar la información del tipo de reporte.';
       }
     });
-  }
-
-  private preseleccionarCentroCosto(): void {
-    const cenCosIdActual = this.data?.jefe?.cenCosId;
-    if (cenCosIdActual) {
-      this.form.patchValue({ cenCosId: cenCosIdActual });
-      return;
-    }
-
-    const cenCosIdDesdeFormulario = this.form.value.cenCosId;
-    if (cenCosIdDesdeFormulario) {
-      return;
-    }
-
-    if (!this.cenCosDesPendiente || !this.centroCostos.length) {
-      return;
-    }
-
-    const coincidencia = this.centroCostos.find(
-      (centro) =>
-        centro.descripcion.trim().toUpperCase() ===
-        this.cenCosDesPendiente.trim().toUpperCase()
-    );
-
-    if (coincidencia) {
-      this.form.patchValue({ cenCosId: coincidencia.id });
-    }
   }
 
   private extraerTexto(obj: any, keys: string[]): string {
@@ -259,19 +183,6 @@ export class JefeRegisterDialogComponent implements OnInit {
     return '';
   }
 
-  private extraerNumero(obj: any, keys: string[]): number | null {
-    for (const key of keys) {
-      const value = obj?.[key];
-      if (value !== undefined && value !== null && value !== '') {
-        const n = Number(value);
-        if (!Number.isNaN(n)) {
-          return n;
-        }
-      }
-    }
-    return null;
-  }
-
   private normalizarEstado(value: unknown): string {
     const texto = String(value ?? '').trim().toUpperCase();
 
@@ -282,16 +193,8 @@ export class JefeRegisterDialogComponent implements OnInit {
     return 'A';
   }
 
-  get nombreCtrl() {
-    return this.form.controls.nombre;
-  }
-
-  get dniCtrl() {
-    return this.form.controls.dni;
-  }
-
-  get cenCosIdCtrl() {
-    return this.form.controls.cenCosId;
+  get tipoReporteCtrl() {
+    return this.form.controls.tipoReporte;
   }
 
   get estadoCtrl() {

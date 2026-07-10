@@ -61,11 +61,25 @@ interface WeReportListado {
   Report_Aplica: string;
 }
 
+interface StopReportListado {
+  Stop_Work_Id: number;
+  Codigo_We_Report: string;
+  Codigo_Stop_Work: string;
+  Usr_Nom: string;
+  Cen_Cos_Des: string;
+  Stop_Supervisor_Nom: string;
+  Stop_Inspector: string;
+  Cliente_Nombre: string;
+  OT: string;
+  Tipo_Riesgo: string;
+  Estado: string;
+}
+
 const LABEL_NUEVO: Record<TabActivo, string> = {
   'prevencion':      'Nueva inspección de prevención',
   'medio-ambiente':  'Nueva inspección de medio ambiente',
   'observaciones':   'Nueva observación planeada',
-  'stop-work':       'Nuevo Stop Work',
+  'stop-work':       'Nuevo Stop Report',
   'we-report':       'Nuevo We Report',
 };
 
@@ -75,7 +89,7 @@ const LABEL_NUEVO: Record<TabActivo, string> = {
   styleUrls: ['./inspecciones-page.component.scss'],
 })
 export class InspeccionesPageComponent implements OnInit {
-  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'we-report-form' = 'inspecciones';
+  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'stop-report' | 'we-report-form' = 'inspecciones';
 
   tabActivo: TabActivo = 'observaciones';
 
@@ -103,6 +117,11 @@ export class InspeccionesPageComponent implements OnInit {
   registrosWeReport: WeReportListado[] = [];
   cargandoWeReport = false;
 
+  // ── Stop Report ─────────────────────────────────────────────────
+  registrosStopReport: StopReportListado[] = [];
+  cargandoStopReport = false;
+  eliminandoStopReport = false;
+
   registrosPorPagina = 10;
   opcionesRegistros = [10, 25, 50, 100, 0];
   paginaActual = 1;
@@ -111,6 +130,7 @@ export class InspeccionesPageComponent implements OnInit {
   observacionIdSeleccionado: number | null = null;
   codigoObsSeleccionado: string | null = null;
   inspeccionIdSeleccionado: number | null = null;
+  stopReportIdSeleccionado: number | null = null;
   weReportIdSeleccionado: number | null = null;
 
   constructor(
@@ -140,6 +160,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.inspeccionIdSeleccionado = null;
+    this.stopReportIdSeleccionado = null;
     this.weReportIdSeleccionado = null;
     this.paginaActual = 1;
     this.closeCombos();
@@ -150,6 +171,9 @@ export class InspeccionesPageComponent implements OnInit {
         break;
       case 'prevencion':
         this.vistaActual = 'prevencion';
+        break;
+      case 'stop-work':
+        this.vistaActual = 'stop-report';
         break;
       case 'we-report':
         this.vistaActual = 'we-report-form';
@@ -308,6 +332,73 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
 
+  // ── Acciones Stop Report ───────────────────────────────────────
+  editarStopReport(stopReportId: number): void {
+    this.modoFormulario = 'editar';
+    this.stopReportIdSeleccionado = stopReportId ?? null;
+    this.vistaActual = 'stop-report';
+  }
+
+
+  eliminarStopReport(reg: StopReportListado): void {
+    const codigo = (reg.Codigo_Stop_Work ?? '').trim();
+    if (!codigo) {
+      alert('No se encontró el código del Stop Report para eliminar.');
+      return;
+    }
+
+    const id = Number(reg.Stop_Work_Id ?? 0);
+    if (!id || Number.isNaN(id)) {
+      alert('No se encontró el ID del Stop Report para eliminar.');
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '460px',
+      disableClose: true,
+      data: {
+        titulo: 'Eliminar Stop Report',
+        mensaje: `Se eliminará el Stop Report ${codigo}. Esta acción cambiará su estado a inactivo.`,
+        textoConfirmar: 'Confirmar eliminación',
+        textoCancelar: 'Volver',
+        tipo: 'peligro'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean) => {
+      if (confirmado) { this.ejecutarEliminacionStopReport(id); }
+    });
+  }
+
+  private ejecutarEliminacionStopReport(id: number): void {
+    const usuario = (this.authService.getCurrentUser?.() ?? '').trim();
+    if (!usuario) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    if (!id || Number.isNaN(id)) {
+      alert('No se pudo identificar el ID del Stop Report.');
+      return;
+    }
+
+    this.eliminandoStopReport = true;
+    this.apiService.deleteEliminarStopReport(id, usuario).subscribe({
+      next: (response: unknown) => {
+        this.eliminandoStopReport = false;
+        if (this.esRespuestaExitosa(response)) {
+          this.cargarStopReport();
+        } else {
+          alert(this.getRespuestaMensaje(response) || 'No se pudo eliminar el Stop Report.');
+        }
+      },
+      error: (error: unknown) => {
+        this.eliminandoStopReport = false;
+        alert(this.getErrorMessage(error, 'No se pudo eliminar el Stop Report.'));
+      }
+    });
+  }
+
   editarWeReport(registro: WeReportListado): void {
     this.modoFormulario = 'editar';
     this.weReportIdSeleccionado = registro.We_Report_Id;
@@ -385,6 +476,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
     this.inspeccionIdSeleccionado = null;
+    this.stopReportIdSeleccionado = null;
     this.weReportIdSeleccionado = null;
     this.paginaActual = 1;
     this.closeCombos();
@@ -398,6 +490,8 @@ export class InspeccionesPageComponent implements OnInit {
       this.cargarPrevencion();
     } else if (this.tabActivo === 'observaciones') {
       this.cargarObservacionesPlaneadas();
+    } else if (this.tabActivo === 'stop-work') {
+      this.cargarStopReport();
     } else if (this.tabActivo === 'we-report') {
       this.cargarWeReport();
     }
@@ -486,6 +580,23 @@ export class InspeccionesPageComponent implements OnInit {
     return this.weReportFiltrados.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
   }
 
+  // ── Getters paginación Stop Report ─────────────────────────────
+  get stopReportFiltrado(): StopReportListado[] {
+    let items = [...this.registrosStopReport];
+    const termino = this.normalizarTexto(this.busquedaGeneral.trim());
+    if (termino) {
+      items = items.filter(item =>
+        this.normalizarTexto(this.crearTextoBusquedaStopReport(item)).includes(termino)
+      );
+    }
+    return items;
+  }
+
+  get stopReportPaginado(): StopReportListado[] {
+    if (this.registrosPorPagina <= 0) { return this.stopReportFiltrado; }
+    return this.stopReportFiltrado.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
+  }
+
   get totalFiltrados(): number {
     if (this.tabActivo === 'medio-ambiente') {
       return this.medioAmbienteFiltrado.length;
@@ -497,6 +608,10 @@ export class InspeccionesPageComponent implements OnInit {
 
     if (this.tabActivo === 'we-report') {
       return this.weReportFiltrados.length;
+    }
+
+    if (this.tabActivo === 'stop-work') {
+      return this.stopReportFiltrado.length;
     }
 
     return this.observacionesFiltradas.length;
@@ -513,6 +628,10 @@ export class InspeccionesPageComponent implements OnInit {
 
     if (this.tabActivo === 'we-report') {
       return this.weReportPaginados.length;
+    }
+
+    if (this.tabActivo === 'stop-work') {
+      return this.stopReportPaginado.length;
     }
 
     return this.observacionesPaginadas.length;
@@ -684,6 +803,43 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
+  private cargarStopReport(): void {
+    this.cargandoStopReport = true;
+    const fechaDesde = this.formatearFechaConsulta(this.filtroDesde);
+    const fechaHasta = this.formatearFechaConsulta(this.filtroHasta);
+
+    if (!fechaDesde || !fechaHasta) {
+      this.registrosStopReport = [];
+      this.cargandoStopReport = false;
+      return;
+    }
+
+    this.apiService.getFiltrarStopReport(fechaDesde, fechaHasta, this.estadoFiltro).subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.registrosStopReport = raw.map(item => ({
+          Stop_Work_Id: this.toNumber(item?.['Stop_Work_Id'] ?? item?.['stop_Work_Id'] ?? item?.['Stop_Report_Id'] ?? item?.['stop_Report_Id'] ?? 0),
+          Codigo_We_Report: this.texto(item?.['Codigo_We_Report'] ?? item?.['codigo_We_Report'] ?? item?.['We_Report_Cod'] ?? item?.['we_Report_Cod']),
+          Codigo_Stop_Work: this.texto(item?.['Codigo_Stop_Work'] ?? item?.['codigo_Stop_Work']),
+          Usr_Nom: this.texto(item?.['Usr_Nom'] ?? item?.['usr_Nom']),
+          Cen_Cos_Des: this.texto(item?.['Cen_Cos_Des'] ?? item?.['cen_Cos_Des']),
+          Stop_Supervisor_Nom: this.texto(item?.['Stop_Supervisor_Nom'] ?? item?.['stop_Supervisor_Nom']),
+          Stop_Inspector: this.texto(item?.['Stop_Inspector'] ?? item?.['stop_Inspector']),
+          Cliente_Nombre: this.texto(item?.['Cliente_Nombre'] ?? item?.['cliente_Nombre']),
+          OT: this.texto(item?.['OT'] ?? item?.['ot'] ?? item?.['Stop_OP'] ?? item?.['stop_OP']),
+          Tipo_Riesgo: this.texto(item?.['Tipo_Riesgo'] ?? item?.['tipo_Riesgo']),
+          Estado: this.texto(item?.['Estado'] ?? item?.['estado']),
+        }));
+        this.ajustarPaginaActual();
+        this.cargandoStopReport = false;
+      },
+      error: () => {
+        this.registrosStopReport = [];
+        this.cargandoStopReport = false;
+      }
+    });
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────
   private formatearFechaConsulta(fecha: Date | null): string {
     if (!fecha) { return ''; }
@@ -714,6 +870,11 @@ export class InspeccionesPageComponent implements OnInit {
     return [item.Codigo_We_Report, item.Usr_Nom, item.Reporte_Tipo, item.Cen_Cos_Des,
             item.Cliente_Nombre, item.Report_Descripcion, item.Report_Acciones_Inmediata,
             item.Report_Potencial, item.Report_Aplica].join(' ');
+  }
+
+  private crearTextoBusquedaStopReport(item: StopReportListado): string {
+    return [item.Codigo_Stop_Work, item.Usr_Nom, item.Cen_Cos_Des, item.Stop_Supervisor_Nom,
+            item.Stop_Inspector, item.Cliente_Nombre, item.OT, item.Tipo_Riesgo, item.Estado].join(' ');
   }
 
   private normalizarTexto(value: string): string {

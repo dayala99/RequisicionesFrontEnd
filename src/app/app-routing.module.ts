@@ -24,7 +24,7 @@ import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servi
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
-import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
+import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
 import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
@@ -129,8 +129,13 @@ const routes: Routes = [
         component: InspeccionesPageComponent
       },
       {
+        path: 'tipo-reporte',
+        component: TipoReportePageComponent
+      },
+      {
         path: 'jefe',
-        component: JefePageComponent
+        redirectTo: 'tipo-reporte',
+        pathMatch: 'full'
       },
       {
         path: 'cliente',

@@ -1,16 +1,20 @@
+import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { catchError, of } from 'rxjs';
 
 import { AuthService } from '../../../features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from '../../inspecciones-page/confirmacion-accion-dialog.component';
 import { JefeRegisterDialogComponent } from './jefe-register-dialog.component';
-import { CentroCostoOption, JefeFilter, JefeItem } from './jefe.model';
+import { JefeFilter, JefeItem } from './jefe.model';
 import { JefeService } from './jefe.service';
 
 type DataRecord = Record<string, unknown>;
 
 @Component({
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   selector: 'app-jefe-page',
   templateUrl: './jefe-page.component.html',
   styleUrls: ['./jefe-page.component.scss']
@@ -18,16 +22,12 @@ type DataRecord = Record<string, unknown>;
 export class JefePageComponent implements OnInit {
   readonly filtros: JefeFilter = {
     Id: undefined,
-    Nombre: '',
-    Dni: '',
-    Estado: 'A',
-    Cen_Cos_Id: 0
+    Reporte_Tipo: '',
+    Estado: 'A'
   };
 
   jefes: JefeItem[] = [];
-  centroCostos: CentroCostoOption[] = [];
   cargando = false;
-  cargandoAreas = false;
   eliminandoJefe = false;
   errorMessage = '';
 
@@ -61,7 +61,6 @@ export class JefePageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.cargarAreas();
     this.cargarJefes();
   }
 
@@ -110,22 +109,6 @@ export class JefePageComponent implements OnInit {
     this.cargarJefes();
   }
 
-  private cargarAreas(): void {
-    this.cargandoAreas = true;
-
-    this.jefeService.listarCentroCostosActivos().subscribe({
-      next: (response: unknown) => {
-        this.centroCostos = this.jefeService.mapCentroCostoOptions(response);
-        this.cargandoAreas = false;
-      },
-      error: (error: unknown) => {
-        console.error('Error cargando áreas', error);
-        this.centroCostos = [];
-        this.cargandoAreas = false;
-      }
-    });
-  }
-
   eliminarJefe(jefe: JefeItem): void {
     if (jefe.id === null) {
       return;
@@ -135,8 +118,8 @@ export class JefePageComponent implements OnInit {
       width: '460px',
       disableClose: true,
       data: {
-        titulo: 'Eliminar jefe',
-        mensaje: `Se eliminará al jefe "${jefe.nombre}". Esta acción cambiará su estado a inactivo.`,
+        titulo: 'Eliminar Tipo Reporte',
+        mensaje: `Se eliminará el tipo de reporte "${jefe.tipoReporte}". Esta acción cambiará su estado a inactivo.`,
         textoConfirmar: 'Confirmar eliminación',
         textoCancelar: 'Volver',
         tipo: 'peligro'
@@ -151,7 +134,7 @@ export class JefePageComponent implements OnInit {
   }
 
   private ejecutarEliminacionJefe(id: number): void {
-    const usrMod = this.authService.getCurrentUser().trim();
+    const usrMod = String(this.authService.getCurrentUser() ?? '').trim();
     if (!usrMod) {
       this.errorMessage = 'No se pudo identificar el usuario. Vuelve a iniciar sesión.';
       return;
@@ -165,32 +148,30 @@ export class JefePageComponent implements OnInit {
         this.cargarJefes();
       },
       error: (error: unknown) => {
-        console.error('Error eliminando jefe', error);
+        console.error('Error eliminando tipo reporte', error);
         this.eliminandoJefe = false;
-        this.errorMessage = 'No se pudo eliminar el jefe.';
+        this.errorMessage = 'No se pudo eliminar el tipo de reporte.';
       }
     });
   }
 
   limpiar(): void {
     this.filtros.Id = undefined;
-    this.filtros.Nombre = '';
-    this.filtros.Dni = '';
+    this.filtros.Reporte_Tipo = '';
     this.filtros.Estado = 'A';
-    this.filtros.Cen_Cos_Id = 0;
     this.cargarJefes();
   }
 
   cargarJefes(): void {
     this.cargando = true;
     this.errorMessage = '';
-    this.paginaActual = 1; // resetear al buscar/limpiar
+    this.paginaActual = 1;
 
     this.jefeService.listar(this.filtros).pipe(
       catchError((error: unknown) => {
-        console.error('Error cargando jefes', error);
+        console.error('Error cargando tipos de reporte', error);
         this.jefes = [];
-        this.errorMessage = 'No se pudo cargar la información de Jefes.';
+        this.errorMessage = 'No se pudo cargar la información de Tipo Reporte.';
         this.cargando = false;
         return of([]);
       })
@@ -230,19 +211,15 @@ export class JefePageComponent implements OnInit {
   }
 
   private mapJefe(item: DataRecord): JefeItem {
-    const rawId = item['Id'] ?? item['id'] ?? item['Jefe_Id'] ?? item['Jef_Id'];
-    const rawNombre = item['Nombre'] ?? item['nombre'] ?? item['Jef_Nombre'] ?? item['Jefe_Nombre'];
-    const rawDni = item['Dni'] ?? item['dni'] ?? item['Jef_DNI'] ?? item['Jefe_DNI'];
-    const rawArea = item['Area'] ?? item['area'] ?? item['Cen_Cos_Des'] ?? item['cen_cos_des'];
+    const rawId = item['Reporte_Id'] ?? item['Id'] ?? item['id'] ?? item['ReporteID'] ?? item['reporte_id'];
+    const rawTipoReporte =
+      item['Reporte_Tipo'] ?? item['reporte_Tipo'] ?? item['reporte_tipo'] ?? item['Tipo_Reporte'] ?? item['tipoReporte'];
     const rawEstado = item['Estado'] ?? item['estado'] ?? item['Flg_Est'] ?? item['Flg_Estado'];
 
     return {
       id: rawId === null || rawId === undefined || rawId === '' ? null : Number(rawId),
-      nombre: String(rawNombre ?? ''),
-      dni: String(rawDni ?? ''),
-      area: String(rawArea ?? ''),
-      estado: String(rawEstado ?? ''),
-      cenCosId: Number(item['Cen_Cos_Id'] ?? item['cen_cos_id'] ?? 0) || null
+      tipoReporte: String(rawTipoReporte ?? ''),
+      estado: String(rawEstado ?? '')
     };
   }
 
