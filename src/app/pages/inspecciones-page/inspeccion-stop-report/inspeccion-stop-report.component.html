@@ -44,6 +44,10 @@
   <section class="inspeccion-card" [formGroup]="form">
     <h3>Datos Generales</h3>
     <div class="form-grid">
+      <div class="field">
+        <label>Código We Report (opcional):</label>
+        <input type="text" formControlName="weReportCod" readonly placeholder="Opcional">
+      </div>
 
       <div class="field combo-field">
         <label>Supervisor Responsable:</label>

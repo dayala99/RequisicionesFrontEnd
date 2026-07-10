@@ -50,6 +50,7 @@ type ComboKey = 'tipoReporte' | 'areaDetectada' | 'cliente' | 'subestacion' | 'p
 })
 export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
   @Output() volver = new EventEmitter<void>();
+  @Output() guardado = new EventEmitter<{ weReportId: number; weReportCod: string; aplicaStopWork: boolean; formData: FormData }>();
   @Input() modoEdicion = false;
   @Input() weReportId: number | null = null;
 
@@ -98,6 +99,8 @@ export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
   guardando = false;
   cargandoEdicion = false;
   anonimoBloqueadoEnEdicion = false;
+  aplicaStopWorkBloqueadoEnEdicion = false;
+  codigoWeReportOriginal = '';
   private rutaFoto1Existente = '';
   private rutaFoto2Existente = '';
 
@@ -333,6 +336,8 @@ export class WeReportComponent implements OnInit, OnChanges, OnDestroy {
 
         const esAnonimo = this.normalizarMarca(this.texto(item['Report_Anonimo'] ?? item['report_Anonimo'])) === 'S';
         this.anonimoBloqueadoEnEdicion = esAnonimo;
+        this.codigoWeReportOriginal = this.texto(item['Codigo_We_Report'] ?? item['codigo_We_Report'] ?? item['codigo_we_report']);
+        this.aplicaStopWorkBloqueadoEnEdicion = this.normalizarMarca(this.texto(item['Report_Aplica'] ?? item['report_Aplica'])) === 'S';
 
         if (esAnonimo) {
           this.reportante = {
@@ -493,6 +498,35 @@ private extraerUnico<T>(response: unknown): T | null {
   return null;
 }
 
+  private extraerIdGuardado(response: unknown): number | null {
+    if (typeof response === 'number' && Number.isFinite(response) && response > 0) {
+      return Math.trunc(response);
+    }
+
+    if (response && typeof response === 'object') {
+      const record = response as Record<string, unknown>;
+      for (const key of ['Data', 'data', 'Element', 'element', 'Id', 'id', 'We_Report_Id', 'we_Report_Id']) {
+        const valor = record[key];
+        const numero = Number(valor);
+        if (!Number.isNaN(numero) && numero > 0) {
+          return Math.trunc(numero);
+        }
+      }
+
+      const first = this.extraerUnico<Record<string, unknown>>(response);
+      if (first) {
+        for (const key of ['We_Report_Id', 'we_Report_Id', 'Id', 'id']) {
+          const numero = Number(first[key]);
+          if (!Number.isNaN(numero) && numero > 0) {
+            return Math.trunc(numero);
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
   guardar(): void {
     this.form.markAllAsTouched();
     if (this.form.invalid) {
@@ -501,10 +535,7 @@ private extraerUnico<T>(response: unknown): T | null {
     }
 
     const aplicaStopWork = (this.form.get('aplicaStopWork')?.value ?? 'NO') as string;
-    if (aplicaStopWork === 'SI') {
-      alert('Al seleccionar "Sí" en Aplica Stop Work, debes completar el formato Stop Work.');
-      return;
-    }
+    const requiereStopWork = aplicaStopWork === 'SI' && !this.aplicaStopWorkBloqueadoEnEdicion;
 
     const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
     if (!usrCod) {
@@ -530,10 +561,10 @@ private extraerUnico<T>(response: unknown): T | null {
     formData.append('Report_Acciones_Inmediata', String(this.form.get('accionesInmediatas')?.value ?? ''));
     formData.append('Report_Acciones_Propuestas', String(this.form.get('accionesPropuestas')?.value ?? ''));
     formData.append('Report_Potencial', String(this.form.get('potencial')?.value ?? ''));
-    formData.append('Report_Aplica', aplicaStopWork === 'SI' ? 'S' : 'N');
+    const reportAplicaPersistido = this.aplicaStopWorkBloqueadoEnEdicion ? 'S' : 'N';
+    formData.append('Report_Aplica', reportAplicaPersistido);
     formData.append('Estado', this.normalizarEstadoReporte(this.texto(this.form.get('estado')?.value)));
     formData.append('Usr_Reg', usrCod);
-    formData.append('Usr_Mod', usrCod);
 
     if (this.modoEdicion && this.weReportId) {
       formData.append('We_Report_Id', String(this.weReportId));
@@ -577,9 +608,31 @@ private extraerUnico<T>(response: unknown): T | null {
       next: (response: unknown) => {
         this.guardando = false;
         console.log('[WeReport] guardado correctamente', response);
+
+        const aplicaStopWork = this.normalizarMarca(this.texto(this.form.get('aplicaStopWork')?.value)) === 'S';
+        const weReportId = this.extraerIdGuardado(response) ?? (this.modoEdicion ? this.weReportId : null);
+
+        if (requiereStopWork) {
+          if (weReportId == null) {
+            alert('No se pudo obtener el código del We Report para continuar con Stop Work.');
+            return;
+          }
+
+          const weReportCod = this.codigoWeReportOriginal || `HSE-${weReportId}`;
+          this.guardado.emit({
+            weReportId,
+            weReportCod,
+            aplicaStopWork: true,
+            formData,
+          });
+          return;
+        }
+
         this.form.reset({ anonimo: false, aplicaStopWork: 'NO', estado: 'A' });
         this.form.get('anonimo')?.enable({ emitEvent: false });
         this.anonimoBloqueadoEnEdicion = false;
+        this.aplicaStopWorkBloqueadoEnEdicion = false;
+        this.codigoWeReportOriginal = '';
         this.liberarArchivos(this.fotosEvento);
         this.liberarArchivos(this.fotosAcciones);
         this.fotosEvento = [];

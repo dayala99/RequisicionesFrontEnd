@@ -231,7 +231,7 @@
       <div class="field combo-field">
         <label>Aplica Stop Work:</label>
         <div class="combo">
-          <button type="button" class="combo__trigger" [class.combo__trigger--placeholder]="false" (click)="$event.stopPropagation(); toggleCombo('aplicaStopWork')">
+          <button type="button" class="combo__trigger" [class.combo__trigger--placeholder]="false" [disabled]="modoEdicion && aplicaStopWorkBloqueadoEnEdicion" (click)="$event.stopPropagation(); toggleCombo('aplicaStopWork')">
             <span class="combo__text">{{ stopWorkDisplay }}</span>
             <i class="combo__caret"></i>
           </button>
@@ -261,6 +261,9 @@
 
     <div class="stopwork-note" *ngIf="form.get('aplicaStopWork')?.value === 'SI'">
       Si marca <strong>SI</strong>: Se redireccionará a llenar el formato Stop Work.
+    </div>
+    <div class="stopwork-note" *ngIf="modoEdicion && aplicaStopWorkBloqueadoEnEdicion">
+      Este We Report ya fue guardado con <strong>SI</strong>, por eso el valor queda bloqueado al editar.
     </div>
 </section>
 </form>

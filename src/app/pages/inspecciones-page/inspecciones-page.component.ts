@@ -132,6 +132,8 @@ export class InspeccionesPageComponent implements OnInit {
   inspeccionIdSeleccionado: number | null = null;
   stopReportIdSeleccionado: number | null = null;
   weReportIdSeleccionado: number | null = null;
+  weReportCodSeleccionado: string | null = null;
+  private weReportFormDataPendiente: FormData | null = null;
 
   constructor(
     private readonly apiService: ApiService,
@@ -162,6 +164,8 @@ export class InspeccionesPageComponent implements OnInit {
     this.inspeccionIdSeleccionado = null;
     this.stopReportIdSeleccionado = null;
     this.weReportIdSeleccionado = null;
+    this.weReportCodSeleccionado = null;
+    this.weReportFormDataPendiente = null;
     this.paginaActual = 1;
     this.closeCombos();
 
@@ -402,6 +406,7 @@ export class InspeccionesPageComponent implements OnInit {
   editarWeReport(registro: WeReportListado): void {
     this.modoFormulario = 'editar';
     this.weReportIdSeleccionado = registro.We_Report_Id;
+    this.weReportCodSeleccionado = null;
     this.inspeccionIdSeleccionado = null;
     this.observacionIdSeleccionado = null;
     this.codigoObsSeleccionado = null;
@@ -453,6 +458,57 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
+  manejarWeReportGuardado(event: { weReportId: number; weReportCod: string; aplicaStopWork: boolean; formData: FormData }): void {
+    this.weReportIdSeleccionado = event.weReportId;
+    this.weReportCodSeleccionado = event.weReportCod;
+    this.modoFormulario = 'nuevo';
+    this.weReportFormDataPendiente = event.aplicaStopWork ? event.formData : null;
+
+    if (this.weReportFormDataPendiente) {
+      if (!this.weReportFormDataPendiente.has('We_Report_Id') && event.weReportId > 0) {
+        this.weReportFormDataPendiente.append('We_Report_Id', String(event.weReportId));
+      }
+      this.stopReportIdSeleccionado = null;
+      this.vistaActual = 'stop-report';
+      return;
+    }
+
+    this.vistaActual = 'we-report-form';
+  }
+
+
+  manejarStopReportGuardado(): void {
+    const formData = this.weReportFormDataPendiente;
+    this.weReportFormDataPendiente = null;
+
+    if (!formData) {
+      this.volverAInspecciones();
+      return;
+    }
+
+    formData.delete('Report_Aplica');
+    formData.append('Report_Aplica', 'S');
+
+    if (this.weReportIdSeleccionado && !formData.has('We_Report_Id')) {
+      formData.append('We_Report_Id', String(this.weReportIdSeleccionado));
+    }
+
+    this.apiService.postActualizarWeReport(formData).subscribe({
+      next: () => {
+        this.volverAInspecciones();
+      },
+      error: (error: unknown) => {
+        alert(this.getErrorMessage(error, 'El Stop Report se guardó, pero no se pudo actualizar el We Report a SI.'));
+        this.volverAInspecciones();
+      }
+    });
+  }
+
+  manejarStopReportCancelado(): void {
+    this.weReportFormDataPendiente = null;
+    this.volverAInspecciones();
+  }
+
   abrirArchivosWeReport(registro: WeReportListado): void {
     this.dialog.open(WeReportArchivosDialogComponent, {
       width: '920px',
@@ -478,6 +534,8 @@ export class InspeccionesPageComponent implements OnInit {
     this.inspeccionIdSeleccionado = null;
     this.stopReportIdSeleccionado = null;
     this.weReportIdSeleccionado = null;
+    this.weReportCodSeleccionado = null;
+    this.weReportFormDataPendiente = null;
     this.paginaActual = 1;
     this.closeCombos();
     this.buscarRegistros();

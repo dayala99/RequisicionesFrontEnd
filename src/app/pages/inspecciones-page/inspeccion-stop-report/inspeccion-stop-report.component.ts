@@ -23,9 +23,11 @@ interface DatosPersonal { nombre: string; cargo: string; area: string; }
 })
 export class InspeccionStopReportComponent implements OnInit {
   @Output() volver = new EventEmitter<void>();
+  @Output() guardado = new EventEmitter<void>();
 
   @Input() modoEdicion = false;
   @Input() stopReportId: number | null = null;
+  @Input() weReportCod: string | null = null;
 
   personal: DatosPersonal = { nombre: '', cargo: '', area: '' };
   readonly form: FormGroup;
@@ -89,6 +91,7 @@ export class InspeccionStopReportComponent implements OnInit {
     private readonly dialog: MatDialog,
   ) {
     this.form = this.fb.group({
+      weReportCod: [''],
       ot: ['', Validators.required],
       trabajoAsignado: ['', Validators.required],
       procedimientoTrabajo: ['', Validators.required],
@@ -103,6 +106,7 @@ export class InspeccionStopReportComponent implements OnInit {
     this.cargarSupervisoresResponsables();
     this.cargarInspectoresCliente();
     this.cargarTiposRiesgo();
+    this.form.patchValue({ weReportCod: (this.weReportCod ?? '').trim() });
 
     if (this.modoEdicion && this.stopReportId) {
       this.cargarDatosEdicion(this.stopReportId);
@@ -147,7 +151,11 @@ export class InspeccionStopReportComponent implements OnInit {
     if (this.guardando || !this.validarFormulario()) { return; }
 
     const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
+    const codigoWeReport = String(this.form.get('weReportCod')?.value ?? this.weReportCod ?? '').trim();
+    const weReportCod = codigoWeReport ? codigoWeReport : null;
+
     const payload: any = {
+      We_Report_Cod: weReportCod,
       Usr_Cod: usrCod,
       Cliente_Id: this.clienteSeleccionado!.Cliente_Id,
       Subestacion_Id: this.subestacionSeleccionada!.Subestacion_Id,
@@ -169,7 +177,7 @@ export class InspeccionStopReportComponent implements OnInit {
     this.apiService.postInsertarStopReport(payload).subscribe({
       next: () => {
         this.guardando = false;
-        this.volver.emit();
+        this.guardado.emit();
       },
       error: (err: unknown) => {
         this.guardando = false;
@@ -189,8 +197,12 @@ export class InspeccionStopReportComponent implements OnInit {
 
     const usrCod = (this.authService.getCurrentUser?.() ?? '').trim();
     const estado = String(this.form.get('estado')?.value ?? 'A').toUpperCase() === 'I' ? 'I' : 'A';
+    const codigoWeReport = String(this.form.get('weReportCod')?.value ?? this.weReportCod ?? '').trim();
+    const weReportCod = codigoWeReport ? codigoWeReport : null;
+
     const payload: any = {
       Stop_Work_Id: this.stopReportId,
+      We_Report_Cod: weReportCod,
       Usr_Cod: usrCod,
       Cliente_Id: this.clienteSeleccionado!.Cliente_Id,
       Subestacion_Id: this.subestacionSeleccionada!.Subestacion_Id,
@@ -213,7 +225,7 @@ export class InspeccionStopReportComponent implements OnInit {
     this.apiService.putActualizarStopReport(payload).subscribe({
       next: () => {
         this.guardando = false;
-        this.volver.emit();
+        this.guardado.emit();
       },
       error: (err: unknown) => {
         this.guardando = false;
@@ -226,6 +238,8 @@ export class InspeccionStopReportComponent implements OnInit {
   private validarFormulario(): boolean {
     if (!this.clienteSeleccionado) { alert('Seleccione un Cliente.'); return false; }
     if (!this.subestacionSeleccionada) { alert('Seleccione una Subestación.'); return false; }
+    // El código de We Report es opcional: solo se completa cuando el Stop Work
+    // viene originado desde un We Report con "Aplica Stop Work = SI".
     if (!this.supervisorSeleccionado) { alert('Seleccione un Supervisor Responsable.'); return false; }
     if (!String(this.form.get('inspectorTexto')?.value ?? '').trim()) { alert('Ingrese el Inspector del Cliente.'); return false; }
     if (!this.form.get('ot')?.value) { alert('Ingrese OT.'); return false; }
@@ -435,6 +449,7 @@ export class InspeccionStopReportComponent implements OnInit {
 
     if (!this.edicionFormAplicado) {
       this.form.patchValue({
+        weReportCod: this.getVal(r, ['We_Report_Cod', 'Codigo_We_Report', 'we_Report_Cod']) || this.weReportCod || '',
         ot: this.getVal(r, ['OT', 'Ot', 'ot', 'Orden_Trabajo', 'orden_Trabajo']),
         trabajoAsignado: this.getVal(r, ['Trabajo_Asignado', 'trabajo_Asignado']),
         procedimientoTrabajo: this.getVal(r, ['Procedimiento_Trabajo', 'procedimiento_Trabajo']),

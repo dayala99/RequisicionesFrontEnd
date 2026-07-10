@@ -461,9 +461,9 @@
 </ng-template>
 
 <ng-template #vistaStopReport>
-  <app-stop-report [modoEdicion]="modoFormulario === 'editar'" [stopReportId]="stopReportIdSeleccionado" (volver)="volverAInspecciones()"></app-stop-report>
+  <app-stop-report [modoEdicion]="modoFormulario === 'editar'" [stopReportId]="stopReportIdSeleccionado" [weReportCod]="weReportCodSeleccionado" (guardado)="manejarStopReportGuardado()" (volver)="manejarStopReportCancelado()"></app-stop-report>
 </ng-template>
 
 <ng-template #vistaWeReport>
-  <app-we-report [modoEdicion]="modoFormulario === 'editar'" [weReportId]="weReportIdSeleccionado" (volver)="volverAInspecciones()"></app-we-report>
+  <app-we-report [modoEdicion]="modoFormulario === 'editar'" [weReportId]="weReportIdSeleccionado" (volver)="volverAInspecciones()" (guardado)="manejarWeReportGuardado($event)"></app-we-report>
 </ng-template>
