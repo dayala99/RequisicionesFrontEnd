@@ -274,6 +274,24 @@ export interface ActualizarTipoInspeccionRequest {
     Usr_Mod: string;
 }
 
+export interface TipoRiesgoFiltro {
+    Id?: number;
+    Nombre?: string;
+    Estado?: string;
+}
+
+export interface RegistrarTipoRiesgoRequest {
+    Nombre: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarTipoRiesgoRequest {
+    Id: number;
+    Nombre: string;
+    Estado: string;
+    Usr_Mod: string;
+}
+
 export interface UbicacionFiltro {
     Ubi_Id?: number;
     Ubi_Des?: string;
@@ -1455,6 +1473,47 @@ export class ApiService {
         const headers = this.Header;
         const params = new HttpParams().append('Usr_Mod', usrMod);
         return this.http.delete(this.baseUrl + `TipoInspeccion/deleteEliminarTipoInspeccion/${id}`, { headers, params });
+    }
+
+    getListarTipoRiesgo(filtros: TipoRiesgoFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined && filtros.Id !== null) {
+            params = params.append('Id', String(filtros.Id));
+        }
+
+        if (filtros.Nombre !== undefined && filtros.Nombre !== null) {
+            params = params.append('Nombre', filtros.Nombre);
+        }
+
+        if (filtros.Estado !== undefined && filtros.Estado !== null) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        return this.http.get(this.baseUrl + 'TipoRiesgo/getListarTipoRiesgo', { headers, params });
+    }
+
+    getConsultarDatosTipoRiesgo(tipoRiesgoId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Tipo_Riesgo_Id', tipoRiesgoId);
+        return this.http.get(this.baseUrl + 'TipoRiesgo/getConsultarDatosTipoRiesgo', { headers, params });
+    }
+
+    registrarTipoRiesgo(tipoRiesgo: RegistrarTipoRiesgoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'TipoRiesgo/postRegistrarTipoRiesgo', tipoRiesgo, { headers });
+    }
+
+    actualizarTipoRiesgo(tipoRiesgo: ActualizarTipoRiesgoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'TipoRiesgo/patchActualizarTipoRiesgo', tipoRiesgo, { headers });
+    }
+
+    eliminarTipoRiesgo(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `TipoRiesgo/deleteEliminarTipoRiesgo/${id}`, { headers, params });
     }
 
 getListarMotivo(filtros: MotivoFiltro = {}): Observable<any> {

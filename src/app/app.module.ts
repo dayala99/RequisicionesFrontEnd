@@ -81,6 +81,7 @@ import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
 import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
+import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
 import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
 import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
@@ -186,6 +187,7 @@ const APP_DATE_FORMATS = {
     ClientePageComponent,
     TipoInspeccionPageComponent,
     RiesgoPageComponent,
+    TipoRiesgoPageComponent,
     ReportePageComponent,
     MotivoPageComponent,
     SubestacionPageComponent,
