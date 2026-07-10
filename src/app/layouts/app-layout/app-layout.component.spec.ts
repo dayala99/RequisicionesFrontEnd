@@ -69,6 +69,7 @@ describe('AppLayoutComponent', () => {
 
     expect(links).toContain('Pedidos');
     expect(links).toContain('Orden de Compra');
+    expect(links).toContain('Orden de Servicio');
   });
 
   it('should toggle the mantenimiento group', () => {

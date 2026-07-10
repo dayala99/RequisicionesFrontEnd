@@ -402,6 +402,7 @@ export interface PedidosFiltro {
 export interface OrdenCompraFiltro {
     Ord_Com_Id?: number;
     Ord_Com_Prv?: string;
+    Ord_Com_Tip?: number;
     Flg_Est?: string;
 }
 
@@ -616,6 +617,7 @@ export interface RegistrarPedidoRequest {
     Ped_Lug_Ent: number;
     Ped_Ref: string;
     Ped_Ref_Gral: string;
+    Ped_Acl?: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
     Ped_Fec_Ent: string;
@@ -648,6 +650,7 @@ export interface ActualizarPedidoRequest {
     Ped_Lug_Ent: number;
     Ped_Ref: string;
     Ped_Ref_Gral: string;
+    Ped_Acl?: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
     Ped_Fec_Ent: string;
@@ -724,8 +727,11 @@ export interface ActualizarReferenciaGeneralRequest {
 }
 
 export interface RegistrarOrdenCompraRequest {
+    Ord_Com_Tip: number;
     Ord_Com_Prv: number;
     Ord_Com_For_Pag: number;
+    Con_Nom?: string;
+    Mon_Id?: number;
     Ord_Com_Ref_Obr: string;
     Ord_Com_Obs: string;
     Ord_Com_Ref: string;
@@ -744,8 +750,11 @@ export interface RegistrarOrdenCompraRequest {
 
 export interface ActualizarOrdenCompraRequest {
     Ord_Com_Id: number;
+    Ord_Com_Tip: number;
     Ord_Com_Prv: number;
     Ord_Com_For_Pag: number;
+    Con_Nom?: string;
+    Mon_Id?: number;
     Ord_Com_Ref_Obr: string;
     Ord_Com_Obs: string;
     Ord_Com_Ref: string;
@@ -783,6 +792,8 @@ export interface RegistrarDetallePedidoRequest {
     Ped_Cos_Tot: number;
     Usr_Reg: string;
     Ped_Obs_Ped?: string;
+    Ped_Com?: string;
+    Ped_Req?: string;
 }
 
 export interface ActualizarDetallePedidoRequest {
@@ -795,6 +806,8 @@ export interface ActualizarDetallePedidoRequest {
     Ped_Cos_Tot: number;
     Usr_Mod: string;
     Ped_Obs_Ped?: string;
+    Ped_Com?: string;
+    Ped_Req?: string;
 }
 
 export interface EliminarDetallePedidoRequest {
@@ -1477,7 +1490,7 @@ export class ApiService {
             params = params.append('Prv_Nom', filtros.Prv_Nom);
         }
 
-        if (filtros.Flg_Est) {
+        if (filtros.Flg_Est !== undefined) {
             params = params.append('Flg_Est', filtros.Flg_Est);
         }
 
@@ -1527,6 +1540,10 @@ export class ApiService {
             params = params.append('Ord_Com_Prv', filtros.Ord_Com_Prv);
         }
 
+        if (filtros.Ord_Com_Tip !== undefined) {
+            params = params.append('Ord_Com_Tip', filtros.Ord_Com_Tip);
+        }
+
         if (filtros.Flg_Est) {
             params = params.append('Flg_Est', filtros.Flg_Est);
         }
@@ -1544,6 +1561,10 @@ export class ApiService {
 
         if (filtros.Ord_Com_Prv) {
             params = params.append('Ord_Com_Prv', filtros.Ord_Com_Prv);
+        }
+
+        if (filtros.Ord_Com_Tip !== undefined) {
+            params = params.append('Ord_Com_Tip', filtros.Ord_Com_Tip);
         }
 
         if (filtros.Flg_Est) {
@@ -1767,6 +1788,14 @@ export class ApiService {
         formData.append('archivo', archivo, archivo.name);
 
         return this.http.post(this.baseUrl + 'Pedido/postRegistrarArchivoAdjunto', formData);
+    }
+
+    deleteEliminarArchivoAdjunto(archivoAdjunto: RegistrarArchivoAdjuntoPedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.delete(this.baseUrl + 'Pedido/deleteEliminarArchivoAdjunto', {
+            headers,
+            body: archivoAdjunto
+        });
     }
 
     getListarArchivosAdjuntosOrdenCompra(Ord_Com_Id: number): Observable<any> {

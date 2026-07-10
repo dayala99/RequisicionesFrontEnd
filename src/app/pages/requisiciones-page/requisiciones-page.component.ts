@@ -146,6 +146,7 @@ export class RequisicionesPageComponent implements OnInit {
   isSavingPedidoDetalle = false;
   isLoadingReportePedidoId: number | null = null;
   private pedidoLogoBytes: Uint8Array | null | undefined;
+  private pedidoHeaderImageBytes: Uint8Array | null | undefined;
   detallePedidoErrorMessage = '';
   detallePedidoCantidadLimite = 0;
   currentPedidosPage = 1;
@@ -345,7 +346,8 @@ export class RequisicionesPageComponent implements OnInit {
           }
 
           const logoBytes = await this.loadPedidoLogoBytes();
-          const pdfBlob = createPedidoReportPdf(this.buildPedidoReportePdfData(reporte, item), { logoBytes });
+          const headerImageBytes = await this.loadPedidoHeaderImageBytes();
+          const pdfBlob = createPedidoReportPdf(this.buildPedidoReportePdfData(reporte, item), { logoBytes, headerImageBytes });
           const url = URL.createObjectURL(pdfBlob);
           window.open(url, '_blank');
           this.isLoadingReportePedidoId = null;
@@ -2402,6 +2404,27 @@ export class RequisicionesPageComponent implements OnInit {
       return this.pedidoLogoBytes;
     } catch {
       this.pedidoLogoBytes = null;
+      return undefined;
+    }
+  }
+
+  private async loadPedidoHeaderImageBytes(): Promise<Uint8Array | undefined> {
+    if (this.pedidoHeaderImageBytes !== undefined) {
+      return this.pedidoHeaderImageBytes ?? undefined;
+    }
+
+    try {
+      const response = await fetch('assets/PedidoInterno.jpg');
+
+      if (!response.ok) {
+        this.pedidoHeaderImageBytes = null;
+        return undefined;
+      }
+
+      this.pedidoHeaderImageBytes = new Uint8Array(await response.arrayBuffer());
+      return this.pedidoHeaderImageBytes;
+    } catch {
+      this.pedidoHeaderImageBytes = null;
       return undefined;
     }
   }

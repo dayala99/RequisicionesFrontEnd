@@ -162,6 +162,15 @@
         </button>
 
         <button
+          *ngIf="pedidosPendientesOrdenServicio > 0"
+          type="button"
+          class="notification-item"
+          (click)="goToPendingServiceOrders()">
+          <span class="notification-item__title">Ordenes de servicio pendientes por generar</span>
+          <span class="notification-item__meta">{{ pedidosPendientesOrdenServicio }} pendiente{{ pedidosPendientesOrdenServicio === 1 ? '' : 's' }}</span>
+        </button>
+
+        <button
           *ngIf="ordenesCompraPendientesAlmacen > 0"
           type="button"
           class="notification-item"

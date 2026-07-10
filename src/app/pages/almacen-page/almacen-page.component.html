@@ -167,8 +167,6 @@
                 <th>Tipo</th>
                 <th>Proveedor</th>
                 <th>Forma de Pago</th>
-                <th>Ref. Obra</th>
-              <th>Referencia</th>
               <th>Total</th>
               <th>Estado</th>
             </tr>
@@ -176,11 +174,11 @@
 
           <tbody>
             <tr *ngIf="isLoadingAlmacen">
-              <td colspan="8" class="empty-row">Cargando ordenes de compra pendientes...</td>
+              <td colspan="7" class="empty-row">Cargando ordenes de compra pendientes...</td>
             </tr>
 
             <tr *ngIf="!isLoadingAlmacen && !errorMessage && !ordenesCompraPendientesAlmacen.length">
-              <td colspan="8" class="empty-row">No se encontraron ordenes de compra pendientes para almacen.</td>
+              <td colspan="7" class="empty-row">No se encontraron ordenes de compra pendientes para almacen.</td>
             </tr>
 
             <tr *ngFor="let item of paginatedOrdenesCompraPendientesAlmacen; trackBy: trackByOrdenCompraPendienteAlmacen" class="almacen-table__row">
@@ -193,8 +191,6 @@
               <td>{{ item.tipo }}</td>
               <td>{{ item.proveedor }}</td>
               <td>{{ item.formaPago }}</td>
-              <td>{{ item.refObra }}</td>
-              <td>{{ item.referencia }}</td>
               <td>{{ item.total | number:'1.2-2' }}</td>
               <td>
                 <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>

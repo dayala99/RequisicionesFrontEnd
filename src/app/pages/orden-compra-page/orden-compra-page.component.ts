@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
+import { ActivatedRoute } from '@angular/router';
 import { forkJoin, from, Observable, of } from 'rxjs';
 import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
@@ -37,8 +38,10 @@ type OrdenCompraListadoModo = 'pendientes' | 'generados';
 interface OrdenCompraRow {
   id: number;
   ordenCompraId: number | null;
+  correlativo: string;
   pedidoIdAtencion: number | null;
   proveedorId: number;
+  monedaId: number;
   proveedor: string;
   proveedorRuc: string;
   proveedorBancoId: number;
@@ -49,6 +52,7 @@ interface OrdenCompraRow {
   proveedorEmail: string;
   proveedorDireccion: string;
   tipoServicio: string;
+  monedaAbreviacion: string;
   formaPagoId: number;
   formaPago: string;
   referenciaObra: string;
@@ -137,6 +141,12 @@ interface DetraccionOption {
   label: string;
 }
 
+interface MonedaOption {
+  id: number;
+  descripcion: string;
+  abreviacion: string;
+}
+
 @Component({
   selector: 'app-orden-compra-page',
   templateUrl: './orden-compra-page.component.html',
@@ -160,6 +170,7 @@ export class OrdenCompraPageComponent implements OnInit {
   pedidosPendientes: PedidoPendienteRow[] = [];
   proveedores: ProviderRecord[] = [];
   formasPago: PaymentOption[] = [];
+  monedas: MonedaOption[] = [];
   centrosCostoCatalogo: OrdenCompraCentroCostoRow[] = [];
   centrosCosto: OrdenCompraCentroCostoRow[] = [];
   pedidoDetalles: OrdenCompraDetallePedidoRow[] = [];
@@ -176,6 +187,7 @@ export class OrdenCompraPageComponent implements OnInit {
   isLoadingOrdenesCompra = false;
   isLoadingProveedores = false;
   isLoadingFormasPago = false;
+  isLoadingMonedas = false;
   isLoadingCentrosCosto = false;
   isLoadingDetracciones = false;
   isLoadingPedidoCentrosCosto = false;
@@ -197,12 +209,14 @@ export class OrdenCompraPageComponent implements OnInit {
   isLoadingPedidoArchivosAdjuntos = false;
   detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
   private ordenCompraLogoBytes: Uint8Array | null | undefined;
+  private ordenCompraHeaderImageBytes: Uint8Array | null | undefined;
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly dialog: MatDialog,
     private readonly apiService: ApiService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly route: ActivatedRoute
   ) {
     this.filtersForm = this.formBuilder.group({
       modoListado: ['pendientes'],
@@ -222,6 +236,7 @@ export class OrdenCompraPageComponent implements OnInit {
       ruc: [''],
       formaPagoId: [0],
       formaPago: ['', [Validators.required, noWhitespaceValidator()]],
+      monedaId: [0],
       referenciaObra: [''],
       referencia: [''],
       pedidoReferenciaGeneral: [''],
@@ -241,10 +256,30 @@ export class OrdenCompraPageComponent implements OnInit {
   ngOnInit(): void {
     this.cargarProveedores();
     this.cargarFormasPago();
+    this.cargarMonedas();
     this.cargarCentrosCosto();
     this.cargarDetracciones();
     this.cargarPedidosPendientes();
     this.resetEditor();
+  }
+
+  private get ordenCompraTipoId(): number {
+    const routeValue = Number(this.route.snapshot.data?.['ordComTip']);
+    return Number.isInteger(routeValue) && routeValue > 0 ? routeValue : 1;
+  }
+
+  get paginaTitulo(): string {
+    return this.ordenCompraTipoId === 2 ? 'Orden de Servicio' : 'Orden de Compra';
+  }
+
+  get numeroOrdenLabel(): string {
+    return this.ordenCompraTipoId === 2 ? 'Nro. O/S' : 'Nro. O/C';
+  }
+
+  get paginaDescripcion(): string {
+    return this.ordenCompraTipoId === 2
+      ? 'Registra y actualiza ordenes de servicio con un flujo de trabajo unico y una grilla de centros de costo habilitable para casos parciales.'
+      : 'Registra y actualiza ordenes de compra con un flujo de trabajo unico y una grilla de centros de costo habilitable para casos parciales.';
   }
 
   get proveedorButtonLabel(): string {
@@ -342,6 +377,18 @@ export class OrdenCompraPageComponent implements OnInit {
 
   get paginatedPedidoDetalles(): OrdenCompraDetallePedidoRow[] {
     return paginateItems(this.pedidoDetalles, this.currentDetallePedidoPage, this.pageSize);
+  }
+
+  get totalCantidadDetallePedido(): number {
+    return this.normalizeDecimal(this.pedidoDetalles.reduce((total, item) => total + item.cantidad, 0));
+  }
+
+  get totalCostoUnitarioDetallePedido(): number {
+    return this.normalizeDecimal(this.pedidoDetalles.reduce((total, item) => total + item.costoUnitario, 0));
+  }
+
+  get totalSubtotalDetallePedido(): number {
+    return this.normalizeDecimal(this.pedidoDetalles.reduce((total, item) => total + item.subtotal, 0));
   }
 
   get estanTodosLosDetallesSeleccionados(): boolean {
@@ -470,9 +517,10 @@ export class OrdenCompraPageComponent implements OnInit {
     ).subscribe({
       next: async ({ ordenCompra, detalleResponse, pedidoResponse, proveedorResponse, proveedorBancoResponse, bancoResponse }) => {
         const logoBytes = await this.loadOrdenCompraLogoBytes();
+        const headerImageBytes = await this.loadOrdenCompraHeaderImageBytes();
         const pdfBlob = createOrdenCompraReportPdf(
           this.buildOrdenCompraReportePdfData(ordenCompra, detalleResponse, pedidoResponse, proveedorResponse, proveedorBancoResponse, bancoResponse),
-          { logoBytes }
+          { logoBytes, headerImageBytes }
         );
         const url = URL.createObjectURL(pdfBlob);
         window.open(url, '_blank');
@@ -604,6 +652,30 @@ export class OrdenCompraPageComponent implements OnInit {
     this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
       detalle.id === item.id
         ? { ...detalle, costoUnitario, subtotal }
+        : detalle
+    );
+    this.syncTotalesCalculados();
+  }
+
+  actualizarCantidadDetallePedido(item: OrdenCompraDetallePedidoRow, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = this.sanitizeDecimalInput(input.value);
+
+    if (sanitizedValue !== input.value) {
+      input.value = sanitizedValue;
+    }
+
+    const cantidad = this.parseMontoControlValue(sanitizedValue);
+    const subtotal = this.normalizeDecimal(cantidad * item.costoUnitario);
+
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, cantidad, subtotal }
         : detalle
     );
     this.syncTotalesCalculados();
@@ -1333,6 +1405,7 @@ export class OrdenCompraPageComponent implements OnInit {
       pedidoReferenciaGeneral: '',
       observacion: '',
       archivo: 'Sin archivo adjunto',
+      monedaId: 0,
       detraccionId: null,
       montoDetraccion: 0,
       subtotal: 0,
@@ -1441,6 +1514,8 @@ export class OrdenCompraPageComponent implements OnInit {
     const proveedor = String(this.form.controls['proveedor'].value || '').trim();
     const formaPagoId = Number(this.form.controls['formaPagoId'].value);
     const formaPago = String(this.form.controls['formaPago'].value || '').trim();
+    const contacto = String(this.form.controls['contacto'].value || '').trim();
+    const monedaId = Number(this.form.controls['monedaId'].value);
     const referenciaObra = String(this.form.controls['referenciaObra'].value || '').trim();
     const referencia = String(this.form.controls['referencia'].value || '').trim();
     const observacion = String(this.form.controls['observacion'].value || '').trim();
@@ -1470,6 +1545,12 @@ export class OrdenCompraPageComponent implements OnInit {
       return null;
     }
 
+    if (!Number.isInteger(monedaId) || monedaId <= 0) {
+      this.form.controls['monedaId'].markAsTouched();
+      this.saveErrorMessage = 'Selecciona un tipo de moneda antes de guardar.';
+      return null;
+    }
+
     if (!this.detallesPedidoSeleccionados.length && !(this.isEditingOrdenCompra && this.detallesPendientesDesasignacion.length)) {
       this.saveErrorMessage = 'Selecciona al menos una fila del detalle para la orden de compra.';
       return null;
@@ -1481,11 +1562,14 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return {
+      Ord_Com_Tip: this.ordenCompraTipoId,
       Ord_Com_Prv: proveedorId,
       Ord_Com_For_Pag: formaPagoId,
+      Con_Nom: contacto,
       Ord_Com_Ref_Obr: referenciaObra,
       Ord_Com_Obs: observacion,
       Ord_Com_Ref: referencia,
+      Mon_Id: monedaId,
       Ord_Com_Sub_Tot: subtotal,
       Ord_Com_Igv: igv,
       Ord_Com_Tot: total,
@@ -1646,6 +1730,25 @@ export class OrdenCompraPageComponent implements OnInit {
     });
   }
 
+  private cargarMonedas(): void {
+    this.isLoadingMonedas = true;
+
+    this.apiService.getListarMoneda({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.monedas = this.extractRecords(response)
+          .map((item) => this.mapMonedaOption(item))
+          .filter((item): item is MonedaOption => item !== null)
+          .sort((left, right) => left.descripcion.localeCompare(right.descripcion));
+        this.reconciliarEtiquetasCatalogo();
+        this.isLoadingMonedas = false;
+      },
+      error: () => {
+        this.monedas = [];
+        this.isLoadingMonedas = false;
+      }
+    });
+  }
+
   private cargarCentrosCosto(): void {
     this.isLoadingCentrosCosto = true;
 
@@ -1762,10 +1865,11 @@ export class OrdenCompraPageComponent implements OnInit {
         proveedor: item.proveedor,
         telefono: this.resolveProveedor(item.proveedorId)?.phone || '',
         direccion: this.resolveProveedor(item.proveedorId)?.address || '',
-        contacto: this.resolveProveedor(item.proveedorId)?.contact || '',
+        contacto: item.proveedorContacto || this.resolveProveedor(item.proveedorId)?.contact || '',
         ruc: this.resolveProveedor(item.proveedorId)?.ruc || '',
         formaPagoId: item.formaPagoId,
         formaPago: item.formaPago,
+        monedaId: item.monedaId > 0 ? item.monedaId : 0,
         referenciaObra: item.referenciaObra,
       referencia: item.referencia,
       observacion: item.observacion,
@@ -1824,6 +1928,31 @@ export class OrdenCompraPageComponent implements OnInit {
     }
   }
 
+  private async loadOrdenCompraHeaderImageBytes(): Promise<Uint8Array | undefined> {
+    if (this.ordenCompraHeaderImageBytes !== undefined) {
+      return this.ordenCompraHeaderImageBytes ?? undefined;
+    }
+
+    try {
+      const assetPath = this.ordenCompraTipoId === 2
+        ? 'assets/OrdenServicio.jpg'
+        : 'assets/OrdenCompra.jpg';
+      const response = await fetch(assetPath);
+
+      if (!response.ok) {
+        this.ordenCompraHeaderImageBytes = null;
+        return undefined;
+      }
+
+      this.ordenCompraHeaderImageBytes = new Uint8Array(await response.arrayBuffer());
+      return this.ordenCompraHeaderImageBytes;
+    } catch (error) {
+      console.warn('No se pudo cargar la imagen de encabezado para el PDF de orden de compra:', error);
+      this.ordenCompraHeaderImageBytes = null;
+      return undefined;
+    }
+  }
+
   private buildOrdenCompraReportePdfData(
     ordenCompra: OrdenCompraRow,
     detalleResponse: unknown,
@@ -1872,7 +2001,9 @@ export class OrdenCompraPageComponent implements OnInit {
 
     return {
       ordenCompraId: ordenCompra.ordenCompraId ?? 0,
+      correlativo: this.formatOrdenCorrelativo(ordenCompra.ordenCompraId),
       tipoServicio: tipoServicio || ordenCompra.tipoServicio,
+      monedaAbreviacion: ordenCompra.monedaAbreviacion || 'S/.',
       fecha: fechaRegistro,
       proveedor: proveedor?.name || ordenCompra.proveedor,
       ruc: proveedor?.ruc || ordenCompra.proveedorRuc || '-',
@@ -1962,7 +2093,9 @@ export class OrdenCompraPageComponent implements OnInit {
     const ordenCompraId = Number(this.filtersForm.controls['ordenCompraId'].value);
     const proveedor = String(this.filtersForm.controls['proveedor'].value || '').trim();
     const estado = String(this.filtersForm.controls['estado'].value || '').trim();
-    const filtros: OrdenCompraFiltro = {};
+    const filtros: OrdenCompraFiltro = {
+      Ord_Com_Tip: this.ordenCompraTipoId
+    };
 
     if (Number.isInteger(ordenCompraId) && ordenCompraId > 0) {
       filtros.Ord_Com_Id = ordenCompraId;
@@ -1980,7 +2113,22 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   private getPedidoPendienteFiltros(): PedidosFiltro {
-    return { Flg_Est: 'A' };
+    return {
+      Flg_Est: 'A',
+      Ped_Tip_Com: this.ordenCompraTipoId
+    };
+  }
+
+  private getCorrelativoPrefix(tipoId: number = this.ordenCompraTipoId): string {
+    return tipoId === 2 ? 'OSP' : 'OCP';
+  }
+
+  private formatOrdenCorrelativo(ordenCompraId: number | null, tipoId: number = this.ordenCompraTipoId): string {
+    if (!ordenCompraId || ordenCompraId <= 0) {
+      return '-';
+    }
+
+    return `${this.getCorrelativoPrefix(tipoId)}${String(ordenCompraId).padStart(5, '0')}`;
   }
 
   private mapOrdenCompra(item: DataRecord, index: number): OrdenCompraRow | null {
@@ -2002,18 +2150,21 @@ export class OrdenCompraPageComponent implements OnInit {
     return {
       id: trackingId,
       ordenCompraId,
+      correlativo: this.formatOrdenCorrelativo(ordenCompraId),
       pedidoIdAtencion,
       proveedorId,
+      monedaId: this.getNumberValue(item, ['Mon_Id', 'mon_Id', 'monId', 'Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']) ?? 0,
       proveedor: this.resolveProveedorNombre(proveedorId, proveedorFallback),
       proveedorRuc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc']),
       proveedorBancoId: this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan', 'Ban_Id', 'ban_Id', 'banId']) ?? 0,
       proveedorBancoDescripcion: this.getTextValue(item, ['Ban_Des', 'ban_Des', 'banDes', 'Banco', 'banco']),
       proveedorCuenta: this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']),
       proveedorCci: this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci']),
-      proveedorContacto: this.getTextValue(item, ['Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
+      proveedorContacto: this.getTextValue(item, ['Con_Nom', 'con_Nom', 'conNom', 'Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
       proveedorEmail: this.getTextValue(item, ['Prv_Email', 'prv_Email', 'prvEmail']),
       proveedorDireccion: this.getTextValue(item, ['Prv_Dir', 'prv_Dir', 'prvDir']),
       tipoServicio: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des']),
+      monedaAbreviacion: this.getTextValue(item, ['Mon_Abr', 'mon_Abr', 'monAbr', 'Mon_Des', 'mon_Des', 'monDes']) || 'S/.',
       formaPagoId,
       formaPago: this.resolveFormaPagoDescripcion(formaPagoId, formaPagoFallback),
       referenciaObra: this.getTextValue(item, ['Ord_Com_Ref_Obr', 'ord_Com_Ref_Obr', 'ordComRefObr']),
@@ -2072,6 +2223,20 @@ export class OrdenCompraPageComponent implements OnInit {
     return {
       code: this.getNumberValue(item, ['For_Pag_Id', 'for_Pag_Id', 'forPagId', 'id', 'Id']) ?? 0,
       description: this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes', 'description', 'Description'])
+    };
+  }
+
+  private mapMonedaOption(item: DataRecord): MonedaOption | null {
+    const id = this.getNumberValue(item, ['Mon_Id', 'mon_Id', 'monId', 'id', 'Id']) ?? 0;
+
+    if (id <= 0) {
+      return null;
+    }
+
+    return {
+      id,
+      descripcion: this.getTextValue(item, ['Mon_Des', 'mon_Des', 'monDes', 'descripcion', 'Descripcion']) || String(id),
+      abreviacion: this.getTextValue(item, ['Mon_Abr', 'mon_Abr', 'monAbr', 'abreviatura', 'Abreviatura']) || ''
     };
   }
 
@@ -2147,7 +2312,23 @@ export class OrdenCompraPageComponent implements OnInit {
       cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']),
       costoUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']),
       subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']),
-      observacion: this.getTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs', 'Observacion', 'observacion']),
+      observacion: this.getTextValue(item, [
+        'Ped_Obs_Ped',
+        'ped_Obs_Ped',
+        'ped_obs_ped',
+        'pedObsPed',
+        'PedObsPed',
+        'Ped_Obs',
+        'ped_Obs',
+        'pedObs',
+        'Ped_Obs_Det',
+        'ped_Obs_Det',
+        'pedObsDet',
+        'Observacion',
+        'observacion',
+        'ObservacionPedido',
+        'observacionPedido'
+      ]),
       selected: false
     };
   }
@@ -2180,8 +2361,13 @@ export class OrdenCompraPageComponent implements OnInit {
   private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown, pedidoResponse?: unknown): void {
     const centros = this.mapCentroCostoPedido(centrosCostoResponse);
     const seleccionarDetalles = this.debeSeleccionarDetallesAlCargar();
+    const pedidoMonedaId = this.resolvePedidoMonedaId(pedidoResponse);
     this.pedidoArchivoAdjunto = this.resolvePedidoArchivoAdjunto(pedidoResponse);
     this.form.controls['pedidoReferenciaGeneral'].setValue(this.resolvePedidoReferenciaGeneral(pedidoResponse), { emitEvent: false });
+
+    if (!this.isEditingOrdenCompra && pedidoMonedaId > 0) {
+      this.form.controls['monedaId'].setValue(pedidoMonedaId, { emitEvent: false });
+    }
 
     this.centrosCosto = centros.map((item) => ({
       ...item,
@@ -2255,6 +2441,16 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return this.getTextValue(record, ['Ped_Ref_Gral', 'ped_Ref_Gral', 'pedRefGral']);
+  }
+
+  private resolvePedidoMonedaId(pedidoResponse: unknown): number {
+    const record = this.extractRecords(pedidoResponse)[0];
+
+    if (!record) {
+      return 0;
+    }
+
+    return this.getNumberValue(record, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon', 'Mon_Id', 'mon_Id', 'monId']) ?? 0;
   }
 
   private resolveOrdenCompraIdParaAsignacion(response: unknown): Observable<number> {
@@ -2428,7 +2624,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const total = this.parseMontoControlValue(this.form.controls['total'].value);
 
     return new Observable<number>((subscriber) => {
-      this.apiService.getListarOrdenCompraActivo({ Flg_Est: 'A' }).subscribe({
+      this.apiService.getListarOrdenCompraActivo({ Flg_Est: 'A', Ord_Com_Tip: this.ordenCompraTipoId }).subscribe({
         next: (response: unknown) => {
           const matches = this.extractRecords(response)
             .map((item, index) => this.mapOrdenCompra(item, index))
@@ -2576,7 +2772,8 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenesCompra = this.ordenesCompra.map((item) => ({
       ...item,
       proveedor: this.resolveProveedorNombre(item.proveedorId, item.proveedor),
-      formaPago: this.resolveFormaPagoDescripcion(item.formaPagoId, item.formaPago)
+      formaPago: this.resolveFormaPagoDescripcion(item.formaPagoId, item.formaPago),
+      monedaAbreviacion: this.resolveMonedaAbreviacion(item.monedaId, item.monedaAbreviacion)
     }));
   }
 
@@ -2607,6 +2804,17 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private resolveFormaPagoDescripcion(formaPagoId: number, fallback: string): string {
     return this.formasPago.find((item) => item.code === formaPagoId)?.description || fallback || (formaPagoId ? String(formaPagoId) : '-');
+  }
+
+  private resolveMonedaAbreviacion(monedaId: number, fallback: string): string {
+    const moneda = this.monedas.find((item) => item.id === monedaId);
+    const monedaRegistrada = String(fallback || '').trim();
+
+    if (monedaRegistrada) {
+      return monedaRegistrada;
+    }
+
+    return moneda?.abreviacion || moneda?.descripcion || '-';
   }
 
   private resolveDetraccionDescripcion(detraccionId: number): string {

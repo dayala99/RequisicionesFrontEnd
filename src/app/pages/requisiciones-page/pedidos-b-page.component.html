@@ -10,14 +10,12 @@
   </header>
 
   <section *ngIf="!mostrarEditorPedido && !mostrarDetallePedido" class="listado-shell">
-    <footer class="actions-bar">
+    <footer class="actions-bar actions-bar--single">
       <button
-        *ngFor="let action of actionButtons"
         type="button"
-        class="action-button"
-        [disabled]="isActionDisabled(action)"
-        (click)="ejecutarAccion(action)">
-        {{ action }}
+        class="button button--primary"
+        (click)="iniciarNuevoPedido()">
+        Nuevo
       </button>
     </footer>
 
@@ -68,7 +66,7 @@
               <th>Codigo Usr</th>
               <th>Usr Aprobacion</th>
               <th>Fecha Aprobacion</th>
-              <th>Reporte</th>
+              <th>Acciones</th>
             </tr>
           </thead>
 
@@ -83,8 +81,9 @@
                   <button
                     type="button"
                     class="icon-button icon-button--folder"
+                    title="Ver archivos adjuntos"
                     aria-label="Ver archivos adjuntos"
-                    [disabled]="isLoadingArchivosAdjuntosListado === item.requisicion"
+                    [disabled]="isLoadingArchivosAdjuntosListado === item.requisicion || isPedidoAprobadoFila(item)"
                     (click)="abrirArchivosPedidoListado(item, $event)">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8l1.2 1.2h5.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-10Zm2.5-.7a.7.7 0 0 0-.7.7v10c0 .4.3.7.7.7h13c.4 0 .7-.3.7-.7v-8c0-.4-.3-.7-.7-.7h-6.6l-1.7-1.7a.8.8 0 0 0-.6-.3H5.5Z"/>
@@ -102,14 +101,65 @@
                 <td>{{ item.codigoUsr }}</td>
                 <td>{{ item.usrAprobacion }}</td>
                 <td>{{ item.fechaUsrGa }}</td>
-                <td>
-                  <button
-                    type="button"
-                    class="row-detail-button"
-                    [disabled]="isLoadingReportePedidoId === item.requisicion"
-                    (click)="verReportePedido(item); $event.stopPropagation()">
-                    {{ isLoadingReportePedidoId === item.requisicion ? 'Cargando...' : 'Ver' }}
-                  </button>
+                <td class="requisiciones-table__actions-cell">
+                  <div class="requisiciones-table__actions">
+                    <button
+                      type="button"
+                      class="row-detail-button row-detail-button--pdf"
+                      title="Generar PDF del pedido"
+                      [disabled]="isLoadingReportePedidoId === item.requisicion"
+                      (click)="abrirReportePedidoFila(item, $event)">
+                      {{ isLoadingReportePedidoId === item.requisicion ? 'Cargando...' : 'PDF' }}
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--edit"
+                      title="Modificar pedido"
+                      aria-label="Modificar pedido"
+                      [disabled]="isActionRowBusy(item) || isPedidoAprobadoFila(item)"
+                      (click)="modificarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--approve"
+                      title="Aprobar pedido"
+                      aria-label="Aprobar pedido"
+                      [disabled]="isPedidoAprobadoFila(item) || !canApprovePedidoFila(item) || isActionRowBusy(item)"
+                      (click)="aprobarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 16.2 4.8 12l-1.4 1.4L9 19.2 21 7.2 19.6 5.8z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--danger"
+                      title="Rechazar pedido"
+                      aria-label="Rechazar pedido"
+                      [disabled]="isPedidoAprobadoFila(item) || !canApprovePedidoFila(item) || isActionRowBusy(item)"
+                      (click)="rechazarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--danger"
+                      title="Eliminar pedido"
+                      aria-label="Eliminar pedido"
+                      [disabled]="isActionRowBusy(item) || isPedidoAprobadoFila(item)"
+                      (click)="eliminarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 3.8h6l1 1.5H20v2h-1.2l-.9 10.2A2.4 2.4 0 0 1 15.4 20H8.6a2.4 2.4 0 0 1-2.4-2.5L5.3 7.3H4v-2h4l1-1.5ZM8.2 7.3l.8 9.8c0 .2.2.4.4.4h6.2c.2 0 .4-.2.4-.4l.8-9.8H8.2Zm2.1 1.6h1.5v6.6h-1.5V8.9Zm3.9 0h1.5v6.6h-1.5V8.9Z"/>
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </ng-container>
@@ -337,6 +387,15 @@
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['oc'].touched && detalleForm.controls['oc'].hasError('required')">Campo Tipo de Servicio obligatorio.</small>
           </label>
 
+          <label class="field">
+            <span>Moneda</span>
+            <select formControlName="moneda">
+              <option [ngValue]="null">Seleccionar</option>
+              <option *ngFor="let moneda of tipoMoneda" [ngValue]="moneda.codigo">{{ moneda.descripcion }}</option>
+            </select>
+            <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['moneda'].touched && detalleForm.controls['moneda'].hasError('required')">Campo Moneda obligatorio.</small>
+          </label>
+
           <label class="field pedido-date-field">
             <span>Fecha Entrega</span>
             <div class="date-input-shell" (click)="pedidoBFechaEntregaPicker.open()">
@@ -389,6 +448,8 @@
                 <th>Costo Unit.</th>
                 <th>Costo Total</th>
                 <th>Observaciones</th>
+                <th>Comentarios</th>
+                <th>Requisitos</th>
                 <th class="pedido-detalle-table__action-head"></th>
               </tr>
             </thead>
@@ -405,12 +466,34 @@
                 <td>{{ formatPedidoBCosto(detalle.unitPrice) }}</td>
                 <td>{{ formatPedidoBCosto(detalle.subtotal) }}</td>
                 <td>
-                  <input
-                    type="text"
-                    class="pedido-b-observacion-input"
-                    [value]="detalle.observaciones"
+                  <button
+                    type="button"
+                    class="pedido-b-longtext-trigger"
+                    [class.pedido-b-longtext-trigger--empty]="!detalle.observaciones"
                     [disabled]="detalle.markedForDelete"
-                    (input)="onPedidoBObservacionInput(detalle.id, $event)">
+                    (click)="abrirEditorTextoDetallePedidoB(detalle, 'observaciones')">
+                    {{ detalle.observaciones || 'Agregar observacion' }}
+                  </button>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="pedido-b-longtext-trigger"
+                    [class.pedido-b-longtext-trigger--empty]="!detalle.comentarios"
+                    [disabled]="detalle.markedForDelete"
+                    (click)="abrirEditorTextoDetallePedidoB(detalle, 'comentarios')">
+                    {{ detalle.comentarios || 'Agregar comentario' }}
+                  </button>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="pedido-b-longtext-trigger"
+                    [class.pedido-b-longtext-trigger--empty]="!detalle.requisitos"
+                    [disabled]="detalle.markedForDelete"
+                    (click)="abrirEditorTextoDetallePedidoB(detalle, 'requisitos')">
+                    {{ detalle.requisitos || 'Agregar requisito' }}
+                  </button>
                 </td>
                 <td class="pedido-detalle-table__action-cell">
                   <button
@@ -439,7 +522,7 @@
               </tr>
 
               <tr *ngIf="!pedidoBDetalles.length">
-                <td colspan="9" class="empty-row">No hay productos registrados.</td>
+                <td colspan="11" class="empty-row">No hay productos registrados.</td>
               </tr>
             </tbody>
           </table>
@@ -454,6 +537,11 @@
               <input type="text" formControlName="proveedorReferencia" maxlength="120">
             </label>
           </div>
+
+          <label class="field aclaraciones-field">
+            <span>Aclaraciones</span>
+            <textarea formControlName="aclaraciones" rows="4" maxlength="1200"></textarea>
+          </label>
 
           <div class="attachment-grid">
             <div class="attachment-grid__header">

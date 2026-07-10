@@ -13,6 +13,8 @@ export interface PedidoRechazoDialogData {
   etiquetaMotivo?: string;
   textoError?: string;
   textoConfirmar?: string;
+  valorInicial?: string;
+  requerido?: boolean;
 }
 
 @Component({
@@ -28,8 +30,12 @@ export class PedidoRechazoDialogComponent {
     private readonly dialogRef: MatDialogRef<PedidoRechazoDialogComponent>,
     @Optional() @Inject(MAT_DIALOG_DATA) public readonly data: PedidoRechazoDialogData | null
   ) {
+    const validators = this.data?.requerido === false
+      ? []
+      : [Validators.required, noWhitespaceValidator()];
+
     this.form = this.formBuilder.group({
-      motivo: ['', [Validators.required, noWhitespaceValidator()]]
+      motivo: [this.data?.valorInicial ?? '', validators]
     });
   }
 

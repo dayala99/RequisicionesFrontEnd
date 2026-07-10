@@ -147,6 +147,10 @@
   grid-column: 1 / 2;
 }
 
+.field--provider-currency {
+  grid-column: 2 / 3;
+}
+
 .field--checkbox {
   align-content: end;
 }
@@ -189,6 +193,7 @@
 .field select,
 .field textarea,
 .forma-pago-select,
+.moneda-select,
 .detraccion-select {
   min-height: 3rem;
   padding: 0.7rem 0.85rem;
@@ -208,6 +213,7 @@
 .field select:focus,
 .field textarea:focus,
 .forma-pago-select:focus,
+.moneda-select:focus,
 .detraccion-select:focus,
 .selector-code-button:focus {
   outline: none;
@@ -216,6 +222,7 @@
 }
 
 .forma-pago-select,
+.moneda-select,
 .detraccion-select {
   display: flex;
   align-items: center;
@@ -570,6 +577,22 @@
   min-width: 7rem;
   max-width: 8rem;
   text-align: right;
+}
+
+.detalle-pedido-table__footer td {
+  background: #f7f3ea;
+  font-weight: 700;
+  border-top: 1px solid var(--line-soft);
+}
+
+.detalle-pedido-table__footer-label {
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.detalle-pedido-table__footer-value {
+  text-align: right;
+  color: var(--text-primary);
 }
 
 .empty-row {

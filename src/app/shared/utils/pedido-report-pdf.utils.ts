@@ -33,6 +33,7 @@ export interface PedidoReportePdfData {
 
 export interface PedidoReportePdfOptions {
   logoBytes?: Uint8Array;
+  headerImageBytes?: Uint8Array;
 }
 
 const PAGE_WIDTH = 595.28;
@@ -41,19 +42,38 @@ const PAGE_LEFT = 28;
 const PAGE_RIGHT = PAGE_WIDTH - 28;
 const PAGE_TOP = 28;
 const ROW_HEIGHT = 24;
+const HEADER_IMAGE_WIDTH = 109;
+const HEADER_IMAGE_HEIGHT = 54;
 
 export function createPedidoReportPdf(report: PedidoReportePdfData, options: PedidoReportePdfOptions = {}): Blob {
-  const pageContents = [buildPageContent(report, options.logoBytes)];
-  return new Blob([buildPdfDocument(pageContents, options.logoBytes)], { type: 'application/pdf' });
+  const detailPages = paginatePedidoDetalle(report.detalle);
+  let itemStartIndex = 0;
+  const pageContents = detailPages.map((detallePagina) => {
+    const content = buildPageContent(
+      { ...report, detalle: detallePagina },
+      options.logoBytes,
+      options.headerImageBytes,
+      itemStartIndex
+    );
+    itemStartIndex += detallePagina.length;
+    return content;
+  });
+  return new Blob([buildPdfDocument(pageContents, options.logoBytes, options.headerImageBytes)], { type: 'application/pdf' });
 }
 
-function buildPageContent(report: PedidoReportePdfData, logoBytes?: Uint8Array): string {
+function buildPageContent(
+  report: PedidoReportePdfData,
+  logoBytes?: Uint8Array,
+  headerImageBytes?: Uint8Array,
+  itemStartIndex = 0
+): string {
   const commands: string[] = ['0.65 w', '0 0 0 RG'];
   const addText = createTextAdder(commands);
   const addLabelValue = createLabelValueAdder(addText);
   const addLine = createLineAdder(commands);
   const addRect = createRectAdder(commands);
   const addImage = createImageAdder(commands);
+  const addHeaderImage = createImageAdder(commands, 'Im2');
 
   addRect(PAGE_LEFT, PAGE_TOP, PAGE_RIGHT - PAGE_LEFT, 74);
 
@@ -63,10 +83,14 @@ function buildPageContent(report: PedidoReportePdfData, logoBytes?: Uint8Array):
     addText(PAGE_LEFT + 18, PAGE_TOP + 22, 'ARCE', 24, true);
     addText(PAGE_LEFT + 18, PAGE_TOP + 42, 'MONTAJES E INGENIERIA ARCE PERU S.A.C.', 8, true);
   }
-  const headerRightX = PAGE_RIGHT - 12;
-  addText(headerRightX, PAGE_TOP + 16, 'Calle 3, Nro. 177 - Urb La Grimanesa - CALLAO', 8, false, 'right');
-  addText(headerRightX, PAGE_TOP + 30, 'Telef: 572-3220 ANEXO 11 - 12', 8, false, 'right');
-  addText(headerRightX, PAGE_TOP + 44, 'RUC: 20550259221', 8, false, 'right');
+  if (headerImageBytes) {
+    addHeaderImage(PAGE_RIGHT - HEADER_IMAGE_WIDTH - 12, PAGE_TOP + 10, HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT);
+  } else {
+    const headerRightX = PAGE_RIGHT - 12;
+    addText(headerRightX, PAGE_TOP + 16, 'Calle 3, Nro. 177 - Urb La Grimanesa - CALLAO', 8, false, 'right');
+    addText(headerRightX, PAGE_TOP + 30, 'Telef: 572-3220 ANEXO 11 - 12', 8, false, 'right');
+    addText(headerRightX, PAGE_TOP + 44, 'RUC: 20550259221', 8, false, 'right');
+  }
 
   addRect(PAGE_RIGHT - 175, 116, 155, 48);
   addText(PAGE_RIGHT - 97.5, 135, 'PEDIDO INTERNO', 10, true, 'center');
@@ -82,7 +106,7 @@ function buildPageContent(report: PedidoReportePdfData, logoBytes?: Uint8Array):
   addWrappedFixedLabelValue(addText, 310, 402, 228, 'LUGAR ENTREGA:', report.direccionEntrega || report.lugarEntrega, 8, 130);
 
   const tableTop = 292;
-  const tableBottom = drawDetailTable(addText, addLine, addRect, tableTop, report.detalle);
+  const tableBottom = drawDetailTable(addText, addLine, addRect, tableTop, report.detalle, itemStartIndex);
 
   return commands.join('\n');
 }
@@ -149,7 +173,8 @@ function drawDetailTable(
   addLine: ReturnType<typeof createLineAdder>,
   addRect: ReturnType<typeof createRectAdder>,
   top: number,
-  rows: PedidoReporteDetallePdf[]
+  rows: PedidoReporteDetallePdf[],
+  itemStartIndex = 0
 ): number {
   const columns = [PAGE_LEFT, 60, 105, 145, 400, PAGE_RIGHT];
   const headers = ['ITEM', 'CANT.', 'UND.', 'DESCRIPCION DETALLADA', 'CENTRO DE COSTO'];
@@ -169,18 +194,85 @@ function drawDetailTable(
 
   let rowY = top + 24;
 
-  detailRows.slice(0, 8).forEach((row, index) => {
-    addRect(PAGE_LEFT, rowY, PAGE_RIGHT - PAGE_LEFT, ROW_HEIGHT);
-    columns.slice(1, -1).forEach((x) => addLine(x, rowY, x, rowY + ROW_HEIGHT));
-    addText((columns[0] + columns[1]) / 2, rowY + 15, String(index + 1), 7, false, 'center');
-    addText(columns[2] - 6, rowY + 15, formatAmount(row.cantidad, 2), 7, false, 'right');
-    addText((columns[2] + columns[3]) / 2, rowY + 15, row.unidad, 7, false, 'center', columns[3] - columns[2] - 6);
-    addText(columns[3] + 4, rowY + 15, row.descripcion, 7, false, 'left', columns[4] - columns[3] - 8);
-    addText(columns[4] + 4, rowY + 15, row.centroCosto || '-', 7, false, 'left', columns[5] - columns[4] - 8);
-    rowY += ROW_HEIGHT;
+  detailRows.forEach((row, index) => {
+    const { descriptionLines, centroCostoLines, descriptionTextWidth, centroCostoWidth, lineHeight, rowHeight } = buildPedidoDetailRowMetrics(row);
+    const rowMiddleY = rowY + rowHeight / 2 + 3;
+
+    addRect(PAGE_LEFT, rowY, PAGE_RIGHT - PAGE_LEFT, rowHeight);
+    columns.slice(1, -1).forEach((x) => addLine(x, rowY, x, rowY + rowHeight));
+    addText((columns[0] + columns[1]) / 2, rowMiddleY, String(itemStartIndex + index + 1), 7, false, 'center');
+    addText(columns[2] - 6, rowMiddleY, formatAmount(row.cantidad, 2), 7, false, 'right');
+    addText((columns[2] + columns[3]) / 2, rowMiddleY, row.unidad, 7, false, 'center', columns[3] - columns[2] - 6);
+
+    descriptionLines.forEach((line, lineIndex) => {
+      addText(columns[3] + 4, rowY + 13 + lineIndex * lineHeight, line, 7, false, 'left', descriptionTextWidth);
+    });
+    centroCostoLines.forEach((line, lineIndex) => {
+      addText(columns[4] + 4, rowY + 13 + lineIndex * lineHeight, line, 7, false, 'left', centroCostoWidth);
+    });
+
+    rowY += rowHeight;
   });
 
   return rowY;
+}
+
+function paginatePedidoDetalle(rows: PedidoReporteDetallePdf[]): PedidoReporteDetallePdf[][] {
+  const normalizedRows = rows.length
+    ? rows
+    : [{
+        descripcion: 'SIN ITEMS REGISTRADOS',
+        unidad: '-',
+        cantidad: 0,
+        comentario: '',
+        centroCosto: '-'
+      }];
+
+  const pages: PedidoReporteDetallePdf[][] = [];
+  const currentPage: PedidoReporteDetallePdf[] = [];
+  const tableTop = 292;
+  const tableHeaderHeight = 24;
+  const pageBottomLimit = PAGE_HEIGHT - 46;
+  let consumedHeight = tableTop + tableHeaderHeight;
+
+  normalizedRows.forEach((row) => {
+    const { rowHeight } = buildPedidoDetailRowMetrics(row);
+
+    if (currentPage.length > 0 && consumedHeight + rowHeight > pageBottomLimit) {
+      pages.push([...currentPage]);
+      currentPage.length = 0;
+      consumedHeight = tableTop + tableHeaderHeight;
+    }
+
+    currentPage.push(row);
+    consumedHeight += rowHeight;
+  });
+
+  if (currentPage.length > 0) {
+    pages.push([...currentPage]);
+  }
+
+  return pages.length ? pages : [[]];
+}
+
+function buildPedidoDetailRowMetrics(row: PedidoReporteDetallePdf) {
+  const columns = [PAGE_LEFT, 60, 105, 145, 400, PAGE_RIGHT];
+  const descriptionWidth = columns[4] - columns[3] - 8;
+  const centroCostoWidth = columns[5] - columns[4] - 8;
+  const descriptionTextWidth = Math.max(40, descriptionWidth * 0.78);
+  const descriptionLines = wrapTextToWidth(row.descripcion, 7, descriptionTextWidth);
+  const centroCostoLines = wrapTextToWidth(row.centroCosto || '-', 7, centroCostoWidth);
+  const lineHeight = 9;
+  const rowHeight = Math.max(ROW_HEIGHT, 12 + Math.max(descriptionLines.length, centroCostoLines.length) * lineHeight);
+
+  return {
+    descriptionLines,
+    centroCostoLines,
+    descriptionTextWidth,
+    centroCostoWidth,
+    lineHeight,
+    rowHeight
+  };
 }
 
 function createLabelValueAdder(addText: TextAdder) {
@@ -255,9 +347,9 @@ function createRectAdder(commands: string[]) {
   };
 }
 
-function createImageAdder(commands: string[]) {
+function createImageAdder(commands: string[], imageName = 'Im1') {
   return (x: number, y: number, width: number, height: number) => {
-    commands.push(`q ${width.toFixed(2)} 0 0 ${height.toFixed(2)} ${x.toFixed(2)} ${toPdfY(y + height).toFixed(2)} cm /Im1 Do Q`);
+    commands.push(`q ${width.toFixed(2)} 0 0 ${height.toFixed(2)} ${x.toFixed(2)} ${toPdfY(y + height).toFixed(2)} cm /${imageName} Do Q`);
   };
 }
 
@@ -265,7 +357,7 @@ type PdfObject =
   | { kind: 'text'; body: string }
   | { kind: 'binary'; header: string; bytes: Uint8Array; footer: string };
 
-function buildPdfDocument(pageContents: string[], logoBytes?: Uint8Array): Uint8Array {
+function buildPdfDocument(pageContents: string[], logoBytes?: Uint8Array, headerImageBytes?: Uint8Array): Uint8Array {
   const objects: PdfObject[] = [];
   const addObject = (body: string): number => {
     objects.push({ kind: 'text', body });
@@ -278,17 +370,30 @@ function buildPdfDocument(pageContents: string[], logoBytes?: Uint8Array): Uint8
 
   const fontRegularId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   const fontBoldId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-  const imageId = logoBytes
-    ? addBinaryObject(
-        `<< /Type /XObject /Subtype /Image /Width 1591 /Height 672 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBytes.length} >>\nstream\n`,
-        logoBytes,
-        '\nendstream'
-      )
-    : null;
+  const imageIds: Array<number | null> = [
+    logoBytes
+      ? addBinaryObject(
+          `<< /Type /XObject /Subtype /Image /Width 1591 /Height 672 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBytes.length} >>\nstream\n`,
+          logoBytes,
+          '\nendstream'
+        )
+      : null,
+    headerImageBytes
+      ? addBinaryObject(
+          `<< /Type /XObject /Subtype /Image /Width 169 /Height 84 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${headerImageBytes.length} >>\nstream\n`,
+          headerImageBytes,
+          '\nendstream'
+        )
+      : null
+  ];
   const pagesObjectId = addObject('');
   const pageIds: number[] = [];
-  const resources = imageId
-    ? `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> /XObject << /Im1 ${imageId} 0 R >> >>`
+  const xObjectResources = imageIds
+    .map((imageId, index) => (imageId ? `/Im${index + 1} ${imageId} 0 R` : ''))
+    .filter(Boolean)
+    .join(' ');
+  const resources = xObjectResources
+    ? `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> /XObject << ${xObjectResources} >> >>`
     : `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >>`;
 
   pageContents.forEach((content) => {

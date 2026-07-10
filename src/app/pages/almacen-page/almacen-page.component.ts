@@ -1598,8 +1598,8 @@ export class AlmacenPageComponent implements OnInit {
       fecha: this.getTodayDateValue()
     });
 
-    this.ingresoDirectoForm.controls['solicitanteId'].disable({ emitEvent: false });
-    this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].disable({ emitEvent: false });
+    this.ingresoDirectoForm.controls['solicitanteId'].enable({ emitEvent: false });
+    this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].enable({ emitEvent: false });
     this.ingresoDirectoForm.controls['materialId'].enable({ emitEvent: false });
     this.ingresoDirectoForm.controls['unidadId'].enable({ emitEvent: false });
     this.cargarCentroCostoUsuarioSalida(currentUser);
@@ -1639,8 +1639,8 @@ export class AlmacenPageComponent implements OnInit {
       fecha: this.getTodayDateValue()
     });
 
-    this.ingresoDirectoForm.controls['solicitanteId'].disable({ emitEvent: false });
-    this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].disable({ emitEvent: false });
+    this.ingresoDirectoForm.controls['solicitanteId'].enable({ emitEvent: false });
+    this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].enable({ emitEvent: false });
     this.ingresoDirectoForm.controls['materialId'].disable({ emitEvent: false });
     this.ingresoDirectoForm.controls['unidadId'].disable({ emitEvent: false });
     this.patchSalidaMaterialRowFromValues(0, {
@@ -1822,8 +1822,8 @@ export class AlmacenPageComponent implements OnInit {
     });
 
     if (this.isSalidaMode) {
-      this.ingresoDirectoForm.controls['solicitanteId'].disable({ emitEvent: false });
-      this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].disable({ emitEvent: false });
+      this.ingresoDirectoForm.controls['solicitanteId'].enable({ emitEvent: false });
+      this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].enable({ emitEvent: false });
       while (this.salidaMaterialesForm.length) {
         this.salidaMaterialesForm.removeAt(0);
       }

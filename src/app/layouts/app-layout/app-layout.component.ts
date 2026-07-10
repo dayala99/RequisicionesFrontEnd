@@ -19,6 +19,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
   notificationBellRinging = false;
   pedidosPendientesAprobacion = 0;
   pedidosPendientesOrdenCompra = 0;
+  pedidosPendientesOrdenServicio = 0;
   ordenesCompraPendientesAlmacen = 0;
   isLoadingNotifications = false;
   private routerSubscription?: Subscription;
@@ -31,6 +32,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
   readonly processItems = [
     { label: 'Pedidos', route: '/pedidos' },
     { label: 'Orden de Compra', route: '/orden-compra' },
+    { label: 'Orden de Servicio', route: '/orden-servicio' },
     { label: 'Almacen', route: '/almacen' },
     { label: 'Stock', route: '/stock' },
     { label: 'Inspecciones', route: '/inspecciones' }
@@ -131,6 +133,11 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     void this.router.navigate(['/orden-compra']);
   }
 
+  goToPendingServiceOrders(): void {
+    this.closeNotifications();
+    void this.router.navigate(['/orden-servicio']);
+  }
+
   goToPendingWarehouseEntries(): void {
     this.closeNotifications();
     void this.router.navigate(['/almacen']);
@@ -156,6 +163,8 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
         return this.pedidosPendientesAprobacion;
       case '/orden-compra':
         return this.pedidosPendientesOrdenCompra;
+      case '/orden-servicio':
+        return this.pedidosPendientesOrdenServicio;
       case '/almacen':
         return this.ordenesCompraPendientesAlmacen;
       default:
@@ -166,6 +175,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
   get totalNotifications(): number {
     return this.pedidosPendientesAprobacion
       + this.pedidosPendientesOrdenCompra
+      + this.pedidosPendientesOrdenServicio
       + this.ordenesCompraPendientesAlmacen;
   }
 
@@ -188,12 +198,14 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     this.isLoadingNotifications = true;
     forkJoin({
       pedidosAprobacion: this.apiService.getListarPedido({ Flg_Est: 'P', Usr_Cod: currentUserCode }).pipe(catchError(() => of([]))),
-      pedidosOrdenCompra: this.apiService.getListarPedidoAprobadoParaOC({ Flg_Est: 'A' }).pipe(catchError(() => of([]))),
+      pedidosOrdenCompra: this.apiService.getListarPedidoAprobadoParaOC({ Flg_Est: 'A', Ped_Tip_Com: 1 }).pipe(catchError(() => of([]))),
+      pedidosOrdenServicio: this.apiService.getListarPedidoAprobadoParaOC({ Flg_Est: 'A', Ped_Tip_Com: 2 }).pipe(catchError(() => of([]))),
       ordenesAlmacen: this.apiService.getListarOrdenCompraPendienteAlmacen().pipe(catchError(() => of([])))
     }).subscribe({
-      next: ({ pedidosAprobacion, pedidosOrdenCompra, ordenesAlmacen }) => {
+      next: ({ pedidosAprobacion, pedidosOrdenCompra, pedidosOrdenServicio, ordenesAlmacen }) => {
         this.pedidosPendientesAprobacion = this.countPedidosPendientesAprobacion(pedidosAprobacion, currentUser);
         this.pedidosPendientesOrdenCompra = this.extractRecords(pedidosOrdenCompra).length;
+        this.pedidosPendientesOrdenServicio = this.extractRecords(pedidosOrdenServicio).length;
         this.ordenesCompraPendientesAlmacen = this.extractRecords(ordenesAlmacen).length;
         this.triggerInitialNotificationCue();
         this.isLoadingNotifications = false;
@@ -201,6 +213,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
       error: () => {
         this.pedidosPendientesAprobacion = 0;
         this.pedidosPendientesOrdenCompra = 0;
+        this.pedidosPendientesOrdenServicio = 0;
         this.ordenesCompraPendientesAlmacen = 0;
         this.isLoadingNotifications = false;
       }

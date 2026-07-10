@@ -112,7 +112,13 @@ const routes: Routes = [
       },
       {
         path: 'orden-compra',
-        component: OrdenCompraPageComponent
+        component: OrdenCompraPageComponent,
+        data: { ordComTip: 1 }
+      },
+      {
+        path: 'orden-servicio',
+        component: OrdenCompraPageComponent,
+        data: { ordComTip: 2 }
       },
       {
         path: 'almacen',
