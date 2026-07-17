@@ -13,6 +13,7 @@ import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.
 import { GrupoItemPageComponent } from './pages/grupo-item-page/grupo-item-page.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ItemPageComponent } from './pages/item-page/item-page.component';
+import { ItemTreePageComponent } from './pages/item-tree-page/item-tree-page.component';
 import { ItemDetalleMaterialPageComponent } from './pages/item-detalle-material-page/item-detalle-material-page.component';
 import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
 import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra-page.component';
@@ -88,6 +89,10 @@ const routes: Routes = [
       {
         path: 'item',
         component: ItemPageComponent
+      },
+      {
+        path: 'item-arbol',
+        component: ItemTreePageComponent
       },
       {
         path: 'item-detalle-material',

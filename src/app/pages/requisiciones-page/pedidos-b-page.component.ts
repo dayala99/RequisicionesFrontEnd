@@ -9,6 +9,10 @@ import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent, ConfirmacionDialogData } from '../inspecciones-page/confirmacion-accion-dialog.component';
 import { ApprovalUserOption } from './approval-user-selector-dialog.component';
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
+import {
+  PedidoDetalleImageSourceDialogComponent,
+  PedidoDetalleImageSourceDialogResult
+} from './pedido-detalle-image-source-dialog.component';
 import { PedidoDetalleDialogValue } from './pedido-detalle-dialog.models';
 import { PedidoRechazoDialogComponent, PedidoRechazoDialogData, PedidoRechazoDialogResult } from './pedido-rechazo-dialog.component';
 import { RequisicionesPageComponent } from './requisiciones-page.component';
@@ -36,6 +40,9 @@ interface PedidoBDetalleTemporal {
   observaciones: string;
   comentarios: string;
   requisitos: string;
+  imageFile: File | null;
+  imagePreviewUrl: string;
+  storedImageName: string;
   markedForDelete?: boolean;
 }
 
@@ -54,7 +61,9 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
   direccionesEntrega: DireccionEntregaOption[] = [];
   pedidoBDetalles: PedidoBDetalleTemporal[] = [];
   isLoadingDireccionesEntrega = false;
+  isPreviewPedido = false;
   private nextPedidoBDetalleId = 1;
+  private detalleImagenPendienteId: number | null = null;
 
   constructor(
     formBuilder: FormBuilder,
@@ -143,6 +152,12 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     this.modificarPedidoSeleccionado();
   }
 
+  previsualizarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    this.seleccionarPedido(item as never);
+    this.abrirPrevisualizacionPedidoSeleccionado();
+  }
+
   aprobarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
     event?.stopPropagation();
     this.seleccionarPedido(item as never);
@@ -188,6 +203,10 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     return estado === 'aprobado';
   }
 
+  canAdministrarPedidoAprobado(): boolean {
+    return this.normalizePedidoBUsuario(this.pedidosBAuthService.getCurrentUser()) === 'dayala';
+  }
+
   override modificarPedidoSeleccionado(): void {
     const pedidoId = this.selectedPedidoId;
 
@@ -195,6 +214,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       return;
     }
 
+    this.isPreviewPedido = false;
     this.pedidoBDetalles = [];
     this.nextPedidoBDetalleId = 1;
     super.modificarPedidoSeleccionado();
@@ -202,19 +222,41 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     this.cargarDetallePedidoB(pedidoId);
   }
 
+  override iniciarNuevoPedido(): void {
+    this.isPreviewPedido = false;
+    super.iniciarNuevoPedido();
+  }
+
+  cerrarVistaPreviaPedido(): void {
+    this.isPreviewPedido = false;
+    this.cerrarEditorPedido();
+  }
+
   abrirModalDetallePedidoB(): void {
+    if (this.isPreviewPedido) {
+      return;
+    }
+
     const primerDetalleRegistrado = this.pedidoBDetalles.find((detalle) => !detalle.markedForDelete);
 
     if (primerDetalleRegistrado) {
-      this.confirmarAccionPedidoB(
-        {
+      const dialogRef = this.pedidosBDialog.open(ConfirmacionAccionDialogComponent, {
+        width: 'min(28rem, 92vw)',
+        disableClose: true,
+        panelClass: 'animated-dialog-pane',
+        backdropClass: 'animated-dialog-backdrop',
+        autoFocus: false,
+        data: {
           titulo: 'Agregar producto',
-          mensaje: `Se seleccionara por defecto el centro de costo "${primerDetalleRegistrado.centroCostoDescripcion}". ¿Deseas continuar?`,
-          textoConfirmar: 'Continuar',
-          textoCancelar: 'Cancelar'
-        },
-        () => this.openPedidoBDetalleDialog(primerDetalleRegistrado)
-      );
+          mensaje: `Se seleccionara por defecto el centro de costo "${primerDetalleRegistrado.centroCostoDescripcion}". ¿Deseas usarlo?`,
+          textoConfirmar: 'Si',
+          textoCancelar: 'No'
+        } as ConfirmacionDialogData
+      });
+
+      dialogRef.afterClosed().subscribe((usarCentroCosto: boolean) => {
+        this.openPedidoBDetalleDialog(usarCentroCosto ? primerDetalleRegistrado : undefined);
+      });
       return;
     }
 
@@ -275,14 +317,17 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
           subtotal: this.normalizePedidoBCosto(result.subtotal ?? result.quantity * result.unitPrice),
           observaciones: '',
           comentarios: '',
-          requisitos: ''
+          requisitos: '',
+          imageFile: null,
+          imagePreviewUrl: '',
+          storedImageName: ''
         }
       ];
     });
   }
 
   editarDetallePedidoB(detalle: PedidoBDetalleTemporal, index: number): void {
-    if (detalle.markedForDelete) {
+    if (this.isPreviewPedido || detalle.markedForDelete) {
       return;
     }
 
@@ -337,11 +382,113 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
               quantity: result.quantity,
               unitPrice: result.unitPrice,
               subtotal: this.normalizePedidoBCosto(result.subtotal ?? result.quantity * result.unitPrice),
+              imageFile: current.imageFile,
+              imagePreviewUrl: current.imagePreviewUrl,
+              storedImageName: current.storedImageName,
               markedForDelete: false
             }
           : current
       );
     });
+  }
+
+  abrirDialogoImagenDetallePedidoB(
+    detalle: PedidoBDetalleTemporal,
+    cameraInput: HTMLInputElement,
+    fileInput: HTMLInputElement
+  ): void {
+    if (this.isPreviewPedido || detalle.markedForDelete) {
+      return;
+    }
+
+    const dialogRef = this.pedidosBDialog.open(PedidoDetalleImageSourceDialogComponent, {
+      width: 'min(28rem, 92vw)',
+      disableClose: true,
+      panelClass: 'animated-dialog-pane',
+      backdropClass: 'animated-dialog-backdrop',
+      autoFocus: false,
+      data: {
+        titulo: 'Agregar imagen',
+        mensaje: `Selecciona si deseas usar la camara o elegir un archivo para ${detalle.itemDescription}.`,
+        imageUrl: this.resolveDetalleImagenPreviewUrl(detalle),
+        imageAlt: `Imagen de ${detalle.itemDescription}`
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result?: PedidoDetalleImageSourceDialogResult) => {
+      if (!result || result === 'cancel') {
+        this.detalleImagenPendienteId = null;
+        return;
+      }
+
+      this.detalleImagenPendienteId = detalle.id;
+
+      if (result === 'camera') {
+        cameraInput.click();
+        return;
+      }
+
+      fileInput.click();
+    });
+  }
+
+  onDetalleImagenSeleccionada(event: Event, source: 'camera' | 'file'): void {
+    const input = event.target as HTMLInputElement | null;
+    const files = Array.from(input?.files ?? []);
+    const detalleId = this.detalleImagenPendienteId;
+
+    this.detalleImagenPendienteId = null;
+
+    if (!input) {
+      return;
+    }
+
+    if (!detalleId || !files.length) {
+      input.value = '';
+      return;
+    }
+
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+
+    if (!imageFiles.length) {
+      input.value = '';
+      return;
+    }
+
+    const imageFile = imageFiles[0];
+
+    this.readDetalleImagenPreview(imageFile)
+      .then((imagePreviewUrl) => {
+        this.pedidoBDetalles = this.pedidoBDetalles.map((detalle) =>
+          detalle.id === detalleId
+            ? {
+                ...detalle,
+                imageFile,
+                imagePreviewUrl
+              }
+            : detalle
+        );
+
+        console.log('[Pedidos B][Detalle imagen] imagen agregada', {
+          detalleId,
+          source,
+          file: {
+            name: imageFile.name,
+            size: imageFile.size,
+            type: imageFile.type
+          }
+        });
+      })
+      .catch((error: unknown) => {
+        console.warn('[Pedidos B][Detalle imagen] no se pudo generar la vista previa', error);
+      })
+      .finally(() => {
+        input.value = '';
+      });
+  }
+
+  getDetalleImagenTooltip(detalle: PedidoBDetalleTemporal): string {
+    return this.hasDetalleImagen(detalle) ? 'Imagen agregada' : 'Agregar imagen';
   }
 
   onPedidoBObservacionInput(detalleId: number, event: Event): void {
@@ -356,7 +503,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
   }
 
   abrirEditorTextoDetallePedidoB(detalle: PedidoBDetalleTemporal, campo: 'observaciones' | 'comentarios' | 'requisitos'): void {
-    if (detalle.markedForDelete) {
+    if (this.isPreviewPedido || detalle.markedForDelete) {
       return;
     }
 
@@ -404,6 +551,10 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
   }
 
   toggleEliminarDetallePedidoB(detalleId: number): void {
+    if (this.isPreviewPedido) {
+      return;
+    }
+
     const detalle = this.pedidoBDetalles.find((item) => item.id === detalleId);
 
     if (!detalle) {
@@ -628,7 +779,10 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       subtotal: this.normalizePedidoBCosto(subtotal ?? quantity * unitPrice),
       observaciones: this.getDireccionEntregaTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs']),
       comentarios: this.getDireccionEntregaTextValue(item, ['Ped_Com', 'ped_Com', 'pedCom']),
-      requisitos: this.getDireccionEntregaTextValue(item, ['Ped_Req', 'ped_Req', 'pedReq'])
+      requisitos: this.getDireccionEntregaTextValue(item, ['Ped_Req', 'ped_Req', 'pedReq']),
+      imageFile: null,
+      imagePreviewUrl: '',
+      storedImageName: this.getDireccionEntregaTextValue(item, ['Ped_Det_Img', 'ped_Det_Img', 'pedDetImg'])
     };
   }
 
@@ -1092,8 +1246,8 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     return from(detallesActivos).pipe(
       concatMap((detalle) => {
         const request = detalle.persistedId
-          ? this.pedidosBApiService.patchActualizarDetallePedido(this.buildPedidoBDetalleActualizarPayload(detalle))
-          : this.pedidosBApiService.postRegistrarDetallePedido(this.buildPedidoBDetallePayload(pedId, detalle));
+          ? this.pedidosBApiService.patchActualizarDetallePedido(this.buildPedidoBDetalleActualizarPayload(detalle), detalle.imageFile)
+          : this.pedidosBApiService.postRegistrarDetallePedido(this.buildPedidoBDetallePayload(pedId, detalle), detalle.imageFile);
 
         return request.pipe(
           switchMap((response: unknown) => {
@@ -1141,7 +1295,8 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Usr_Reg: this.pedidosBAuthService.getCurrentUser().trim(),
       Ped_Obs_Ped: detalle.observaciones.trim(),
       Ped_Com: detalle.comentarios.trim(),
-      Ped_Req: detalle.requisitos.trim()
+      Ped_Req: detalle.requisitos.trim(),
+      Ped_Det_Img: detalle.storedImageName.trim()
     };
   }
 
@@ -1157,8 +1312,47 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Usr_Mod: this.pedidosBAuthService.getCurrentUser().trim(),
       Ped_Obs_Ped: detalle.observaciones.trim(),
       Ped_Com: detalle.comentarios.trim(),
-      Ped_Req: detalle.requisitos.trim()
+      Ped_Req: detalle.requisitos.trim(),
+      Ped_Det_Img: detalle.storedImageName.trim()
     };
+  }
+
+  private hasDetalleImagen(detalle: PedidoBDetalleTemporal): boolean {
+    return !!detalle.imageFile || !!detalle.imagePreviewUrl || !!detalle.storedImageName.trim();
+  }
+
+  private resolveDetalleImagenPreviewUrl(detalle: PedidoBDetalleTemporal): string {
+    if (detalle.imagePreviewUrl) {
+      return detalle.imagePreviewUrl;
+    }
+
+    const storedImageName = detalle.storedImageName.trim();
+
+    if (!storedImageName) {
+      return '';
+    }
+
+    return `${this.pedidosBApiService.baseUrl}Pedido/getArchivoDetallePedido?nombreArchivo=${encodeURIComponent(storedImageName)}`;
+  }
+
+  private readDetalleImagenPreview(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+
+        if (!result) {
+          reject(new Error('No se pudo leer la imagen seleccionada.'));
+          return;
+        }
+
+        resolve(result);
+      };
+
+      reader.onerror = () => reject(reader.error ?? new Error('No se pudo leer la imagen seleccionada.'));
+      reader.readAsDataURL(file);
+    });
   }
 
   private normalizePedidoBCosto(value: number): number {
@@ -1263,6 +1457,21 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     }
 
     return fallbackMessage;
+  }
+
+  private abrirPrevisualizacionPedidoSeleccionado(): void {
+    const pedidoId = this.selectedPedidoId;
+
+    if (pedidoId === null || this.isLoadingPedidoDetalle) {
+      return;
+    }
+
+    this.isPreviewPedido = true;
+    this.pedidoBDetalles = [];
+    this.nextPedidoBDetalleId = 1;
+    super.modificarPedidoSeleccionado();
+    this.cargarCabeceraPedidoB(pedidoId);
+    this.cargarDetallePedidoB(pedidoId);
   }
 }
 

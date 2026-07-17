@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Observable, forkJoin, from, of } from 'rxjs';
+import { Observable, firstValueFrom, forkJoin, from, of } from 'rxjs';
 import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
 import { ActualizarDetallePedidoRequest, ActualizarPedidoEstadoRequest, ActualizarPedidoRequest, ApiService, CatalogoNumeroOption, CatalogoTextoOption, EliminarDetallePedidoRequest, EnviarCorreoPedidoAprobadoRequest, EnviarCorreoPedidoRechazadoRequest, PedidosFiltro, RechazarPedidoRequest, RegistrarCentroCostoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
@@ -17,7 +17,13 @@ import { PedidoArchivoDialogRow, PedidoArchivosDialogComponent } from './pedido-
 import { PedidoRechazoDialogComponent, PedidoRechazoDialogResult } from './pedido-rechazo-dialog.component';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { formatDateInputValue, formatDisplayDate } from 'src/app/shared/utils/date.utils';
-import { createPedidoReportPdf, mapPedidoReportDisplayDate, PedidoReportePdfData, PedidoReporteDetallePdf } from 'src/app/shared/utils/pedido-report-pdf.utils';
+import {
+  createPedidoReportPdf,
+  mapPedidoReportDisplayDate,
+  PedidoReporteDetallePdf,
+  PedidoReporteEmbeddedImage,
+  PedidoReportePdfData
+} from 'src/app/shared/utils/pedido-report-pdf.utils';
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 type DataRecord = Record<string, unknown>;
@@ -347,7 +353,8 @@ export class RequisicionesPageComponent implements OnInit {
 
           const logoBytes = await this.loadPedidoLogoBytes();
           const headerImageBytes = await this.loadPedidoHeaderImageBytes();
-          const pdfBlob = createPedidoReportPdf(this.buildPedidoReportePdfData(reporte, item), { logoBytes, headerImageBytes });
+          const pdfData = await this.buildPedidoReportePdfData(reporte, item);
+          const pdfBlob = createPedidoReportPdf(pdfData, { logoBytes, headerImageBytes });
           const url = URL.createObjectURL(pdfBlob);
           window.open(url, '_blank');
           this.isLoadingReportePedidoId = null;
@@ -1411,7 +1418,8 @@ export class RequisicionesPageComponent implements OnInit {
 
   private isTextPreviewFile(nombreArchivo: string, mimeType?: string): boolean {
     const extension = nombreArchivo.split('.').pop()?.toLowerCase() || '';
-    return ['txt', 'sql', 'csv', 'log'].includes(extension) || Boolean(mimeType?.startsWith('text/'));
+    return ['txt', 'sql', 'csv', 'log', 'xml'].includes(extension) ||
+      Boolean(mimeType?.startsWith('text/') || mimeType === 'application/xml' || mimeType === 'text/xml');
   }
 
   private isOfficePreviewFile(nombreArchivo: string): boolean {
@@ -2326,6 +2334,8 @@ export class RequisicionesPageComponent implements OnInit {
         return 'text/plain';
       case 'csv':
         return 'text/csv';
+      case 'xml':
+        return 'application/xml';
       case 'doc':
         return 'application/msword';
       case 'docx':
@@ -2468,12 +2478,15 @@ export class RequisicionesPageComponent implements OnInit {
   private mapPedidoReporteDetalle(item: DataRecord): PedidoReporteDetallePdf {
     const descripcion = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']) || '-';
     const observacion = this.getTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs']);
+    const comentario = this.getTextValue(item, ['Ped_Com', 'ped_Com', 'pedCom']);
+    const requisitos = this.getTextValue(item, ['Ped_Req', 'ped_Req', 'pedReq']);
+    const imagen = this.getTextValue(item, ['Ped_Det_Img', 'ped_Det_Img', 'pedDetImg']);
 
     return {
       descripcion: observacion ? `${descripcion} - ${observacion}` : descripcion,
       unidad: this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr']) || '-',
       cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0,
-      comentario: observacion,
+      comentario: comentario || '-',
       centroCosto: this.getTextValue(item, [
         'Cen_Cos_Des',
         'cen_Cos_Des',
@@ -2487,7 +2500,9 @@ export class RequisicionesPageComponent implements OnInit {
         'Ped_Cen_Cos_Asg',
         'ped_Cen_Cos_Asg',
         'pedCenCosAsg'
-      ]) || '-'
+      ]) || '-',
+      requisitos: requisitos || '-',
+      imagen: imagen || '-'
     };
   }
 
@@ -2514,7 +2529,14 @@ export class RequisicionesPageComponent implements OnInit {
     ]) || '-';
   }
 
-  private buildPedidoReportePdfData(reporte: PedidoReporteCabeceraRow, pedido: RequisitionRow): PedidoReportePdfData {
+  private async buildPedidoReportePdfData(reporte: PedidoReporteCabeceraRow, pedido: RequisitionRow): Promise<PedidoReportePdfData> {
+    const detalle = await Promise.all(
+      reporte.detalle.map(async (item) => ({
+        ...item,
+        imagenData: await this.loadPedidoReporteDetalleImage(item.imagen)
+      }))
+    );
+
     return {
       pedidoId: reporte.pedidoId,
       codigoPedido: pedido.codigo,
@@ -2535,8 +2557,103 @@ export class RequisicionesPageComponent implements OnInit {
       direccionEntrega: reporte.direccionEntrega,
       fechaEntrega: reporte.fechaEntrega,
       proveedorReferencia: reporte.proveedorReferencia,
-      detalle: reporte.detalle
+      detalle
     };
+  }
+
+  private async loadPedidoReporteDetalleImage(imageName?: string): Promise<PedidoReporteEmbeddedImage | undefined> {
+    const normalizedImageName = String(imageName || '').trim();
+
+    if (!normalizedImageName || normalizedImageName === '-') {
+      return undefined;
+    }
+
+    try {
+      const imageBuffer = await firstValueFrom(this.apiService.getArchivoDetallePedido(normalizedImageName));
+
+      if (!imageBuffer) {
+        return undefined;
+      }
+
+      return await this.convertPedidoReporteImageToJpeg(imageBuffer, normalizedImageName);
+    } catch (error) {
+      console.warn('No se pudo cargar la imagen del detalle para el reporte de pedido:', normalizedImageName, error);
+      return undefined;
+    }
+  }
+
+  private async convertPedidoReporteImageToJpeg(buffer: ArrayBuffer, imageName: string): Promise<PedidoReporteEmbeddedImage> {
+    const blob = new Blob([buffer], { type: this.resolvePedidoReporteImageMimeType(imageName) });
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+      const image = await this.loadPedidoReporteImageElement(objectUrl);
+      const maxDimension = 160;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+      const width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+      const height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error('No se pudo obtener el contexto del canvas para la imagen del reporte.');
+      }
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const base64Payload = dataUrl.split(',')[1] || '';
+
+      return {
+        bytes: this.base64ToUint8Array(base64Payload),
+        width,
+        height
+      };
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  private loadPedidoReporteImageElement(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('No se pudo cargar la imagen para el reporte.'));
+      image.src = url;
+    });
+  }
+
+  private resolvePedidoReporteImageMimeType(imageName: string): string {
+    const extension = imageName.split('.').pop()?.trim().toLowerCase() || '';
+
+    switch (extension) {
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'bmp':
+        return 'image/bmp';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  private base64ToUint8Array(base64Value: string): Uint8Array {
+    const binaryString = atob(base64Value);
+    const bytes = new Uint8Array(binaryString.length);
+
+    for (let index = 0; index < binaryString.length; index += 1) {
+      bytes[index] = binaryString.charCodeAt(index);
+    }
+
+    return bytes;
   }
 
   private mapApprovalUser(item: DataRecord): ApprovalUserOption {

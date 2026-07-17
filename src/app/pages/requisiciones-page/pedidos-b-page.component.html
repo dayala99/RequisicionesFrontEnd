@@ -55,6 +55,7 @@
         <table class="requisiciones-table">
           <thead>
             <tr>
+              <th>Acciones</th>
               <th>Codigo</th>
               <th>Archivo</th>
               <th>Fecha</th>
@@ -66,7 +67,6 @@
               <th>Codigo Usr</th>
               <th>Usr Aprobacion</th>
               <th>Fecha Aprobacion</th>
-              <th>Acciones</th>
             </tr>
           </thead>
 
@@ -76,6 +76,78 @@
                 class="requisiciones-table__row"
                 [class.requisiciones-table__row--selected]="isPedidoSeleccionado(item)"
                 (click)="seleccionarPedido(item)">
+                <td class="requisiciones-table__actions-cell">
+                  <div class="requisiciones-table__actions">
+                    <button
+                      type="button"
+                      class="row-detail-button row-detail-button--pdf"
+                      title="Generar PDF del pedido"
+                      [disabled]="isLoadingReportePedidoId === item.requisicion"
+                      (click)="abrirReportePedidoFila(item, $event)">
+                      {{ isLoadingReportePedidoId === item.requisicion ? 'Cargando...' : 'PDF' }}
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--edit"
+                      title="Previsualizar pedido"
+                      aria-label="Previsualizar pedido"
+                      [disabled]="isActionRowBusy(item)"
+                      (click)="previsualizarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 5c5 0 8.5 4.4 9.8 6.5a1 1 0 0 1 0 1C20.5 14.6 17 19 12 19s-8.5-4.4-9.8-6.5a1 1 0 0 1 0-1C3.5 9.4 7 5 12 5zm0 2c-3.5 0-6.2 2.7-7.7 5 1.5 2.3 4.2 5 7.7 5s6.2-2.7 7.7-5C18.2 9.7 15.5 7 12 7zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--edit"
+                      title="Modificar pedido"
+                      aria-label="Modificar pedido"
+                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canAdministrarPedidoAprobado())"
+                      (click)="modificarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--approve"
+                      title="Aprobar pedido"
+                      aria-label="Aprobar pedido"
+                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canAdministrarPedidoAprobado())"
+                      (click)="aprobarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 16.2 4.8 12l-1.4 1.4L9 19.2 21 7.2 19.6 5.8z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--danger"
+                      title="Rechazar pedido"
+                      aria-label="Rechazar pedido"
+                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canAdministrarPedidoAprobado())"
+                      (click)="rechazarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="icon-button icon-button--danger"
+                      title="Eliminar pedido"
+                      aria-label="Eliminar pedido"
+                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canAdministrarPedidoAprobado())"
+                      (click)="eliminarPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9 3.8h6l1 1.5H20v2h-1.2l-.9 10.2A2.4 2.4 0 0 1 15.4 20H8.6a2.4 2.4 0 0 1-2.4-2.5L5.3 7.3H4v-2h4l1-1.5ZM8.2 7.3l.8 9.8c0 .2.2.4.4.4h6.2c.2 0 .4-.2.4-.4l.8-9.8H8.2Zm2.1 1.6h1.5v6.6h-1.5V8.9Zm3.9 0h1.5v6.6h-1.5V8.9Z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
                 <td>{{ item.codigo }}</td>
                 <td>
                   <button
@@ -83,7 +155,7 @@
                     class="icon-button icon-button--folder"
                     title="Ver archivos adjuntos"
                     aria-label="Ver archivos adjuntos"
-                    [disabled]="isLoadingArchivosAdjuntosListado === item.requisicion || isPedidoAprobadoFila(item)"
+                    [disabled]="isLoadingArchivosAdjuntosListado === item.requisicion"
                     (click)="abrirArchivosPedidoListado(item, $event)">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8l1.2 1.2h5.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-10Zm2.5-.7a.7.7 0 0 0-.7.7v10c0 .4.3.7.7.7h13c.4 0 .7-.3.7-.7v-8c0-.4-.3-.7-.7-.7h-6.6l-1.7-1.7a.8.8 0 0 0-.6-.3H5.5Z"/>
@@ -101,66 +173,6 @@
                 <td>{{ item.codigoUsr }}</td>
                 <td>{{ item.usrAprobacion }}</td>
                 <td>{{ item.fechaUsrGa }}</td>
-                <td class="requisiciones-table__actions-cell">
-                  <div class="requisiciones-table__actions">
-                    <button
-                      type="button"
-                      class="row-detail-button row-detail-button--pdf"
-                      title="Generar PDF del pedido"
-                      [disabled]="isLoadingReportePedidoId === item.requisicion"
-                      (click)="abrirReportePedidoFila(item, $event)">
-                      {{ isLoadingReportePedidoId === item.requisicion ? 'Cargando...' : 'PDF' }}
-                    </button>
-
-                    <button
-                      type="button"
-                      class="icon-button icon-button--edit"
-                      title="Modificar pedido"
-                      aria-label="Modificar pedido"
-                      [disabled]="isActionRowBusy(item) || isPedidoAprobadoFila(item)"
-                      (click)="modificarPedidoFila(item, $event)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
-                      </svg>
-                    </button>
-
-                    <button
-                      type="button"
-                      class="icon-button icon-button--approve"
-                      title="Aprobar pedido"
-                      aria-label="Aprobar pedido"
-                      [disabled]="isPedidoAprobadoFila(item) || !canApprovePedidoFila(item) || isActionRowBusy(item)"
-                      (click)="aprobarPedidoFila(item, $event)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M9 16.2 4.8 12l-1.4 1.4L9 19.2 21 7.2 19.6 5.8z"/>
-                      </svg>
-                    </button>
-
-                    <button
-                      type="button"
-                      class="icon-button icon-button--danger"
-                      title="Rechazar pedido"
-                      aria-label="Rechazar pedido"
-                      [disabled]="isPedidoAprobadoFila(item) || !canApprovePedidoFila(item) || isActionRowBusy(item)"
-                      (click)="rechazarPedidoFila(item, $event)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/>
-                      </svg>
-                    </button>
-
-                    <button
-                      type="button"
-                      class="icon-button icon-button--danger"
-                      title="Eliminar pedido"
-                      aria-label="Eliminar pedido"
-                      [disabled]="isActionRowBusy(item) || isPedidoAprobadoFila(item)"
-                      (click)="eliminarPedidoFila(item, $event)">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M9 3.8h6l1 1.5H20v2h-1.2l-.9 10.2A2.4 2.4 0 0 1 15.4 20H8.6a2.4 2.4 0 0 1-2.4-2.5L5.3 7.3H4v-2h4l1-1.5ZM8.2 7.3l.8 9.8c0 .2.2.4.4.4h6.2c.2 0 .4-.2.4-.4l.8-9.8H8.2Zm2.1 1.6h1.5v6.6h-1.5V8.9Zm3.9 0h1.5v6.6h-1.5V8.9Z"/>
-                      </svg>
-                    </button>
-                  </div>
-                </td>
               </tr>
             </ng-container>
 
@@ -324,13 +336,20 @@
   </section>
 
   <section *ngIf="mostrarEditorPedido" class="pedido-editor">
+    <header class="pedidos-card__header">
+      <div>
+        <p class="pedidos-card__eyebrow">{{ isPreviewPedido ? 'Previsualizacion' : isEditingPedido ? 'Edicion' : 'Registro' }}</p>
+        <h2>{{ isPreviewPedido ? 'Previsualización de Pedido' : isEditingPedido ? 'Editar Pedido' : 'Nuevo Pedido' }}</h2>
+      </div>
+    </header>
+
     <form class="editor-grid editor-grid--header editor-grid--header-b" [formGroup]="cabeceraForm">
       <div class="field pedidos-b-approval-field">
         <span>Usuario de Aprobacion</span>
         <mat-select
           formControlName="usuarioAprobacionId"
           [placeholder]="isLoadingApprovalUsers ? 'Cargando usuarios...' : 'Seleccionar'"
-          [disabled]="isLoadingApprovalUsers"
+          [disabled]="isLoadingApprovalUsers || isPreviewPedido"
           (openedChange)="onApprovalUserSelectOpened($event)"
           (selectionChange)="onApprovalUserSelected($event.value)">
           <mat-option>
@@ -360,7 +379,7 @@
         <div class="group-row group-row--entrega-b">
           <label class="field field--wide">
             <span>Lugar de Entrega</span>
-            <select formControlName="lugarEntrega" [disabled]="isLoadingDireccionesEntrega">
+            <select formControlName="lugarEntrega" [disabled]="isLoadingDireccionesEntrega || isPreviewPedido">
               <option [ngValue]="''">{{ isLoadingDireccionesEntrega ? 'Cargando direcciones...' : 'Seleccionar' }}</option>
               <option *ngFor="let direccion of direccionesEntrega; trackBy: trackByDireccionEntrega" [ngValue]="direccion.id">
                 {{ direccion.descripcion }}
@@ -371,7 +390,7 @@
 
           <label class="field field--wide">
             <span>Direccion de Entrega</span>
-            <input type="text" formControlName="referencia" [class.input--autofilled-address]="detalleForm.controls['referencia'].disabled">
+            <input type="text" formControlName="referencia" [readonly]="isPreviewPedido" [class.input--autofilled-address]="detalleForm.controls['referencia'].disabled">
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['referencia'].touched && (detalleForm.controls['referencia'].hasError('required') || detalleForm.controls['referencia'].hasError('whitespace'))">Campo Direccion de Entrega obligatorio.</small>
           </label>
         </div>
@@ -381,7 +400,7 @@
         <div class="group-row group-row--meta group-row--meta-b">
           <label class="field">
             <span>Tipo de Servicio</span>
-            <select formControlName="oc">
+            <select formControlName="oc" [disabled]="isPreviewPedido">
               <option *ngFor="let option of tipoServicioOptions" [ngValue]="option.codigo">{{ option.descripcion }}</option>
             </select>
             <small class="editor-feedback editor-feedback--error" *ngIf="detalleForm.controls['oc'].touched && detalleForm.controls['oc'].hasError('required')">Campo Tipo de Servicio obligatorio.</small>
@@ -389,7 +408,7 @@
 
           <label class="field">
             <span>Moneda</span>
-            <select formControlName="moneda">
+            <select formControlName="moneda" [disabled]="isPreviewPedido">
               <option [ngValue]="null">Seleccionar</option>
               <option *ngFor="let moneda of tipoMoneda" [ngValue]="moneda.codigo">{{ moneda.descripcion }}</option>
             </select>
@@ -403,11 +422,13 @@
                 [matDatepicker]="pedidoBFechaEntregaPicker"
                 formControlName="fechaEntrega"
                 readonly
+                [disabled]="isPreviewPedido"
                 (click)="pedidoBFechaEntregaPicker.open()">
               <button
                 type="button"
                 class="date-input-shell__button"
                 aria-label="Seleccionar fecha de entrega"
+                [disabled]="isPreviewPedido"
                 (click)="pedidoBFechaEntregaPicker.open(); $event.stopPropagation()">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1.5A2.5 2.5 0 0 1 22 6.5v12A2.5 2.5 0 0 1 19.5 21h-15A2.5 2.5 0 0 1 2 18.5v-12A2.5 2.5 0 0 1 4.5 4H6V3a1 1 0 0 1 1-1Zm12.5 8h-15v8.5a.5.5 0 0 0 .5.5h14a.5.5 0 0 0 .5-.5V10ZM5 6a.5.5 0 0 0-.5.5V8h15V6.5A.5.5 0 0 0 19 6H5Z"/>
@@ -420,7 +441,7 @@
 
           <label class="field">
             <span>Referencia</span>
-            <input type="text" formControlName="referenciaGeneral" maxlength="160">
+            <input type="text" formControlName="referenciaGeneral" maxlength="160" [readonly]="isPreviewPedido">
           </label>
         </div>
       </section>
@@ -431,12 +452,26 @@
           <button
             type="button"
             class="button button--primary pedido-b-detalle-section__button"
+            [disabled]="isPreviewPedido"
             (click)="abrirModalDetallePedidoB()">
             Agregar producto
           </button>
         </div>
 
         <div class="table-shell">
+          <input
+            #detalleImagenArchivoInput
+            type="file"
+            accept="image/*"
+            style="display:none"
+            (change)="onDetalleImagenSeleccionada($event, 'file')">
+          <input
+            #detalleImagenCamaraInput
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style="display:none"
+            (change)="onDetalleImagenSeleccionada($event, 'camera')">
           <table class="pedido-detalle-table pedido-b-detalle-table">
             <thead>
               <tr>
@@ -470,7 +505,7 @@
                     type="button"
                     class="pedido-b-longtext-trigger"
                     [class.pedido-b-longtext-trigger--empty]="!detalle.observaciones"
-                    [disabled]="detalle.markedForDelete"
+                    [disabled]="detalle.markedForDelete || isPreviewPedido"
                     (click)="abrirEditorTextoDetallePedidoB(detalle, 'observaciones')">
                     {{ detalle.observaciones || 'Agregar observacion' }}
                   </button>
@@ -480,7 +515,7 @@
                     type="button"
                     class="pedido-b-longtext-trigger"
                     [class.pedido-b-longtext-trigger--empty]="!detalle.comentarios"
-                    [disabled]="detalle.markedForDelete"
+                    [disabled]="detalle.markedForDelete || isPreviewPedido"
                     (click)="abrirEditorTextoDetallePedidoB(detalle, 'comentarios')">
                     {{ detalle.comentarios || 'Agregar comentario' }}
                   </button>
@@ -490,7 +525,7 @@
                     type="button"
                     class="pedido-b-longtext-trigger"
                     [class.pedido-b-longtext-trigger--empty]="!detalle.requisitos"
-                    [disabled]="detalle.markedForDelete"
+                    [disabled]="detalle.markedForDelete || isPreviewPedido"
                     (click)="abrirEditorTextoDetallePedidoB(detalle, 'requisitos')">
                     {{ detalle.requisitos || 'Agregar requisito' }}
                   </button>
@@ -498,9 +533,22 @@
                 <td class="pedido-detalle-table__action-cell">
                   <button
                     type="button"
+                    class="icon-button icon-button--image"
+                    [class.icon-button--image-attached]="detalle.imageFile || detalle.imagePreviewUrl || detalle.storedImageName"
+                    [title]="getDetalleImagenTooltip(detalle)"
+                    aria-label="Agregar imagen al producto"
+                    [disabled]="detalle.markedForDelete || isPreviewPedido"
+                    (click)="abrirDialogoImagenDetallePedidoB(detalle, detalleImagenCamaraInput, detalleImagenArchivoInput)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 3a2 2 0 0 0-1.8 1.1L6.4 6H4a2 2 0 0 0-2 2v8.8A2.2 2.2 0 0 0 4.2 19h15.6a2.2 2.2 0 0 0 2.2-2.2V8a2 2 0 0 0-2-2h-2.4l-.8-1.9A2 2 0 0 0 15 3H9Zm0 2h6l1.1 2.5.1.3H20v8.8a.2.2 0 0 1-.2.2H4.2a.2.2 0 0 1-.2-.2V8h3.8l.1-.3L9 5Zm3 2.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5Zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5Z"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
                     class="icon-button icon-button--edit"
+                    title="Editar producto"
                     aria-label="Editar producto"
-                    [disabled]="detalle.markedForDelete"
+                    [disabled]="detalle.markedForDelete || isPreviewPedido"
                     (click)="editarDetallePedidoB(detalle, index)">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M4 17.25V20h2.75L17.8 8.95l-2.75-2.75L4 17.25zm15.9-10.4a1 1 0 0 0 0-1.4l-1.35-1.35a1 1 0 0 0-1.4 0l-1.05 1.05 2.75 2.75 1.05-1.05z"/>
@@ -511,7 +559,9 @@
                     class="icon-button"
                     [class.icon-button--danger]="!detalle.markedForDelete"
                     [class.icon-button--revert]="detalle.markedForDelete"
+                    [title]="detalle.markedForDelete ? 'Revertir eliminacion del producto' : 'Eliminar producto'"
                     [attr.aria-label]="detalle.markedForDelete ? 'Revertir eliminacion' : 'Eliminar producto'"
+                    [disabled]="isPreviewPedido"
                     (click)="toggleEliminarDetallePedidoB(detalle.id)">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path *ngIf="!detalle.markedForDelete" d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2h4v2H4V6h4l1-2z"/>
@@ -534,20 +584,20 @@
           <div class="attachment-panel__fields-row">
             <label class="field proveedor-referencia-field">
               <span>Proveedor Referencia</span>
-              <input type="text" formControlName="proveedorReferencia" maxlength="120">
+              <input type="text" formControlName="proveedorReferencia" maxlength="120" [readonly]="isPreviewPedido">
             </label>
           </div>
 
           <label class="field aclaraciones-field">
             <span>Aclaraciones</span>
-            <textarea formControlName="aclaraciones" rows="4" maxlength="1200"></textarea>
+            <textarea formControlName="aclaraciones" rows="4" maxlength="1200" [readonly]="isPreviewPedido"></textarea>
           </label>
 
           <div class="attachment-grid">
             <div class="attachment-grid__header">
               <h3>Archivo</h3>
               <input #fileInput type="file" multiple style="display:none" (change)="onFileSelected($event)">
-              <button type="button" class="icon-button attachment-grid__add" aria-label="Adjuntar archivo" (click)="fileInput.click()">
+              <button type="button" class="icon-button attachment-grid__add" aria-label="Adjuntar archivo" [disabled]="isPreviewPedido" (click)="fileInput.click()">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/>
                 </svg>
@@ -571,7 +621,7 @@
                           <path d="M12 5c5 0 8.5 4.4 9.8 6.5a1 1 0 0 1 0 1C20.5 14.6 17 19 12 19s-8.5-4.4-9.8-6.5a1 1 0 0 1 0-1C3.5 9.4 7 5 12 5zm0 2c-3.5 0-6.2 2.7-7.7 5 1.5 2.3 4.2 5 7.7 5s6.2-2.7 7.7-5C18.2 9.7 15.5 7 12 7zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/>
                         </svg>
                       </button>
-                      <button type="button" class="icon-button icon-button--danger" aria-label="Quitar archivo" [disabled]="!archivo.local" (click)="archivo.local && quitarArchivo(archivo.index); fileInput.value = ''">
+                      <button type="button" class="icon-button icon-button--danger" aria-label="Quitar archivo" [disabled]="!archivo.local || isPreviewPedido" (click)="archivo.local && quitarArchivo(archivo.index); fileInput.value = ''">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                           <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2h4v2H4V6h4l1-2z"/>
                         </svg>
@@ -591,16 +641,23 @@
 
     <footer class="editor-actions">
       <p *ngIf="saveErrorMessage" class="editor-feedback editor-feedback--error">{{ saveErrorMessage }}</p>
-      <button
-        type="button"
-        class="button button--primary"
-        [disabled]="isSavingPedido || isLoadingCorrelativo || isLoadingPedidoDetalle"
-        (click)="guardarPedido()">
-        {{ isLoadingPedidoDetalle ? 'Cargando...' : isSavingPedido ? 'Guardando...' : isEditingPedido ? 'Actualizar' : 'Guardar' }}
-      </button>
-      <button type="button" class="button button--secondary" (click)="confirmarCancelacionPedido()">
-        Cancelar
-      </button>
+      <ng-container *ngIf="!isPreviewPedido; else previewCloseButton">
+        <button
+          type="button"
+          class="button button--primary"
+          [disabled]="isSavingPedido || isLoadingCorrelativo || isLoadingPedidoDetalle"
+          (click)="guardarPedido()">
+          {{ isLoadingPedidoDetalle ? 'Cargando...' : isSavingPedido ? 'Guardando...' : isEditingPedido ? 'Actualizar' : 'Guardar' }}
+        </button>
+        <button type="button" class="button button--secondary" (click)="confirmarCancelacionPedido()">
+          Cancelar
+        </button>
+      </ng-container>
+      <ng-template #previewCloseButton>
+        <button type="button" class="button button--secondary" (click)="cerrarVistaPreviaPedido()">
+          Cerrar
+        </button>
+      </ng-template>
     </footer>
   </section>
 </section>

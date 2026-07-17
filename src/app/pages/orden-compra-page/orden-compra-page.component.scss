@@ -327,7 +327,7 @@
 
 .icon-button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
 .icon-button svg {
@@ -337,7 +337,45 @@
 }
 
 .icon-button--danger {
-  color: #c2410c;
+  color: var(--accent);
+}
+
+.icon-button--edit {
+  color: var(--text-secondary);
+}
+
+.orden-compra-table__actions-cell {
+  min-width: 8rem;
+}
+
+.orden-compra-table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.row-detail-button {
+  min-height: 2.4rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.row-detail-button--pdf {
+  min-width: 4.25rem;
+  padding-inline: 0.95rem;
+}
+
+.row-detail-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .attachment-panel {
@@ -522,6 +560,32 @@
 
 .orden-compra-table__row--selected {
   background: #fff4e8;
+}
+
+.conformidad-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.conformidad-actions__button {
+  min-width: 3.2rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.conformidad-actions__button--completed {
+  border-color: #2e7d32;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.conformidad-actions__button--completed:disabled {
+  border-color: #2e7d32;
+  background: #e8f5e9;
+  color: #2e7d32;
+  opacity: 1;
 }
 
 .centros-costo-table__row--checked {

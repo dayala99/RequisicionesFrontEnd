@@ -664,6 +664,16 @@
   color: var(--text-secondary);
 }
 
+.icon-button--image {
+  color: #0f766e;
+}
+
+.icon-button--image-attached {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
 .icon-button--approve {
   color: #2f855a;
 }

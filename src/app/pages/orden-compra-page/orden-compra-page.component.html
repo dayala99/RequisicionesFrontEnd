@@ -62,24 +62,27 @@
         <table class="orden-compra-table">
           <thead>
             <tr>
+              <th>Acciones</th>
+              <th *ngIf="isOrdenServicio">Conformidad</th>
               <th>{{ numeroOrdenLabel }}</th>
               <th>Correlativo</th>
               <th>Archivo</th>
+              <th>Usr. Reg.</th>
+              <th>Usr. Aprobacion</th>
               <th>Proveedor</th>
               <th>Forma de Pago</th>
               <th>Total</th>
               <th>Estado</th>
-              <th>Accion</th>
             </tr>
           </thead>
 
           <tbody>
             <tr *ngIf="isLoadingOrdenesCompra">
-              <td colspan="8" class="empty-row">Cargando ordenes de compra registradas...</td>
+              <td [attr.colspan]="isOrdenServicio ? 11 : 10" class="empty-row">Cargando ordenes de compra registradas...</td>
             </tr>
 
             <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !ordenesCompra.length">
-              <td colspan="8" class="empty-row">No se encontraron ordenes de compra.</td>
+              <td [attr.colspan]="isOrdenServicio ? 11 : 10" class="empty-row">No se encontraron ordenes de compra.</td>
             </tr>
 
             <tr
@@ -87,6 +90,60 @@
               class="orden-compra-table__row"
               [class.orden-compra-table__row--selected]="isOrdenCompraSeleccionada(item)"
               (click)="seleccionarOrdenCompra(item)">
+              <td class="orden-compra-table__actions-cell">
+                <div class="orden-compra-table__actions">
+                  <button
+                    type="button"
+                    class="row-detail-button row-detail-button--pdf"
+                    [disabled]="isLoadingReporteOrdenCompraId === item.id"
+                    (click)="verReporteOrdenCompra(item); $event.stopPropagation()">
+                    {{ isLoadingReporteOrdenCompraId === item.id ? 'PDF...' : 'PDF' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-button icon-button--edit"
+                    aria-label="Editar orden de compra"
+                    [disabled]="!item.canEdit || isAnulandoOrdenCompra(item)"
+                    (click)="editarOrdenCompraDesdeFila(item); $event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-button icon-button--danger"
+                    title="Anular orden de compra"
+                    aria-label="Anular orden de compra"
+                    [disabled]="!canAnularOrdenCompra(item)"
+                    (click)="anularOrdenCompraFila(item, $event)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 3.8h6l1 1.5H20v2h-1.2l-.9 10.2A2.4 2.4 0 0 1 15.4 20H8.6a2.4 2.4 0 0 1-2.4-2.5L5.3 7.3H4v-2h4l1-1.5ZM8.2 7.3l.8 9.8c0 .2.2.4.4.4h6.2c.2 0 .4-.2.4-.4l.8-9.8H8.2Zm2.1 1.6h1.5v6.6h-1.5V8.9Zm3.9 0h1.5v6.6h-1.5V8.9Z"/>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+              <td *ngIf="isOrdenServicio">
+                <div class="conformidad-actions">
+                  <button
+                    type="button"
+                    class="button button--secondary button--compact conformidad-actions__button"
+                    [class.conformidad-actions__button--completed]="item.conformidadRegistro"
+                    [disabled]="!puedeConfirmarConformidadRegistro(item)"
+                    [title]="'Usuario registro: ' + item.usuarioRegistro"
+                    (click)="confirmarConformidadRegistro(item, $event)">
+                    Reg.
+                  </button>
+                  <button
+                    type="button"
+                    class="button button--secondary button--compact conformidad-actions__button"
+                    [class.conformidad-actions__button--completed]="item.conformidadAprobacion"
+                    [disabled]="!puedeConfirmarConformidadAprobacion(item)"
+                    [title]="'Usuario aprobacion: ' + item.usuarioAprobacionPedido"
+                    (click)="confirmarConformidadAprobacion(item, $event)">
+                    Apr.
+                  </button>
+                </div>
+              </td>
               <td>{{ item.ordenCompraId ?? '-' }}</td>
               <td>{{ item.correlativo }}</td>
               <td>
@@ -101,29 +158,12 @@
                   </svg>
                 </button>
               </td>
+              <td>{{ item.usuarioRegistro }}</td>
+              <td>{{ item.usuarioAprobacionPedido }}</td>
               <td>{{ item.proveedor }}</td>
               <td>{{ item.formaPago }}</td>
               <td>{{ formatCurrency(item.total) }}</td>
               <td>{{ item.estado }}</td>
-              <td>
-                <button
-                  type="button"
-                  class="button button--secondary button--compact"
-                  [disabled]="isLoadingReporteOrdenCompraId === item.id"
-                  (click)="verReporteOrdenCompra(item); $event.stopPropagation()">
-                  {{ isLoadingReporteOrdenCompraId === item.id ? 'PDF...' : 'PDF' }}
-                </button>
-                <button
-                  type="button"
-                  class="icon-button"
-                  aria-label="Editar orden de compra"
-                  [disabled]="!item.canEdit"
-                  (click)="editarOrdenCompraDesdeFila(item); $event.stopPropagation()">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 20h4.75L19.81 8.94a1.5 1.5 0 0 0 0-2.12l-2.63-2.63a1.5 1.5 0 0 0-2.12 0L4 15.25V20zm3.5-1.5H5.5v-2l9.66-9.66 2 2L7.5 18.5z"/>
-                  </svg>
-                </button>
-              </td>
             </tr>
           </tbody>
         </table>
@@ -390,7 +430,7 @@
                     type="number"
                     class="detalle-pedido-table__input detalle-pedido-table__input--amount"
                     min="0"
-                    step="0.01"
+                    step="0.0001"
                     [value]="item.costoUnitario"
                     (input)="actualizarCostoUnitarioDetallePedido(item, $event)">
                 </td>
@@ -399,7 +439,7 @@
                     type="number"
                     class="detalle-pedido-table__input detalle-pedido-table__input--amount"
                     min="0"
-                    step="0.01"
+                    step="0.0001"
                     [value]="item.subtotal"
                     (input)="actualizarSubtotalDetallePedido(item, $event)">
                 </td>
@@ -430,8 +470,8 @@
               <tr>
                 <td colspan="4" class="detalle-pedido-table__footer-label">Totales</td>
                 <td class="detalle-pedido-table__footer-value">{{ formatCurrency(totalCantidadDetallePedido) }}</td>
-                <td class="detalle-pedido-table__footer-value">{{ formatCurrency(totalCostoUnitarioDetallePedido) }}</td>
-                <td class="detalle-pedido-table__footer-value">{{ formatCurrency(totalSubtotalDetallePedido) }}</td>
+                <td class="detalle-pedido-table__footer-value">{{ formatCurrencyWithPrecision(totalCostoUnitarioDetallePedido, 4) }}</td>
+                <td class="detalle-pedido-table__footer-value">{{ formatCurrencyWithPrecision(totalSubtotalDetallePedido, 4) }}</td>
                 <td colspan="2"></td>
               </tr>
             </tfoot>
@@ -470,7 +510,7 @@
 
           <label class="field">
             <span>IGV</span>
-            <input type="number" formControlName="igv" min="0" step="0.01" class="input--readonly" readonly>
+            <input type="number" formControlName="igv" min="0" step="0.0001" class="input--readonly" readonly>
           </label>
 
           <div class="field">

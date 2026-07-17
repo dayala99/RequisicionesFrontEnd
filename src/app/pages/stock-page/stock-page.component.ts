@@ -15,6 +15,14 @@ interface StockRow {
   stock: number;
 }
 
+interface StockCentroCostoRow {
+  centroCostoId: number;
+  centroCostoDescripcion: string;
+  ingreso: number;
+  salida: number;
+  stock: number;
+}
+
 @Component({
   selector: 'app-stock-page',
   templateUrl: './stock-page.component.html',
@@ -28,6 +36,12 @@ export class StockPageComponent implements OnInit {
   currentPage = 1;
   isLoading = false;
   errorMessage = '';
+
+  isDetalleModalOpen = false;
+  detalleItemSeleccionado: StockRow | null = null;
+  detalleCentroCosto: StockCentroCostoRow[] = [];
+  isDetalleLoading = false;
+  detalleErrorMessage = '';
 
   constructor(private readonly apiService: ApiService) {}
 
@@ -69,6 +83,32 @@ export class StockPageComponent implements OnInit {
     return item.itemId;
   }
 
+  trackByCentroCosto(_: number, item: StockCentroCostoRow): number {
+    return item.centroCostoId;
+  }
+
+  abrirDetallePorCentroCosto(item: StockRow): void {
+    this.detalleItemSeleccionado = item;
+    this.detalleCentroCosto = [];
+    this.detalleErrorMessage = '';
+    this.isDetalleModalOpen = true;
+    this.cargarDetallePorCentroCosto(item.itemId);
+  }
+
+  cerrarDetallePorCentroCosto(): void {
+    this.isDetalleModalOpen = false;
+    this.detalleItemSeleccionado = null;
+    this.detalleCentroCosto = [];
+    this.detalleErrorMessage = '';
+    this.isDetalleLoading = false;
+  }
+
+  onDetalleBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.cerrarDetallePorCentroCosto();
+    }
+  }
+
   private cargarStock(): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -86,6 +126,27 @@ export class StockPageComponent implements OnInit {
         this.currentPage = 1;
         this.errorMessage = this.resolveErrorMessage(error, 'No se pudo cargar la informacion de stock.');
         this.isLoading = false;
+      }
+    });
+  }
+
+  private cargarDetallePorCentroCosto(itemId: number): void {
+    this.isDetalleLoading = true;
+    this.detalleErrorMessage = '';
+
+    console.log('[Stock] getListarIngresoSalidaAlmacenPorCentroCosto Alm_Det_Itm_Id:', itemId);
+
+    this.apiService.getListarIngresoSalidaAlmacenPorCentroCosto(itemId).subscribe({
+      next: (response: unknown) => {
+        this.detalleCentroCosto = this.extractRecords(response)
+          .map((item) => this.mapStockCentroCostoRow(item))
+          .filter((item): item is StockCentroCostoRow => item !== null);
+        this.isDetalleLoading = false;
+      },
+      error: (error: unknown) => {
+        this.detalleCentroCosto = [];
+        this.detalleErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el detalle por centro de costo.');
+        this.isDetalleLoading = false;
       }
     });
   }
@@ -115,6 +176,23 @@ export class StockPageComponent implements OnInit {
       subGrupo: this.getTextValue(item, ['Sub_Grp_Des', 'sub_Grp_Des', 'subGrpDes']) || '-',
       detalleMaterial: this.getTextValue(item, ['Det_Mat_Des', 'det_Mat_Des', 'detMatDes']) || '-',
       stock: this.getStockValue(item)
+    };
+  }
+
+  private mapStockCentroCostoRow(item: DataRecord): StockCentroCostoRow | null {
+    const centroCostoId = this.getNumberValue(item, ['Alm_Det_Cen_Cos_Id', 'alm_Det_Cen_Cos_Id', 'almDetCenCosId', 'Cen_Cos_Id', 'cenCosId']);
+    const centroCostoDescripcion = this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes', 'descripcion', 'Descripcion']);
+
+    if (!centroCostoId || !centroCostoDescripcion) {
+      return null;
+    }
+
+    return {
+      centroCostoId,
+      centroCostoDescripcion,
+      ingreso: this.getDecimalValue(item, ['Ingreso', 'ingreso']),
+      salida: this.getDecimalValue(item, ['Salida', 'salida']),
+      stock: this.getDecimalValue(item, ['Stock', 'stock'])
     };
   }
 
@@ -172,6 +250,19 @@ export class StockPageComponent implements OnInit {
       ?? this.findDataValue(item, 'stock');
     const value = Number(rawValue);
     return Number.isFinite(value) ? value : 0;
+  }
+
+  private getDecimalValue(item: DataRecord, keys: string[]): number {
+    for (const key of keys) {
+      const rawValue = this.findDataValue(item, key);
+      const value = Number(rawValue);
+
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+
+    return 0;
   }
 
   private findDataValue(item: DataRecord, key: string): unknown {

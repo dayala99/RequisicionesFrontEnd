@@ -38,14 +38,21 @@
 
 .item-card__actions {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.75rem;
 }
 
 .item-card__create,
+.item-filters__tree,
 .item-filters__search,
 .item-filters__clear {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   min-height: 2.75rem;
+  height: 2.75rem;
   padding: 0.75rem 1rem;
   border-radius: 10px;
   font: inherit;
@@ -58,6 +65,12 @@
   border: 1px solid var(--accent);
   background: var(--accent);
   color: #ffffff;
+}
+
+.item-filters__tree {
+  border: 1px solid #b7e4c7;
+  background: #ecfdf3;
+  color: #166534;
 }
 
 .item-card__create:disabled,
@@ -74,7 +87,8 @@
 }
 
 .item-filters__search,
-.item-filters__clear {
+.item-filters__clear,
+.item-filters__tree {
   width: 100%;
 }
 

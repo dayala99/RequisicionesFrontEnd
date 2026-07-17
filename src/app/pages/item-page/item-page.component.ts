@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
+import { Router } from '@angular/router';
 
 import { ApiService, GrupoItemFiltro, ItemFiltro } from 'src/app/Services/api.services';
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
@@ -57,7 +58,8 @@ export class ItemPageComponent implements OnInit {
   constructor(
     private readonly apiService: ApiService,
     private readonly formBuilder: FormBuilder,
-    private readonly dialog: MatDialog
+    private readonly dialog: MatDialog,
+    private readonly router: Router
   ) {
     this.filtersForm = this.formBuilder.group({
       codigo: [''],
@@ -185,6 +187,10 @@ export class ItemPageComponent implements OnInit {
         this.cargarItems();
       }
     });
+  }
+
+  verArbolDeGrupos(): void {
+    this.router.navigate(['/item-arbol']);
   }
 
   editarItem(item: ItemRow): void {

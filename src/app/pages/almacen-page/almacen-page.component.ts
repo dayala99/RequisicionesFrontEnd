@@ -1168,30 +1168,8 @@ export class AlmacenPageComponent implements OnInit {
         }
 
         this.registrarDetallesIngresoOrdenAlmacenSecuencial(almacenDetallePayloads, 0, () => {
-          forkJoin(detallePayloads.map((detalle) => this.apiService.patchActualizarPedidoDetalleIngresoAlmacen(detalle))).subscribe({
-            next: (detalleResponses: unknown[]) => {
-              try {
-                detalleResponses.forEach((response) => {
-                  this.assertSuccessfulResponse(response, 'No se pudo actualizar el detalle del pedido para ingreso de almacen.');
-                });
-              } catch (error: unknown) {
-                this.isSavingIngreso = false;
-                this.saveErrorMessage = this.resolveErrorMessage(
-                  error,
-                  'Se registro el ingreso, pero no se pudo actualizar el detalle del pedido.'
-                );
-                return;
-              }
-
-              this.finalizarGuardadoIngresoOrden();
-            },
-            error: (error: unknown) => {
-              this.isSavingIngreso = false;
-              this.saveErrorMessage = this.resolveErrorMessage(
-                error,
-                'Se registro el ingreso, pero no se pudo actualizar el detalle del pedido.'
-              );
-            }
+          this.actualizarPedidoDetalleIngresoAlmacenSecuencial(detallePayloads, 0, () => {
+            this.finalizarGuardadoIngresoOrden();
           });
         });
       },
@@ -1246,31 +1224,10 @@ export class AlmacenPageComponent implements OnInit {
     this.saveErrorMessage = '';
 
     this.actualizarStockIngresoOrden(stockPayloads, () => {
-      const detallePedidoRequests = detallePayloads.map((detalle) =>
-        this.apiService.patchActualizarPedidoDetalleIngresoAlmacen(detalle)
-      );
-      const detalleAlmacenRequests = detalleAlmacenPayloads.map((detalle) =>
-        this.apiService.patchActualizarIngresoAlmacenDetalleOrdenCompra(detalle)
-      );
-
-      forkJoin([...detallePedidoRequests, ...detalleAlmacenRequests]).subscribe({
-        next: (detalleResponses: unknown[]) => {
-          try {
-            detalleResponses.forEach((response) => {
-              this.assertSuccessfulResponse(response, 'No se pudo actualizar el detalle del ingreso por orden.');
-            });
-          } catch (error: unknown) {
-            this.isSavingIngreso = false;
-            this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el detalle del ingreso por orden.');
-            return;
-          }
-
+      this.actualizarPedidoDetalleIngresoAlmacenSecuencial(detallePayloads, 0, () => {
+        this.actualizarDetallesIngresoOrdenAlmacenSecuencial(detalleAlmacenPayloads, 0, () => {
           this.finalizarGuardadoIngresoOrden();
-        },
-        error: (error: unknown) => {
-          this.isSavingIngreso = false;
-          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el detalle del ingreso por orden.');
-        }
+        });
       });
     });
   }
@@ -1283,25 +1240,7 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
-    forkJoin(stockPayloads.map((item) => this.apiService.patchActualizarStockItem(item))).subscribe({
-      next: (stockResponses: unknown[]) => {
-        try {
-          stockResponses.forEach((response) => {
-            this.assertSuccessfulResponse(response, 'No se pudo actualizar el stock del item.');
-          });
-        } catch (error: unknown) {
-          this.isSavingIngreso = false;
-          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el stock del item.');
-          return;
-        }
-
-        onSuccess();
-      },
-      error: (error: unknown) => {
-        this.isSavingIngreso = false;
-        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el stock del item.');
-      }
-    });
+    this.actualizarStockIngresoOrdenSecuencial(stockPayloads, 0, onSuccess);
   }
 
   private cambiarEstadoOrdenCompraIngresada(cabecera: OrdenCompraPendienteAlmacenRow, onSuccess: () => void): void {
@@ -1917,7 +1856,7 @@ export class AlmacenPageComponent implements OnInit {
     this.errorMessage = '';
     this.almacenes = [];
 
-    this.apiService.getListarOrdenCompraPendienteAlmacen().subscribe({
+    this.apiService.getListarOrdenCompraPendienteAlmacen({ Flg_Est: 'A' }).subscribe({
       next: (response: unknown) => {
         this.ordenesCompraPendientesAlmacen = this.extractRecords(response)
           .map((item, index) => this.mapOrdenCompraPendienteAlmacen(item, index))
@@ -2565,6 +2504,105 @@ export class AlmacenPageComponent implements OnInit {
           error,
           `Se registro el movimiento ${detallePayload.Alm_Mov_Id}, pero no se pudo registrar el detalle de almacen.`
         );
+      }
+    });
+  }
+
+  private actualizarPedidoDetalleIngresoAlmacenSecuencial(
+    detallePayloads: ActualizarPedidoDetalleIngresoAlmacenRequest[],
+    index: number,
+    onSuccess: () => void
+  ): void {
+    const detallePayload = detallePayloads[index];
+
+    if (!detallePayload) {
+      onSuccess();
+      return;
+    }
+
+    this.apiService.patchActualizarPedidoDetalleIngresoAlmacen(detallePayload).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo actualizar el detalle del pedido para ingreso de almacen.');
+        } catch (error: unknown) {
+          this.isSavingIngreso = false;
+          this.saveErrorMessage = this.resolveErrorMessage(
+            error,
+            'Se registro el ingreso, pero no se pudo actualizar el detalle del pedido.'
+          );
+          return;
+        }
+
+        this.actualizarPedidoDetalleIngresoAlmacenSecuencial(detallePayloads, index + 1, onSuccess);
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(
+          error,
+          'Se registro el ingreso, pero no se pudo actualizar el detalle del pedido.'
+        );
+      }
+    });
+  }
+
+  private actualizarDetallesIngresoOrdenAlmacenSecuencial(
+    detallePayloads: ActualizarIngresoAlmacenDetalleOrdenCompraRequest[],
+    index: number,
+    onSuccess: () => void
+  ): void {
+    const detallePayload = detallePayloads[index];
+
+    if (!detallePayload) {
+      onSuccess();
+      return;
+    }
+
+    this.apiService.patchActualizarIngresoAlmacenDetalleOrdenCompra(detallePayload).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo actualizar el detalle del ingreso por orden.');
+        } catch (error: unknown) {
+          this.isSavingIngreso = false;
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el detalle del ingreso por orden.');
+          return;
+        }
+
+        this.actualizarDetallesIngresoOrdenAlmacenSecuencial(detallePayloads, index + 1, onSuccess);
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el detalle del ingreso por orden.');
+      }
+    });
+  }
+
+  private actualizarStockIngresoOrdenSecuencial(
+    stockPayloads: ActualizarStockItemRequest[],
+    index: number,
+    onSuccess: () => void
+  ): void {
+    const stockPayload = stockPayloads[index];
+
+    if (!stockPayload) {
+      onSuccess();
+      return;
+    }
+
+    this.apiService.patchActualizarStockItem(stockPayload).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo actualizar el stock del item.');
+        } catch (error: unknown) {
+          this.isSavingIngreso = false;
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el stock del item.');
+          return;
+        }
+
+        this.actualizarStockIngresoOrdenSecuencial(stockPayloads, index + 1, onSuccess);
+      },
+      error: (error: unknown) => {
+        this.isSavingIngreso = false;
+        this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el stock del item.');
       }
     });
   }
@@ -3514,8 +3552,8 @@ export class AlmacenPageComponent implements OnInit {
     }
 
     const normalizedTipo = tipo.trim().toLowerCase();
-    const prefijo = this.esOrdenServicio(normalizedTipo) ? 'OS' : 'OC';
-    return `${prefijo}${ordenId}`;
+    const prefijo = this.esOrdenServicio(normalizedTipo) ? 'OSP' : 'OCP';
+    return `${prefijo}${String(ordenId).padStart(5, '0')}`;
   }
 
   private mapSolicitanteOption(item: DataRecord): AlmacenSolicitanteOption | null {
@@ -4099,24 +4137,34 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   private resolveErrorMessage(error: unknown, fallbackMessage: string): string {
+    const deadlockMessage =
+      'La base de datos detecto un bloqueo temporal mientras se guardaba el ingreso a almacen. Intenta nuevamente en unos segundos.';
+
     if (error instanceof Error && error.message.trim()) {
-      return error.message.trim();
+      const message = error.message.trim();
+      return this.isDeadlockMessage(message) ? deadlockMessage : message;
     }
 
     if (error instanceof HttpErrorResponse) {
       if (typeof error.error === 'string' && error.error.trim()) {
-        return error.error.trim();
+        const message = error.error.trim();
+        return this.isDeadlockMessage(message) ? deadlockMessage : message;
       }
 
       if (this.isDataRecord(error.error)) {
         const message = this.getTextValue(error.error, ['message', 'Message']);
 
         if (message) {
-          return message;
+          return this.isDeadlockMessage(message) ? deadlockMessage : message;
         }
       }
     }
 
     return fallbackMessage;
+  }
+
+  private isDeadlockMessage(message: string): boolean {
+    const normalizedMessage = message.toLowerCase();
+    return normalizedMessage.includes('deadlock') || normalizedMessage.includes('deadlocked on lock resources');
   }
 }

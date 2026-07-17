@@ -44,6 +44,7 @@ import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ItemEditDialogComponent } from './pages/item-page/item-edit-dialog.component';
 import { ItemPageComponent } from './pages/item-page/item-page.component';
 import { ItemRegisterDialogComponent } from './pages/item-page/item-register-dialog.component';
+import { ItemTreePageComponent } from './pages/item-tree-page/item-tree-page.component';
 import { ItemDetalleMaterialEditDialogComponent } from './pages/item-detalle-material-page/item-detalle-material-edit-dialog.component';
 import { ItemDetalleMaterialPageComponent } from './pages/item-detalle-material-page/item-detalle-material-page.component';
 import { ItemDetalleMaterialRegisterDialogComponent } from './pages/item-detalle-material-page/item-detalle-material-register-dialog.component';
@@ -66,6 +67,7 @@ import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page
 import { PedidoApprovalDialogComponent } from './pages/requisiciones-page/pedido-approval-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pages/requisiciones-page/pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent } from './pages/requisiciones-page/pedido-detalle-dialog.component';
+import { PedidoDetalleImageSourceDialogComponent } from './pages/requisiciones-page/pedido-detalle-image-source-dialog.component';
 import { PedidoDetalleItemSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-item-selector-dialog.component';
 import { PedidoDetalleUnidadSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-unidad-selector-dialog.component';
 import { PedidoArchivosDialogComponent } from './pages/requisiciones-page/pedido-archivos-dialog.component';
@@ -146,6 +148,7 @@ const APP_DATE_FORMATS = {
     ItemPageComponent,
     ItemRegisterDialogComponent,
     ItemEditDialogComponent,
+    ItemTreePageComponent,
     ItemDetalleMaterialPageComponent,
     ItemDetalleMaterialRegisterDialogComponent,
     ItemDetalleMaterialEditDialogComponent,
@@ -164,6 +167,7 @@ const APP_DATE_FORMATS = {
     CentroCostoSelectorDialogComponent,
     PedidoDetalleDeleteDialogComponent,
     PedidoDetalleDialogComponent,
+    PedidoDetalleImageSourceDialogComponent,
     PedidoDetalleItemSelectorDialogComponent,
     PedidoDetalleUnidadSelectorDialogComponent,
     PedidoArchivosDialogComponent,
