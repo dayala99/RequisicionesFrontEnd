@@ -203,7 +203,8 @@ export class AuthService {
 
     const aliases: Record<string, string[]> = {
       '/cliente': ['/jefe'],
-      '/jefe': ['/cliente']
+      '/jefe': ['/cliente'],
+      '/reportes/kardex-general': ['/reportes']
     };
 
     const candidateRoutes = [normalizedRoute, ...(aliases[normalizedRoute] ?? [])];

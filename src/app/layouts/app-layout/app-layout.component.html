@@ -54,7 +54,16 @@
         routerLinkActive="active"
         class="sidebar_link"
         (click)="closeSidebar()">
-        {{ item.label }}
+        <span class="sidebar_link_content">
+          <span class="sidebar_link_identity">
+            <span class="sidebar_link_icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path *ngFor="let path of item.icon.paths" [attr.d]="path"></path>
+              </svg>
+            </span>
+            <span>{{ item.label }}</span>
+          </span>
+        </span>
       </a>
 
       <div class="sidebar_group" *ngIf="visibleProcessItems.length" [class.sidebar_group--open]="processOpen">
@@ -64,7 +73,14 @@
           [class.active]="isProcessRouteActive()"
           [attr.aria-expanded]="processOpen"
           (click)="toggleProcessMenu()">
-          <span>Procesos</span>
+          <span class="sidebar_group_label">
+            <span class="sidebar_link_icon sidebar_link_icon--group" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path *ngFor="let path of icons.procesos.paths" [attr.d]="path"></path>
+              </svg>
+            </span>
+            <span>Procesos</span>
+          </span>
           <span class="sidebar_group_arrow" [class.sidebar_group_arrow--open]="processOpen" aria-hidden="true"></span>
         </button>
 
@@ -77,7 +93,14 @@
               class="sidebar_link sidebar_link--nested"
               (click)="closeSidebar()">
               <span class="sidebar_link_content">
-                <span>{{ item.label }}</span>
+                <span class="sidebar_link_identity">
+                  <span class="sidebar_link_icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path *ngFor="let path of item.icon.paths" [attr.d]="path"></path>
+                    </svg>
+                  </span>
+                  <span>{{ item.label }}</span>
+                </span>
                 <span
                   *ngIf="getProcessNotificationCount(item) > 0"
                   class="sidebar_notification_badge"
@@ -97,7 +120,14 @@
           [class.active]="isMaintenanceRouteActive()"
           [attr.aria-expanded]="maintenanceOpen"
           (click)="toggleMaintenanceMenu()">
-          <span>Mantenimiento</span>
+          <span class="sidebar_group_label">
+            <span class="sidebar_link_icon sidebar_link_icon--group" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path *ngFor="let path of icons.mantenimiento.paths" [attr.d]="path"></path>
+              </svg>
+            </span>
+            <span>Mantenimiento</span>
+          </span>
           <span class="sidebar_group_arrow" [class.sidebar_group_arrow--open]="maintenanceOpen" aria-hidden="true"></span>
         </button>
 
@@ -109,7 +139,16 @@
               routerLinkActive="active"
               class="sidebar_link sidebar_link--nested"
               (click)="closeSidebar()">
-              {{ item.label }}
+              <span class="sidebar_link_content">
+                <span class="sidebar_link_identity">
+                  <span class="sidebar_link_icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                      <path *ngFor="let path of item.icon.paths" [attr.d]="path"></path>
+                    </svg>
+                  </span>
+                  <span>{{ item.label }}</span>
+                </span>
+              </span>
             </a>
           </div>
         </div>
@@ -117,7 +156,14 @@
     </nav>
 
     <button type="button" class="sidebar_logout" (click)="logout()">
-      Cerrar sesion
+      <span class="sidebar_logout_content">
+        <span class="sidebar_link_icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path *ngFor="let path of icons.logout.paths" [attr.d]="path"></path>
+          </svg>
+        </span>
+        <span>Cerrar sesion</span>
+      </span>
     </button>
   </aside>
 

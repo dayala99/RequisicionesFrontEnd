@@ -586,8 +586,8 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
   formatPedidoBCosto(value: number): string {
     return new Intl.NumberFormat('es-PE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4
     }).format(value);
   }
 
@@ -662,6 +662,9 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
               pedId,
               response: detalleResponse
             });
+            if (isUpdatingPedido) {
+              return of(detalleResponse);
+            }
             return this.enviarCorreoPedidoGeneradoB(pedId, payload);
           }),
           switchMap((correoResponse) => {
@@ -1360,7 +1363,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       return 0;
     }
 
-    return Number(value.toFixed(2));
+    return Number(value.toFixed(4));
   }
 
   private normalizePedidoBFechaEntrega(value: unknown): string {

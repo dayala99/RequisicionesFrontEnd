@@ -53,10 +53,18 @@ input,
 textarea,
 select {
   font: inherit;
+  max-width: 100%;
 }
 
 a {
   color: inherit;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
 }
 
 ::selection {
@@ -71,6 +79,9 @@ a {
   border-radius: 18px !important;
   background: #ffffff !important;
   box-shadow: var(--shadow-xl) !important;
+  width: min(100%, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  max-height: calc(100vh - 1rem);
 }
 
 .mat-dialog-title {
@@ -85,11 +96,16 @@ a {
   margin: 0 !important;
   padding: 0.9rem 1.25rem 1.15rem !important;
   color: var(--text-secondary);
+  max-height: min(72vh, 42rem);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mat-dialog-actions {
   margin: 0 !important;
   padding: 0 1.25rem 1.25rem !important;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .mat-stroked-button {
@@ -100,6 +116,12 @@ a {
 
 .mat-stroked-button:hover {
   background: var(--surface-accent);
+}
+
+.mat-form-field,
+.mat-mdc-form-field {
+  width: 100%;
+  max-width: 100%;
 }
 
 .animated-dialog-pane .mat-dialog-container,
@@ -137,6 +159,14 @@ a {
 
 * {
   box-sizing: border-box;
+}
+
+.table-shell,
+[class$='__table-shell'] {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
 app-requisiciones-page .row-detail-button--active {
@@ -398,5 +428,146 @@ app-requisiciones-page .pedido-detalle-table__row--selected {
   .grupo-item-card__create:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+}
+
+@media screen and (max-width: 720px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .page-header,
+  .banco-card__header,
+  .banco-card__actions,
+  .usuarios-card__header,
+  .usuarios-card__actions,
+  .orden-compra-card__header,
+  .editor-header,
+  .filters-panel__actions,
+  .editor-actions,
+  .attachment-grid__header,
+  .attachment-panel__actions,
+  .table-toolbar,
+  .table-footer,
+  .table-pagination {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .banco-filters,
+  .usuarios-filters,
+  .filters-panel__top,
+  .filters-panel__generated,
+  .editor-grid,
+  .totals-grid,
+  .editor-attachments-layout,
+  .selector-pair,
+  .pedido-centro-costo-toolbar {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mat-dialog-container,
+  .animated-dialog-pane .mat-dialog-container,
+  .animated-dialog-pane .mat-mdc-dialog-surface {
+    width: min(100%, calc(100vw - 0.75rem));
+    max-width: calc(100vw - 0.75rem);
+    max-height: calc(100vh - 0.75rem);
+    border-radius: 14px !important;
+  }
+
+  .mat-dialog-title {
+    padding: 1rem 1rem 0 !important;
+    font-size: 1.08rem;
+  }
+
+  .mat-dialog-content {
+    padding: 0.8rem 1rem 1rem !important;
+    max-height: min(74vh, 44rem);
+  }
+
+  .mat-dialog-actions {
+    padding: 0 1rem 1rem !important;
+    flex-direction: column-reverse;
+    align-items: stretch !important;
+  }
+
+  .mat-dialog-actions > * {
+    width: 100%;
+    margin: 0 !important;
+  }
+
+  .banco-dialog__content,
+  .centro-costo-dialog__content,
+  .direccion-entrega-dialog__content,
+  .forma-pago-dialog__content,
+  .grupo-item-dialog__content,
+  .item-dialog__content,
+  .moneda-dialog__content,
+  .pedido-approval-dialog__content,
+  .pedido-cancel__content,
+  .selector-content,
+  .sub-grupo-item-dialog__content,
+  .tipo-servicio-dialog__content,
+  .unidad-medida-dialog__content,
+  .confirmacion-dialog__content,
+  .orden-compra-parcial-dialog__content {
+    min-width: 0 !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .item-dialog {
+    max-height: calc(100vh - 0.75rem);
+  }
+
+  .option-row {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem;
+  }
+
+  .option-code {
+    justify-self: start;
+    padding: 0.15rem 0.8rem;
+  }
+
+  .page-header h1,
+  .orden-compra-card__header h2,
+  .editor-header h3 {
+    line-height: 1.15;
+  }
+
+  .table-toolbar__length,
+  .table-toolbar__search,
+  .date-field,
+  .date-field__control,
+  .btn-search,
+  .button,
+  .selector-code-button,
+  .banco-card__create,
+  .usuarios-card__create,
+  .banco-filters__search,
+  .banco-filters__clear,
+  .usuarios-filters__search,
+  .usuarios-filters__clear {
+    width: 100%;
+  }
+
+  .table-toolbar__search input,
+  .table-toolbar__length select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pedido-referencia-field {
+    grid-column: auto !important;
+  }
+
+  .banco-table,
+  .usuarios-table,
+  .orden-compra-table,
+  .centros-costo-table,
+  .detalle-pedido-table,
+  .attachment-grid__table {
+    min-width: 32rem;
   }
 }

@@ -1767,6 +1767,13 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'Pedido/getListarDetallePedidoModificar', { headers, params });
     }
 
+    getGenerarKardexGeneral(Itm_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Itm_Id', Itm_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getGenerarKardexGeneral', { headers, params });
+    }
+
     getCargarReportePedido(Ped_Id: string): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();

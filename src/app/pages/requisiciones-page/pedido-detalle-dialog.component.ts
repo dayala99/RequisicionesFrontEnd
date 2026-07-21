@@ -27,6 +27,7 @@ export interface PedidoDetalleDialogData {
   styleUrls: ['./pedido-detalle-dialog.component.scss']
 })
 export class PedidoDetalleDialogComponent {
+  private readonly pedidoBCostPrecision = 4;
   readonly form: FormGroup;
   readonly itemSearchControl = new FormControl('', { nonNullable: true });
   readonly unitSearchControl = new FormControl('', { nonNullable: true });
@@ -39,6 +40,10 @@ export class PedidoDetalleDialogComponent {
     @Inject(MAT_DIALOG_DATA) public data: PedidoDetalleDialogData,
     private readonly dialogRef: MatDialogRef<PedidoDetalleDialogComponent>
   ) {
+    const initialUnitPrice = data.modoPedidoB
+      ? this.normalizeMoney(Number(data.initialValue?.unitPrice ?? 0), this.pedidoBCostPrecision)
+      : this.normalizeDecimal(Number(data.initialValue?.unitPrice ?? 0));
+
     this.form = this.formBuilder.group({
       itemCode: [String(data.initialValue?.itemCode ?? '').trim()],
       itemDescription: [String(data.initialValue?.itemDescription ?? '').trim()],
@@ -48,7 +53,7 @@ export class PedidoDetalleDialogComponent {
       centroCostoDescripcion: [String(data.initialValue?.centroCostoDescripcion ?? '').trim()],
       centroCostoCantidadRequerida: [this.normalizeDecimal(Number(data.initialValue?.centroCostoCantidadRequerida ?? 0))],
       quantity: [this.normalizeDecimal(Number(data.initialValue?.quantity ?? 0))],
-      unitPrice: [this.normalizeDecimal(Number(data.initialValue?.unitPrice ?? 0))]
+      unitPrice: [initialUnitPrice]
     });
 
     this.resolveInitialLabels();
@@ -62,8 +67,8 @@ export class PedidoDetalleDialogComponent {
 
   get pedidoBCostoTotal(): number {
     const quantity = this.normalizeDecimal(Number(this.form.controls['quantity'].value));
-    const unitPrice = this.normalizeMoney(Number(this.form.controls['unitPrice'].value));
-    return this.normalizeMoney(quantity * unitPrice);
+    const unitPrice = this.normalizeMoney(Number(this.form.controls['unitPrice'].value), this.pedidoBCostPrecision);
+    return this.normalizeMoney(quantity * unitPrice, this.pedidoBCostPrecision);
   }
 
   get itemButtonLabel(): string {
@@ -138,10 +143,10 @@ export class PedidoDetalleDialogComponent {
     }).format(value);
   }
 
-  formatMoney(value: number): string {
+  formatMoney(value: number, precision = 2): string {
     return new Intl.NumberFormat('es-PE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision
     }).format(value);
   }
 
@@ -294,7 +299,7 @@ export class PedidoDetalleDialogComponent {
       return;
     }
 
-    const normalizedValue = this.limitToTwoDecimals(input.value);
+    const normalizedValue = this.limitToDecimals(input.value, this.pedidoBCostPrecision);
 
     if (normalizedValue !== input.value) {
       input.value = normalizedValue;
@@ -315,7 +320,7 @@ export class PedidoDetalleDialogComponent {
     const quantity = this.normalizeDecimal(Number(this.form.controls['quantity'].value));
     const unitPriceRaw = String(this.form.controls['unitPrice'].value ?? '').trim();
     const unitPrice = this.data.modoPedidoB
-      ? this.normalizeMoney(Number(unitPriceRaw))
+      ? this.normalizeMoney(Number(unitPriceRaw), this.pedidoBCostPrecision)
       : this.normalizeDecimal(Number(this.form.controls['unitPrice'].value));
 
     if (!itemCode) {
@@ -364,8 +369,8 @@ export class PedidoDetalleDialogComponent {
     }
 
     if (this.data.modoPedidoB) {
-      if (!this.isMoneyWithMaxTwoDecimals(unitPriceRaw)) {
-        this.errorMessage = 'El campo Costo debe tener como maximo 2 decimales.';
+      if (!this.isMoneyWithMaxDecimals(unitPriceRaw, this.pedidoBCostPrecision)) {
+        this.errorMessage = `El campo Costo debe tener como maximo ${this.pedidoBCostPrecision} decimales.`;
         return;
       }
 
@@ -384,7 +389,7 @@ export class PedidoDetalleDialogComponent {
         centroCostoCantidadRequerida,
         quantity,
         unitPrice,
-        subtotal: this.normalizeMoney(quantity * unitPrice)
+        subtotal: this.normalizeMoney(quantity * unitPrice, this.pedidoBCostPrecision)
       } as PedidoDetalleDialogValue);
       return;
     }
@@ -461,25 +466,25 @@ export class PedidoDetalleDialogComponent {
     return Number(value.toFixed(3));
   }
 
-  private normalizeMoney(value: number): number {
+  private normalizeMoney(value: number, precision = 2): number {
     if (!Number.isFinite(value)) {
       return 0;
     }
 
-    return Number(value.toFixed(2));
+    return Number(value.toFixed(precision));
   }
 
-  private isMoneyWithMaxTwoDecimals(value: string): boolean {
-    return /^\d+(\.\d{1,2})?$/.test(value);
+  private isMoneyWithMaxDecimals(value: string, maxDecimals: number): boolean {
+    return new RegExp(`^\\d+(\\.\\d{1,${maxDecimals}})?$`).test(value);
   }
 
-  private limitToTwoDecimals(value: string): string {
+  private limitToDecimals(value: string, maxDecimals: number): string {
     const [integerPart, decimalPart] = value.split('.');
 
     if (decimalPart === undefined) {
       return value;
     }
 
-    return `${integerPart}.${decimalPart.slice(0, 2)}`;
+    return `${integerPart}.${decimalPart.slice(0, maxDecimals)}`;
   }
 }

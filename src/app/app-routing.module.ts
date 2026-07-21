@@ -29,6 +29,8 @@ import { InspeccionesPageComponent } from './pages/inspecciones-page/inspeccione
 import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
+import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
+import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 
 const routes: Routes = [
   {
@@ -136,6 +138,14 @@ const routes: Routes = [
       {
         path: 'inspecciones',
         component: InspeccionesPageComponent
+      },
+      {
+        path: 'reportes',
+        component: ReportesPageComponent
+      },
+      {
+        path: 'reportes/kardex-general',
+        component: KardexGeneralReportePageComponent
       },
       {
         path: 'jefe',

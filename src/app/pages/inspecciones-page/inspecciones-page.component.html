@@ -114,16 +114,16 @@
             </tr>
 
             <tr *ngFor="let obs of observacionesPaginadas">
-              <td>{{ obs.Observacion_Id }}</td>
-              <td>{{ obs.Codigo_Obs || '-' }}</td>
-              <td>{{ obs.Usr_Nom || '-' }}</td>
-              <td>{{ obs.Jef_Nombre || '-' }}</td>
-              <td>{{ obs.Cen_Cos_Des || '-' }}</td>
-              <td>{{ obs.Cliente_Nombre || '-' }}</td>
-              <td>{{ obs.Subestacion_Nombre || '-' }}</td>
-              <td>{{ obs.Motivo_Nombre || '-' }}</td>
-              <td>{{ obs.Obs_Detalle || '-' }}</td>
-              <td>
+              <td data-label="#">{{ obs.Observacion_Id }}</td>
+              <td data-label="Nro">{{ obs.Codigo_Obs || '-' }}</td>
+              <td data-label="Observador">{{ obs.Usr_Nom || '-' }}</td>
+              <td data-label="Supervisor">{{ obs.Jef_Nombre || '-' }}</td>
+              <td data-label="Área Sup.">{{ obs.Cen_Cos_Des || '-' }}</td>
+              <td data-label="Cliente">{{ obs.Cliente_Nombre || '-' }}</td>
+              <td data-label="Subestación">{{ obs.Subestacion_Nombre || '-' }}</td>
+              <td data-label="Motivo">{{ obs.Motivo_Nombre || '-' }}</td>
+              <td data-label="Motivo Det.">{{ obs.Obs_Detalle || '-' }}</td>
+              <td data-label="Acciones">
                 <button type="button" class="table-action" aria-label="Editar observación" title="Editar" (click)="editarObservacion(obs.Codigo_Obs)">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>

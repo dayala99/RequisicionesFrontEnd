@@ -1809,9 +1809,6 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.resolveOrdenCompraIdParaAsignacion(response).pipe(
       switchMap((ordenCompraId) => {
         const currentUser = this.authService.getCurrentUser().trim();
-        const detallesParaAsignar = this.isEditingOrdenCompra
-          ? this.detallesPedidoSeleccionados.filter((item) => !this.isDetalleYaAsignadoAOrden(item, ordenCompraId))
-          : this.detallesPedidoSeleccionados;
         const actualizarDetalleRequests = this.detallesPedidoSeleccionados.map((item) =>
           this.apiService.patchActualizarDetallePedido(
             this.buildActualizarDetallePedidoPayload(item, currentUser)
@@ -1822,7 +1819,9 @@ export class OrdenCompraPageComponent implements OnInit {
             })
           )
         );
-        const asignarRequests = detallesParaAsignar.map((item) =>
+        // Reaplicamos la asignacion incluso en edicion para que el backend
+        // sincronice Ped_Obs, que es el campo expuesto por la grilla de O/C.
+        const asignarRequests = this.detallesPedidoSeleccionados.map((item) =>
           this.apiService.patchAsignarOrdenCompraADetallePedido(
             this.buildAsignarOrdenCompraDetallePedidoPayload(item, ordenCompraId, currentUser)
           ).pipe(
@@ -2934,10 +2933,6 @@ export class OrdenCompraPageComponent implements OnInit {
       estadoCodigo,
       estado: estadoCodigo ? this.mapPedidoEstadoDescripcion(estadoCodigo) : '-'
     };
-  }
-
-  private isDetalleYaAsignadoAOrden(item: OrdenCompraDetallePedidoRow, ordenCompraId: number): boolean {
-    return item.ordenCompraId === ordenCompraId;
   }
 
   private recargarDetallePedidoDespuesDeGuardar(): Observable<unknown> {

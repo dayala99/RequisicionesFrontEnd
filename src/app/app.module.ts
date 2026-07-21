@@ -95,6 +95,8 @@ import { GridPaginationComponent } from './shared/components/grid-pagination/gri
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
 import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/confirmacion-accion-dialog.component';
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
+import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
+import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -193,6 +195,8 @@ const APP_DATE_FORMATS = {
     ConfirmacionAccionDialogComponent,
     ObservacionesPlaneadasComponent,
     GridPaginationComponent,
+    ReportesPageComponent,
+    KardexGeneralReportePageComponent,
   ],
   imports: [
     BrowserModule,
