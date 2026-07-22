@@ -73,6 +73,24 @@ export interface WeReportActualizarRequest {
     Usr_Mod: string;
 }
 
+
+export interface CentroMonitoreoHseFiltro {
+    Id?: number;
+    Estado?: string;
+}
+
+export interface CentroMonitoreoHseItem {
+    Centro_Monitoreo_Id?: number;
+    Codigo_Centro_Monitoreo?: string;
+    Usr_Cod?: string;
+    Supervisor_Nom?: string;
+    Cliente_Id?: number;
+    Cliente_Nombre?: string;
+    Monitoreo_Documentos_Ubicacion?: string;
+    Monitoreo_Audio_Ubicacion?: string;
+    Estado?: string;
+}
+
 export interface EliminarWeReportRequest {
     We_Report_Id: number;
     Usr_Mod: string;
@@ -1475,19 +1493,21 @@ export class ApiService {
         return this.http.delete(this.baseUrl + `TipoInspeccion/deleteEliminarTipoInspeccion/${id}`, { headers, params });
     }
 
+    // ─── Tipos de Riesgo ─────────────────────────────────────────────
+    /** SELECT Tipo_Riesgo_Id, Tipo_Riesgo FROM Ins_Tipo_Riesgo */
     getListarTipoRiesgo(filtros: TipoRiesgoFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
 
-        if (filtros.Id !== undefined && filtros.Id !== null) {
-            params = params.append('Id', String(filtros.Id));
+        if (filtros.Id !== undefined && filtros.Id !== null && filtros.Id !== 0) {
+            params = params.append('Tipo_Riesgo_Id', filtros.Id);
         }
 
-        if (filtros.Nombre !== undefined && filtros.Nombre !== null) {
-            params = params.append('Nombre', filtros.Nombre);
+        if (filtros.Nombre !== undefined && filtros.Nombre !== null && filtros.Nombre.trim() !== '') {
+            params = params.append('Tipo_Riesgo', filtros.Nombre);
         }
 
-        if (filtros.Estado !== undefined && filtros.Estado !== null) {
+        if (filtros.Estado !== undefined && filtros.Estado !== null && filtros.Estado.trim() !== '') {
             params = params.append('Estado', filtros.Estado);
         }
 
@@ -1999,6 +2019,45 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     getArchivoWeReport(rutaArchivo: string): Observable<ArrayBuffer> {
         const params = new HttpParams().set('rutaArchivo', rutaArchivo);
         return this.http.get(this.baseUrl + 'Inspecciones/getArchivoWeReport', { params, responseType: 'arraybuffer' });
+    }
+
+    getArchivoCentroMonitoreoHse(rutaArchivo: string): Observable<ArrayBuffer> {
+        const params = new HttpParams().set('rutaArchivo', rutaArchivo);
+        return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getArchivoCentroMonitoreoHse', { params, responseType: 'arraybuffer' });
+    }
+
+    getListarCentroMonitoreoHse(filtros: CentroMonitoreoHseFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined && filtros.Id !== null) {
+            params = params.append('Id', String(filtros.Id));
+        }
+
+        if (filtros.Estado !== undefined && filtros.Estado !== null) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getListarCentroMonitoreoHse', { headers, params });
+    }
+
+    getMostrarActualizarCentroMonitoreoHse(Centro_Monitoreo_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Centro_Monitoreo_Id', String(Centro_Monitoreo_Id));
+        return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getMostrarActualizarCentroMonitoreoHse', { headers, params });
+    }
+
+    postInsertarCentroMonitoreoHse(formData: FormData): Observable<any> {
+        return this.http.post(this.baseUrl + 'CentroMonitoreoHse/postInsertarCentroMonitoreoHse', formData);
+    }
+
+    postActualizarCentroMonitoreoHse(formData: FormData): Observable<any> {
+        return this.http.post(this.baseUrl + 'CentroMonitoreoHse/postActualizarCentroMonitoreoHse', formData);
+    }
+
+    postEliminarCentroMonitoreoHse(payload: { Centro_Monitoreo_Id: number; Usr_Mod: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'CentroMonitoreoHse/postEliminarCentroMonitoreoHse', payload, { headers });
     }
 
     // postRegistrarPedido(pedido: RegistrarPedidoRequest): Observable<any> {

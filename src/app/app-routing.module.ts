@@ -31,9 +31,10 @@ import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.com
 import { ClimaPageComponent } from './pages/inspecciones/clima/clima-page.component';
 import { TareaPageComponent } from './pages/inspecciones/tarea/tarea-page.component';
 import { SubContrataPageComponent } from './pages/inspecciones/sub-contrata/sub-contrata-page.component';
-import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
+import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
 import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
+import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
 
 const routes: Routes = [
   {
@@ -151,8 +152,7 @@ const routes: Routes = [
       },
       {
         path: 'riesgo',
-        redirectTo: 'tipo-riesgo',
-        pathMatch: 'full'
+        component: RiesgoPageComponent
       },
       {
         path: 'reporte',

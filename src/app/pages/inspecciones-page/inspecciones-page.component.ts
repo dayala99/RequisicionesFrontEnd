@@ -6,7 +6,7 @@ import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from './confirmacion-accion-dialog.component';
 import { WeReportArchivosDialogComponent } from './we-report-archivos-dialog.component';
 
-type TabActivo = 'prevencion' | 'medio-ambiente' | 'observaciones' | 'stop-work' | 'we-report';
+type TabActivo = 'prevencion' | 'medio-ambiente' | 'observaciones' | 'stop-work' | 'we-report' | 'centro-monitoreo-hse';
 
 interface ObservacionPlaneadaListado {
   Observacion_Id: number;
@@ -61,6 +61,14 @@ interface WeReportListado {
   Report_Aplica: string;
 }
 
+interface CentroMonitoreoListado {
+  Centro_Monitoreo_Id: number;
+  Codigo_Centro_Monitoreo: string;
+  Supervisor_Nom: string;
+  Cliente_Nombre: string;
+  Estado: string;
+}
+
 interface StopReportListado {
   Stop_Work_Id: number;
   Codigo_We_Report: string;
@@ -81,6 +89,7 @@ const LABEL_NUEVO: Record<TabActivo, string> = {
   'observaciones':   'Nueva observación planeada',
   'stop-work':       'Nuevo Stop Report',
   'we-report':       'Nuevo We Report',
+  'centro-monitoreo-hse': 'Nuevo Monitoreo HSE',
 };
 
 @Component({
@@ -89,7 +98,7 @@ const LABEL_NUEVO: Record<TabActivo, string> = {
   styleUrls: ['./inspecciones-page.component.scss'],
 })
 export class InspeccionesPageComponent implements OnInit {
-  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'stop-report' | 'we-report-form' = 'inspecciones';
+  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'stop-report' | 'we-report-form' | 'centro-monitoreo-hse-form' = 'inspecciones';
 
   tabActivo: TabActivo = 'observaciones';
 
@@ -122,6 +131,12 @@ export class InspeccionesPageComponent implements OnInit {
   cargandoStopReport = false;
   eliminandoStopReport = false;
 
+  // ── Centro de Monitoreo HSE ──────────────────────────────────────
+  registrosCentroMonitoreoHse: CentroMonitoreoListado[] = [];
+  cargandoCentroMonitoreoHse = false;
+  eliminandoCentroMonitoreoHse = false;
+  centroMonitoreoIdSeleccionado: number | null = null;
+
   registrosPorPagina = 10;
   opcionesRegistros = [10, 25, 50, 100, 0];
   paginaActual = 1;
@@ -133,7 +148,6 @@ export class InspeccionesPageComponent implements OnInit {
   stopReportIdSeleccionado: number | null = null;
   weReportIdSeleccionado: number | null = null;
   weReportCodSeleccionado: string | null = null;
-  private weReportFormDataPendiente: FormData | null = null;
 
   constructor(
     private readonly apiService: ApiService,
@@ -165,7 +179,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.stopReportIdSeleccionado = null;
     this.weReportIdSeleccionado = null;
     this.weReportCodSeleccionado = null;
-    this.weReportFormDataPendiente = null;
+    this.centroMonitoreoIdSeleccionado = null;
     this.paginaActual = 1;
     this.closeCombos();
 
@@ -181,6 +195,9 @@ export class InspeccionesPageComponent implements OnInit {
         break;
       case 'we-report':
         this.vistaActual = 'we-report-form';
+        break;
+      case 'centro-monitoreo-hse':
+        this.vistaActual = 'centro-monitoreo-hse-form';
         break;
       default:
         this.vistaActual = 'observaciones-planeadas';
@@ -403,6 +420,55 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
+  // ── Acciones Centro de Monitoreo HSE ────────────────────────────
+  editarCentroMonitoreoHse(id: number): void {
+    this.modoFormulario = 'editar';
+    this.centroMonitoreoIdSeleccionado = id ?? null;
+    this.vistaActual = 'centro-monitoreo-hse-form';
+  }
+
+  eliminarCentroMonitoreoHse(reg: CentroMonitoreoListado): void {
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '460px',
+      disableClose: true,
+      data: {
+        titulo: 'Eliminar Monitoreo HSE',
+        mensaje: `Se eliminará el registro ${reg.Codigo_Centro_Monitoreo}. Esta acción cambiará su estado a inactivo.`,
+        textoConfirmar: 'Confirmar eliminación',
+        textoCancelar: 'Volver',
+        tipo: 'peligro'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean) => {
+      if (confirmado) { this.ejecutarEliminacionCentroMonitoreoHse(reg.Centro_Monitoreo_Id); }
+    });
+  }
+
+  private ejecutarEliminacionCentroMonitoreoHse(id: number): void {
+    const usuario = (this.authService.getCurrentUser?.() ?? '').trim();
+    if (!usuario) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    this.eliminandoCentroMonitoreoHse = true;
+    this.apiService.postEliminarCentroMonitoreoHse({ Centro_Monitoreo_Id: id, Usr_Mod: usuario }).subscribe({
+      next: (response: unknown) => {
+        this.eliminandoCentroMonitoreoHse = false;
+        if (this.esRespuestaExitosa(response)) {
+          this.cargarCentroMonitoreoHse();
+        } else {
+          alert(this.getRespuestaMensaje(response) || 'No se pudo eliminar el registro de Monitoreo HSE.');
+        }
+      },
+      error: (error: unknown) => {
+        this.eliminandoCentroMonitoreoHse = false;
+        alert(this.getErrorMessage(error, 'No se pudo eliminar el registro de Monitoreo HSE.'));
+      }
+    });
+  }
+
   editarWeReport(registro: WeReportListado): void {
     this.modoFormulario = 'editar';
     this.weReportIdSeleccionado = registro.We_Report_Id;
@@ -458,55 +524,18 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
-  manejarWeReportGuardado(event: { weReportId: number; weReportCod: string; aplicaStopWork: boolean; formData: FormData }): void {
+  manejarWeReportGuardado(event: { weReportId: number; weReportCod: string; aplicaStopWork: boolean }): void {
     this.weReportIdSeleccionado = event.weReportId;
     this.weReportCodSeleccionado = event.weReportCod;
     this.modoFormulario = 'nuevo';
-    this.weReportFormDataPendiente = event.aplicaStopWork ? event.formData : null;
 
-    if (this.weReportFormDataPendiente) {
-      if (!this.weReportFormDataPendiente.has('We_Report_Id') && event.weReportId > 0) {
-        this.weReportFormDataPendiente.append('We_Report_Id', String(event.weReportId));
-      }
+    if (event.aplicaStopWork) {
       this.stopReportIdSeleccionado = null;
       this.vistaActual = 'stop-report';
       return;
     }
 
     this.vistaActual = 'we-report-form';
-  }
-
-
-  manejarStopReportGuardado(): void {
-    const formData = this.weReportFormDataPendiente;
-    this.weReportFormDataPendiente = null;
-
-    if (!formData) {
-      this.volverAInspecciones();
-      return;
-    }
-
-    formData.delete('Report_Aplica');
-    formData.append('Report_Aplica', 'S');
-
-    if (this.weReportIdSeleccionado && !formData.has('We_Report_Id')) {
-      formData.append('We_Report_Id', String(this.weReportIdSeleccionado));
-    }
-
-    this.apiService.postActualizarWeReport(formData).subscribe({
-      next: () => {
-        this.volverAInspecciones();
-      },
-      error: (error: unknown) => {
-        alert(this.getErrorMessage(error, 'El Stop Report se guardó, pero no se pudo actualizar el We Report a SI.'));
-        this.volverAInspecciones();
-      }
-    });
-  }
-
-  manejarStopReportCancelado(): void {
-    this.weReportFormDataPendiente = null;
-    this.volverAInspecciones();
   }
 
   abrirArchivosWeReport(registro: WeReportListado): void {
@@ -535,7 +564,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.stopReportIdSeleccionado = null;
     this.weReportIdSeleccionado = null;
     this.weReportCodSeleccionado = null;
-    this.weReportFormDataPendiente = null;
+    this.centroMonitoreoIdSeleccionado = null;
     this.paginaActual = 1;
     this.closeCombos();
     this.buscarRegistros();
@@ -552,6 +581,8 @@ export class InspeccionesPageComponent implements OnInit {
       this.cargarStopReport();
     } else if (this.tabActivo === 'we-report') {
       this.cargarWeReport();
+    } else if (this.tabActivo === 'centro-monitoreo-hse') {
+      this.cargarCentroMonitoreoHse();
     }
   }
 
@@ -655,6 +686,23 @@ export class InspeccionesPageComponent implements OnInit {
     return this.stopReportFiltrado.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
   }
 
+  // ── Getters paginación Centro de Monitoreo HSE ─────────────────
+  get centroMonitoreoFiltrado(): CentroMonitoreoListado[] {
+    let items = [...this.registrosCentroMonitoreoHse];
+    const termino = this.normalizarTexto(this.busquedaGeneral.trim());
+    if (termino) {
+      items = items.filter(item =>
+        this.normalizarTexto(this.crearTextoBusquedaCentroMonitoreo(item)).includes(termino)
+      );
+    }
+    return items;
+  }
+
+  get centroMonitoreoPaginado(): CentroMonitoreoListado[] {
+    if (this.registrosPorPagina <= 0) { return this.centroMonitoreoFiltrado; }
+    return this.centroMonitoreoFiltrado.slice(this.inicioPagina, this.inicioPagina + this.registrosPorPagina);
+  }
+
   get totalFiltrados(): number {
     if (this.tabActivo === 'medio-ambiente') {
       return this.medioAmbienteFiltrado.length;
@@ -670,6 +718,10 @@ export class InspeccionesPageComponent implements OnInit {
 
     if (this.tabActivo === 'stop-work') {
       return this.stopReportFiltrado.length;
+    }
+
+    if (this.tabActivo === 'centro-monitoreo-hse') {
+      return this.centroMonitoreoFiltrado.length;
     }
 
     return this.observacionesFiltradas.length;
@@ -690,6 +742,10 @@ export class InspeccionesPageComponent implements OnInit {
 
     if (this.tabActivo === 'stop-work') {
       return this.stopReportPaginado.length;
+    }
+
+    if (this.tabActivo === 'centro-monitoreo-hse') {
+      return this.centroMonitoreoPaginado.length;
     }
 
     return this.observacionesPaginadas.length;
@@ -898,6 +954,29 @@ export class InspeccionesPageComponent implements OnInit {
     });
   }
 
+  private cargarCentroMonitoreoHse(): void {
+    this.cargandoCentroMonitoreoHse = true;
+
+    this.apiService.getListarCentroMonitoreoHse({ Estado: this.estadoFiltro }).subscribe({
+      next: (response: unknown) => {
+        const raw = this.extraerLista<Record<string, unknown>>(response);
+        this.registrosCentroMonitoreoHse = raw.map(item => ({
+          Centro_Monitoreo_Id:     this.toNumber(item?.['Centro_Monitoreo_Id']     ?? item?.['centro_Monitoreo_Id']     ?? 0),
+          Codigo_Centro_Monitoreo: this.texto(item?.['Codigo_Centro_Monitoreo'] ?? item?.['codigo_Centro_Monitoreo']),
+          Supervisor_Nom:          this.texto(item?.['Supervisor_Nom']          ?? item?.['supervisor_Nom']),
+          Cliente_Nombre:          this.texto(item?.['Cliente_Nombre']          ?? item?.['cliente_Nombre']),
+          Estado:                  this.texto(item?.['Estado']                  ?? item?.['estado']),
+        }));
+        this.ajustarPaginaActual();
+        this.cargandoCentroMonitoreoHse = false;
+      },
+      error: () => {
+        this.registrosCentroMonitoreoHse = [];
+        this.cargandoCentroMonitoreoHse = false;
+      }
+    });
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────
   private formatearFechaConsulta(fecha: Date | null): string {
     if (!fecha) { return ''; }
@@ -933,6 +1012,10 @@ export class InspeccionesPageComponent implements OnInit {
   private crearTextoBusquedaStopReport(item: StopReportListado): string {
     return [item.Codigo_Stop_Work, item.Usr_Nom, item.Cen_Cos_Des, item.Stop_Supervisor_Nom,
             item.Stop_Inspector, item.Cliente_Nombre, item.OT, item.Tipo_Riesgo, item.Estado].join(' ');
+  }
+
+  private crearTextoBusquedaCentroMonitoreo(item: CentroMonitoreoListado): string {
+    return [item.Codigo_Centro_Monitoreo, item.Supervisor_Nom, item.Cliente_Nombre, item.Estado].join(' ');
   }
 
   private normalizarTexto(value: string): string {

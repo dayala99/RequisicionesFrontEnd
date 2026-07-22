@@ -6,6 +6,8 @@ export type FotoSourceChoice = 'camera' | 'gallery';
 export interface SeleccionCapturaFotoDialogData {
   titulo: string;
   mensaje: string;
+  textoOpcionCamara?: string;
+  textoOpcionArchivo?: string;
 }
 
 @Component({

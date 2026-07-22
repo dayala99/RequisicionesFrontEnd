@@ -1,0 +1,31 @@
+<div class="audio-dialog">
+  <h2>{{ data.titulo }}</h2>
+
+  <p class="audio-dialog__help" *ngIf="estado !== 'grabado'">
+    Usa el micrófono para grabar un audio y adjuntarlo al Centro de Monitoreo HSE.
+  </p>
+
+  <p class="audio-dialog__error" *ngIf="errorMensaje">{{ errorMensaje }}</p>
+
+  <div class="audio-dialog__status-row" *ngIf="estado === 'grabando'">
+    <span class="audio-dialog__status">Grabando</span>
+    <span class="audio-dialog__timer">{{ tiempoSegundos }}s</span>
+  </div>
+
+  <div class="audio-dialog__preview" *ngIf="estado === 'grabado' && previewUrl">
+    <p class="audio-dialog__help">Escucha el audio antes de guardarlo. Si no quedó bien, puedes grabarlo de nuevo.</p>
+    <audio #reproductor class="audio-dialog__player" [src]="previewUrl" controls (loadedmetadata)="onDuracionCargada(reproductor)"></audio>
+  </div>
+
+  <div class="audio-dialog__actions" *ngIf="estado !== 'grabado'">
+    <button type="button" class="btn-primary" [disabled]="cargando || estado === 'grabando'" (click)="iniciarGrabacion()">Grabar</button>
+    <button type="button" class="btn-secondary" [disabled]="estado !== 'grabando'" (click)="detenerGrabacion()">Detener</button>
+    <button type="button" class="btn-cancel" (click)="cancelar()">Cancelar</button>
+  </div>
+
+  <div class="audio-dialog__actions" *ngIf="estado === 'grabado'">
+    <button type="button" class="btn-primary" (click)="guardar()">Guardar</button>
+    <button type="button" class="btn-secondary" (click)="grabarDeNuevo()">Grabar de nuevo</button>
+    <button type="button" class="btn-cancel" (click)="cancelar()">Cancelar</button>
+  </div>
+</div>

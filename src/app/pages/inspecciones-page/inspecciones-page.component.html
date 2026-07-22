@@ -19,6 +19,7 @@
       <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'observaciones'" (click)="cambiarTab('observaciones')">Observaciones Planeadas</button>
       <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'stop-work'" (click)="cambiarTab('stop-work')">Stop Report</button>
       <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'we-report'" (click)="cambiarTab('we-report')">We Report</button>
+      <button type="button" class="tab-button" [class.tab-button--active]="tabActivo === 'centro-monitoreo-hse'" (click)="cambiarTab('centro-monitoreo-hse')">Centro de Monitoreo HSE</button>
     </div>
 
     <div class="filters">
@@ -399,6 +400,57 @@
         </div>
       </ng-container>
 
+      <!-- ── Tabla Centro de Monitoreo HSE ── -->
+      <ng-container *ngIf="tabActivo === 'centro-monitoreo-hse'">
+        <div class="table-wrapper">
+          <table class="styled-table">
+            <thead>
+              <tr>
+                <th class="col-id-hidden">#</th>
+                <th>Nro</th>
+                <th>Supervisor</th>
+                <th>Cliente</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngIf="cargandoCentroMonitoreoHse">
+                <td colspan="6" class="table-empty">Cargando registros...</td>
+              </tr>
+
+              <tr *ngFor="let cm of centroMonitoreoPaginado">
+                <td class="col-id-hidden">{{ cm.Centro_Monitoreo_Id }}</td>
+                <td>{{ cm.Codigo_Centro_Monitoreo || '-' }}</td>
+                <td>{{ cm.Supervisor_Nom || '-' }}</td>
+                <td>{{ cm.Cliente_Nombre || '-' }}</td>
+                <td>{{ cm.Estado === 'I' ? 'Inactivo' : 'Activo' }}</td>
+                <td>
+                  <button type="button" class="table-action" aria-label="Editar Monitoreo HSE" title="Editar" (click)="editarCentroMonitoreoHse(cm.Centro_Monitoreo_Id)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                    </svg>
+                  </button>
+                  <button type="button" class="table-action table-action--delete" aria-label="Eliminar Monitoreo HSE" title="Eliminar" (click)="eliminarCentroMonitoreoHse(cm)" [disabled]="eliminandoCentroMonitoreoHse">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 6h18"></path>
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                      <path d="M10 11v6"></path>
+                      <path d="M14 11v6"></path>
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+
+              <tr *ngIf="!cargandoCentroMonitoreoHse && centroMonitoreoPaginado.length === 0">
+                <td colspan="6" class="table-empty">No se encontró ningún registro</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+
       <div class="table-footer">
 
         <span>Mostrando del {{ desdeMostrado }} al {{ hastaMostrado }} de {{ totalFiltrados }} registros</span>
@@ -436,7 +488,13 @@
     <ng-container *ngTemplateOutlet="vistaWeReport"></ng-container>
   </ng-container>
 
+  <!-- ── Centro de Monitoreo HSE (formulario) ── -->
+  <ng-container *ngSwitchCase="'centro-monitoreo-hse-form'">
+    <ng-container *ngTemplateOutlet="vistaCentroMonitoreoHseForm"></ng-container>
+  </ng-container>
+
 </ng-container>
+
 
 <ng-template #vistaObservaciones>
   <app-observaciones-planeadas
@@ -461,9 +519,13 @@
 </ng-template>
 
 <ng-template #vistaStopReport>
-  <app-stop-report [modoEdicion]="modoFormulario === 'editar'" [stopReportId]="stopReportIdSeleccionado" [weReportCod]="weReportCodSeleccionado" (guardado)="manejarStopReportGuardado()" (volver)="manejarStopReportCancelado()"></app-stop-report>
+  <app-stop-report [modoEdicion]="modoFormulario === 'editar'" [stopReportId]="stopReportIdSeleccionado" [weReportCod]="weReportCodSeleccionado" (volver)="volverAInspecciones()"></app-stop-report>
 </ng-template>
 
 <ng-template #vistaWeReport>
   <app-we-report [modoEdicion]="modoFormulario === 'editar'" [weReportId]="weReportIdSeleccionado" (volver)="volverAInspecciones()" (guardado)="manejarWeReportGuardado($event)"></app-we-report>
+</ng-template>
+
+<ng-template #vistaCentroMonitoreoHseForm>
+  <app-centro-monitoreo-hse [modoEdicion]="modoFormulario === 'editar'" [centroMonitoreoId]="centroMonitoreoIdSeleccionado" (volver)="volverAInspecciones()"></app-centro-monitoreo-hse>
 </ng-template>

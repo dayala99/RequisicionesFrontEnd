@@ -1,0 +1,137 @@
+.audio-dialog {
+  width: 100%;
+  padding: 1.1rem;
+  box-sizing: border-box;
+}
+
+.audio-dialog h2 {
+  margin: 0 0 0.5rem;
+  color: #1f2937;
+  font-size: 1.2rem;
+}
+
+.audio-dialog__help {
+  margin: 0 0 1rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.audio-dialog__status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  flex-wrap: wrap;
+}
+
+.audio-dialog__status {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.audio-dialog__timer {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 158, 49, 0.12);
+  color: #b45309;
+  font-weight: 700;
+}
+
+.audio-dialog__error {
+  margin: 0 0 1rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+.audio-dialog__preview {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.audio-dialog__player {
+  width: 100%;
+  height: 2.75rem;
+}
+
+.audio-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-cancel {
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.btn-primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.btn-secondary {
+  border: 1px solid var(--line-soft);
+  background: var(--surface-soft);
+  color: var(--text-primary);
+}
+
+.btn-cancel {
+  border: 1px solid #4b5563 !important;
+  background: #4b5563 !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:hover,
+.btn-cancel:hover {
+  opacity: 0.92;
+}
+
+.btn-secondary:hover {
+  background: var(--surface-accent);
+  border-color: var(--line-strong);
+}
+
+.btn-primary:active,
+.btn-secondary:active,
+.btn-cancel:active {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .audio-dialog {
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .audio-dialog__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .audio-dialog .btn-primary,
+  .audio-dialog .btn-secondary,
+  .audio-dialog .btn-cancel {
+    width: 100%;
+  }
+}
