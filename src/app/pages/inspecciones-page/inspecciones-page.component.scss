@@ -56,7 +56,6 @@
   max-width: 980px;
 }
 
-.tabs,
 .actions,
 .table-toolbar,
 .table-footer {
@@ -66,32 +65,8 @@
   gap: 0.75rem;
 }
 
-.tabs {
-  gap: 0.8rem;
-  margin-top: 0.25rem;
-}
-
-.tab-button {
-  border: 1px solid #e7dfd3;
-  background: #fbf8f4;
-  color: #5f6776;
-  border-radius: 1rem;
-  padding: 0.95rem 1.2rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: 0.15s ease;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
-}
-
-.tab-button:hover {
-  transform: translateY(-1px);
-}
-
-.tab-button--active {
-  background: #ff9f2e;
-  color: #fff;
-  border-color: #ff9f2e;
-  box-shadow: 0 12px 26px rgba(255, 159, 46, 0.18);
+.tabs-field__control {
+  width: 300px;
 }
 
 /* ── Filtros: fecha + botón Buscar a la misma altura ── */

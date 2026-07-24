@@ -7,7 +7,10 @@ export interface CapturaAudioDialogData {
   titulo: string;
 }
 
-type EstadoGrabacion = 'idle' | 'grabando' | 'grabado';
+type EstadoGrabacion = 'idle' | 'grabando' | 'pausado' | 'grabado';
+
+/** Cantidad de barras visibles en la forma de onda (efecto "scroll" tipo grabadora de Windows). */
+const BARRAS_VISIBLES = 60;
 
 @Component({
   selector: 'app-captura-audio-dialog',
@@ -20,6 +23,10 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
   errorMensaje = '';
   tiempoSegundos = 0;
   previewUrl: SafeUrl | null = null;
+  /** Niveles de amplitud (0 a 1) usados para dibujar la forma de onda mientras se graba. */
+  waveform: number[] = [];
+  /** Audios ya confirmados con "Agregar otro audio", pendientes de guardarse todos juntos. */
+  audiosEnCola: File[] = [];
 
   private stream?: MediaStream;
   private recorder?: MediaRecorder;
@@ -29,6 +36,11 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
   private mimeTypeGrabacion = '';
   private grabacionInicioMs = 0;
   private previewObjectUrl: string | null = null;
+
+  private audioContext?: AudioContext;
+  private analyser?: AnalyserNode;
+  private waveformRafId?: number;
+  private ultimaMuestraMs = 0;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public readonly data: CapturaAudioDialogData,
@@ -50,6 +62,14 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
     return this.estado === 'grabando';
   }
 
+  get pausado(): boolean {
+    return this.estado === 'pausado';
+  }
+
+  get totalAudiosListos(): number {
+    return this.audiosEnCola.length + (this.archivoGrabado ? 1 : 0);
+  }
+
   /**
    * MediaRecorder dispara sus eventos fuera de NgZone y, además, a veces coinciden con
    * un ciclo de detección de cambios que Angular ya está ejecutando (p. ej. la animación
@@ -62,12 +82,13 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
   }
 
   async iniciarGrabacion(): Promise<void> {
-    if (this.estado === 'grabando') {
+    if (this.estado === 'grabando' || this.estado === 'pausado') {
       return;
     }
 
     this.liberarPreview();
     this.archivoGrabado = null;
+    this.waveform = [];
 
     if (!this.stream || this.stream.getAudioTracks().every(track => track.readyState === 'ended')) {
       await this.prepararMicrofono();
@@ -118,18 +139,47 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
       });
     };
 
-    this.recorder.start(1000);
+    this.recorder.start(250);
     this.estado = 'grabando';
     this.errorMensaje = '';
     this.tiempoSegundos = 0;
     this.grabacionInicioMs = Date.now();
-    this.timer = window.setInterval(() => {
-      this.tiempoSegundos++;
-    }, 1000);
+    this.iniciarTimer();
+    this.iniciarAnalizadorNivel();
+  }
+
+  /** Pausa la grabación en curso, o la reanuda si ya estaba pausada. */
+  pausarOReanudar(): void {
+    if (!this.recorder) {
+      return;
+    }
+
+    if (this.estado === 'grabando') {
+      try {
+        this.recorder.pause();
+      } catch {
+        return;
+      }
+      this.estado = 'pausado';
+      this.detenerTimer();
+      this.detenerAnalizadorNivel();
+      return;
+    }
+
+    if (this.estado === 'pausado') {
+      try {
+        this.recorder.resume();
+      } catch {
+        return;
+      }
+      this.estado = 'grabando';
+      this.iniciarTimer();
+      this.iniciarAnalizadorNivel();
+    }
   }
 
   detenerGrabacion(): void {
-    if (!this.recorder || this.estado !== 'grabando') {
+    if (!this.recorder || (this.estado !== 'grabando' && this.estado !== 'pausado')) {
       return;
     }
 
@@ -137,15 +187,30 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
       this.recorder.stop();
     } catch {
       this.detenerTimer();
+      this.detenerAnalizadorNivel();
       this.detenerMicrofono();
       this.estado = 'idle';
     }
   }
 
+  /** Descarta la grabación actual (sin guardarla) y vuelve al estado inicial para grabar de nuevo. */
   grabarDeNuevo(): void {
     this.liberarPreview();
     this.archivoGrabado = null;
     this.errorMensaje = '';
+    this.waveform = [];
+    this.estado = 'idle';
+  }
+
+  /** Encola el audio actual como confirmado y limpia la vista para grabar uno adicional. */
+  agregarOtroAudio(): void {
+    if (this.archivoGrabado) {
+      this.audiosEnCola.push(this.archivoGrabado);
+    }
+    this.liberarPreview();
+    this.archivoGrabado = null;
+    this.errorMensaje = '';
+    this.waveform = [];
     this.estado = 'idle';
   }
 
@@ -171,19 +236,27 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
     audio.currentTime = Number.MAX_SAFE_INTEGER;
   }
 
+  /** Guarda el audio actual (si existe) junto con todos los que se hayan agregado y cierra el diálogo. */
   guardar(): void {
-    if (!this.archivoGrabado) {
+    if (this.archivoGrabado) {
+      this.audiosEnCola.push(this.archivoGrabado);
+      this.archivoGrabado = null;
+    }
+
+    if (this.audiosEnCola.length === 0) {
       return;
     }
-    const file = this.archivoGrabado;
-    this.archivoGrabado = null;
+
+    const archivos = this.audiosEnCola;
+    this.audiosEnCola = [];
     this.previewUrl = null;
-    this.dialogRef.close(file);
+    this.dialogRef.close(archivos);
   }
 
   cancelar(): void {
     this.liberarPreview();
     this.detenerRecursos();
+    this.audiosEnCola = [];
     this.dialogRef.close(null);
   }
 
@@ -211,6 +284,7 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
 
     this.aplicarCambio(() => {
       this.detenerTimer();
+      this.detenerAnalizadorNivel();
       this.detenerMicrofono();
 
       this.archivoGrabado = file;
@@ -237,9 +311,78 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private iniciarTimer(): void {
+    this.detenerTimer();
+    this.timer = window.setInterval(() => {
+      this.zone.run(() => {
+        this.tiempoSegundos++;
+      });
+    }, 1000);
+  }
+
+  /** Analiza el nivel de audio del micrófono en tiempo real para dibujar la forma de onda. */
+  private iniciarAnalizadorNivel(): void {
+    if (!this.stream) {
+      return;
+    }
+
+    if (!this.audioContext || this.audioContext.state === 'closed') {
+      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextCtor) {
+        return;
+      }
+      this.audioContext = new AudioContextCtor();
+      const fuente = this.audioContext.createMediaStreamSource(this.stream);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      fuente.connect(this.analyser);
+    }
+
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => undefined);
+    }
+
+    const datos = new Uint8Array(this.analyser!.frequencyBinCount);
+
+    const muestrear = (timestamp: number) => {
+      if (this.estado !== 'grabando') {
+        return;
+      }
+
+      if (timestamp - this.ultimaMuestraMs >= 80) {
+        this.ultimaMuestraMs = timestamp;
+        this.analyser!.getByteTimeDomainData(datos);
+
+        let suma = 0;
+        for (let i = 0; i < datos.length; i++) {
+          const valor = (datos[i] - 128) / 128;
+          suma += valor * valor;
+        }
+        const nivel = Math.min(1, Math.sqrt(suma / datos.length) * 4);
+
+        this.zone.run(() => {
+          this.waveform = [...this.waveform, nivel].slice(-BARRAS_VISIBLES);
+        });
+      }
+
+      this.waveformRafId = requestAnimationFrame(muestrear);
+    };
+
+    this.waveformRafId = requestAnimationFrame(muestrear);
+  }
+
+  private detenerAnalizadorNivel(): void {
+    if (this.waveformRafId) {
+      cancelAnimationFrame(this.waveformRafId);
+      this.waveformRafId = undefined;
+    }
+  }
+
   private detenerRecursos(): void {
     this.detenerTimer();
+    this.detenerAnalizadorNivel();
     this.detenerMicrofono();
+    this.cerrarAudioContext();
     this.estado = 'idle';
   }
 
@@ -259,6 +402,14 @@ export class CapturaAudioDialogComponent implements AfterViewInit, OnDestroy {
     }
 
     this.recorder = undefined;
+  }
+
+  private cerrarAudioContext(): void {
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      this.audioContext.close().catch(() => undefined);
+    }
+    this.audioContext = undefined;
+    this.analyser = undefined;
   }
 
   private liberarPreview(): void {

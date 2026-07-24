@@ -62,11 +62,13 @@ interface WeReportListado {
 }
 
 interface CentroMonitoreoListado {
-  Centro_Monitoreo_Id: number;
-  Codigo_Centro_Monitoreo: string;
-  Supervisor_Nom: string;
+  Centro_HSE_Id: number;
+  Centro_HSE_Cod: string;
+  Usr_Inspector: string;
+  Usr_Supervisor: string;
   Cliente_Nombre: string;
-  Estado: string;
+  Centro_Revision: string;
+  Centro_Puntaje: string;
 }
 
 interface StopReportListado {
@@ -168,6 +170,11 @@ export class InspeccionesPageComponent implements OnInit {
     this.vistaActual = 'inspecciones';
     this.paginaActual = 1;
     this.closeCombos();
+
+    if (tab === 'centro-monitoreo-hse') {
+      this.prepararRangoInicialCentroMonitoreoHse();
+    }
+
     this.buscarRegistros();
   }
 
@@ -421,6 +428,10 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   // ── Acciones Centro de Monitoreo HSE ────────────────────────────
+  verNotaCentroMonitoreoHse(reg: CentroMonitoreoListado): void {
+    alert(`Nro: ${reg.Centro_HSE_Cod || '-'}\nRevisión: ${reg.Centro_Revision || '-'}\nPuntaje: ${reg.Centro_Puntaje || '-'}`);
+  }
+
   editarCentroMonitoreoHse(id: number): void {
     this.modoFormulario = 'editar';
     this.centroMonitoreoIdSeleccionado = id ?? null;
@@ -433,7 +444,7 @@ export class InspeccionesPageComponent implements OnInit {
       disableClose: true,
       data: {
         titulo: 'Eliminar Monitoreo HSE',
-        mensaje: `Se eliminará el registro ${reg.Codigo_Centro_Monitoreo}. Esta acción cambiará su estado a inactivo.`,
+        mensaje: `Se eliminará el registro ${reg.Centro_HSE_Cod}. Esta acción cambiará su estado a inactivo.`,
         textoConfirmar: 'Confirmar eliminación',
         textoCancelar: 'Volver',
         tipo: 'peligro'
@@ -441,7 +452,7 @@ export class InspeccionesPageComponent implements OnInit {
     });
 
     dialogRef.afterClosed().subscribe((confirmado: boolean) => {
-      if (confirmado) { this.ejecutarEliminacionCentroMonitoreoHse(reg.Centro_Monitoreo_Id); }
+      if (confirmado) { this.ejecutarEliminacionCentroMonitoreoHse(reg.Centro_HSE_Id); }
     });
   }
 
@@ -588,6 +599,31 @@ export class InspeccionesPageComponent implements OnInit {
 
   // alias para compatibilidad con el HTML existente
   buscarObservaciones(): void { this.buscarRegistros(); }
+
+  private prepararRangoInicialCentroMonitoreoHse(): void {
+    if (!this.esRangoPorDefectoActual()) {
+      return;
+    }
+
+    const hoy = new Date();
+    this.filtroDesde = new Date(hoy.getFullYear(), 0, 1);
+    this.filtroHasta = hoy;
+  }
+
+  private esRangoPorDefectoActual(): boolean {
+    if (!this.filtroDesde || !this.filtroHasta) {
+      return false;
+    }
+
+    const hoy = new Date();
+    return this.mismaFecha(this.filtroDesde, hoy) && this.mismaFecha(this.filtroHasta, hoy);
+  }
+
+  private mismaFecha(a: Date, b: Date): boolean {
+    return a.getFullYear() === b.getFullYear()
+      && a.getMonth() === b.getMonth()
+      && a.getDate() === b.getDate();
+  }
 
   // ── Filtros ─────────────────────────────────────────────────────
   cambiarFiltroDesde(valor: Date | null): void { this.filtroDesde = valor; }
@@ -956,16 +992,26 @@ export class InspeccionesPageComponent implements OnInit {
 
   private cargarCentroMonitoreoHse(): void {
     this.cargandoCentroMonitoreoHse = true;
+    const fechaDesde = this.formatearFechaConsulta(this.filtroDesde);
+    const fechaHasta = this.formatearFechaConsulta(this.filtroHasta);
 
-    this.apiService.getListarCentroMonitoreoHse({ Estado: this.estadoFiltro }).subscribe({
+    if (!fechaDesde || !fechaHasta) {
+      this.registrosCentroMonitoreoHse = [];
+      this.cargandoCentroMonitoreoHse = false;
+      return;
+    }
+
+    this.apiService.getFiltrarCentroMonitoreoHse(fechaDesde, fechaHasta, this.estadoFiltro).subscribe({
       next: (response: unknown) => {
         const raw = this.extraerLista<Record<string, unknown>>(response);
         this.registrosCentroMonitoreoHse = raw.map(item => ({
-          Centro_Monitoreo_Id:     this.toNumber(item?.['Centro_Monitoreo_Id']     ?? item?.['centro_Monitoreo_Id']     ?? 0),
-          Codigo_Centro_Monitoreo: this.texto(item?.['Codigo_Centro_Monitoreo'] ?? item?.['codigo_Centro_Monitoreo']),
-          Supervisor_Nom:          this.texto(item?.['Supervisor_Nom']          ?? item?.['supervisor_Nom']),
-          Cliente_Nombre:          this.texto(item?.['Cliente_Nombre']          ?? item?.['cliente_Nombre']),
-          Estado:                  this.texto(item?.['Estado']                  ?? item?.['estado']),
+          Centro_HSE_Id:   this.toNumber(item?.['Centro_HSE_Id']   ?? item?.['centro_HSE_Id']   ?? 0),
+          Centro_HSE_Cod:  this.texto(item?.['Centro_HSE_Cod']     ?? item?.['centro_HSE_Cod']),
+          Usr_Inspector:   this.texto(item?.['Usr_Inspector']      ?? item?.['usr_Inspector']),
+          Usr_Supervisor:  this.texto(item?.['Usr_Supervisor']     ?? item?.['usr_Supervisor']),
+          Cliente_Nombre:  this.texto(item?.['Cliente_Nombre']     ?? item?.['cliente_Nombre']),
+          Centro_Revision: this.texto(item?.['Centro_Revision']    ?? item?.['centro_Revision']),
+          Centro_Puntaje:  this.texto(item?.['Centro_Puntaje']     ?? item?.['centro_Puntaje']),
         }));
         this.ajustarPaginaActual();
         this.cargandoCentroMonitoreoHse = false;
@@ -1015,7 +1061,7 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   private crearTextoBusquedaCentroMonitoreo(item: CentroMonitoreoListado): string {
-    return [item.Codigo_Centro_Monitoreo, item.Supervisor_Nom, item.Cliente_Nombre, item.Estado].join(' ');
+    return [item.Centro_HSE_Cod, item.Usr_Inspector, item.Usr_Supervisor, item.Cliente_Nombre, item.Centro_Revision].join(' ');
   }
 
   private normalizarTexto(value: string): string {

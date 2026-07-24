@@ -91,6 +91,17 @@ export interface CentroMonitoreoHseItem {
     Estado?: string;
 }
 
+// Fila que devuelve getFiltrarCentroMonitoreoHse (SP_Filtrar_Centro_HSE) para la tabla.
+export interface CentroHseListadoItem {
+    Centro_HSE_Id?: number;
+    Centro_HSE_Cod?: string;
+    Usr_Inspector?: string;
+    Usr_Supervisor?: string;
+    Cliente_Nombre?: string;
+    Centro_Revision?: string;
+    Centro_Puntaje?: string;
+}
+
 export interface EliminarWeReportRequest {
     We_Report_Id: number;
     Usr_Mod: string;
@@ -2041,9 +2052,20 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getListarCentroMonitoreoHse', { headers, params });
     }
 
-    getMostrarActualizarCentroMonitoreoHse(Centro_Monitoreo_Id: number): Observable<any> {
+    // Alimenta la tabla de Centro de Monitoreo HSE (Nro, Inspector, Supervisor, Cliente, Revisión, Puntaje).
+    getFiltrarCentroMonitoreoHse(Fecha_Desde: string, Fecha_Hasta: string, Estado: 'A' | 'I'): Observable<any> {
         const headers = this.Header;
-        const params = new HttpParams().set('Centro_Monitoreo_Id', String(Centro_Monitoreo_Id));
+        const params = new HttpParams()
+            .set('Fecha_Desde', Fecha_Desde)
+            .set('Fecha_Hasta', Fecha_Hasta)
+            .set('Estado', Estado);
+
+        return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getFiltrarCentroMonitoreoHse', { headers, params });
+    }
+
+    getMostrarActualizarCentroMonitoreoHse(Centro_HSE_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Centro_HSE_Id', String(Centro_HSE_Id));
         return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getMostrarActualizarCentroMonitoreoHse', { headers, params });
     }
 

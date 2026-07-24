@@ -153,5 +153,17 @@
     </div>
   </section>
 
-  <input type="hidden" formControlName="estado">
+  <section class="cmhse-card" *ngIf="modoEdicion">
+    <h3>Estado</h3>
+
+    <div class="observador-grid estado-grid">
+      <div class="field">
+        <label for="estadoCentroMonitoreo">Estado:</label>
+        <select id="estadoCentroMonitoreo" formControlName="estado" class="estado-select">
+          <option value="A">Activo</option>
+          <option value="I">Inactivo</option>
+        </select>
+      </div>
+    </div>
+  </section>
 </form>

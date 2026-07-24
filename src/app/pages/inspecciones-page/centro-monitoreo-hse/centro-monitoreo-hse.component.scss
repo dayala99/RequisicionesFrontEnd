@@ -95,6 +95,11 @@
   gap: 1rem;
 }
 
+.estado-grid {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 22rem;
+}
+
 .field {
   display: grid;
   gap: 0.45rem;
@@ -111,6 +116,7 @@
 }
 
 .field input,
+.field select,
 .combo__trigger {
   width: 100%;
   min-height: 2.75rem;
@@ -130,6 +136,7 @@
 }
 
 .field input:focus,
+.field select:focus,
 .combo__trigger:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(255, 158, 49, 0.14);

@@ -65,6 +65,8 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
     cliente: '',
   };
 
+  private clientePendienteEdicion: string = '';
+
   cargandoSupervisor = false;
   cargandoClientes = false;
   cargandoEdicion = false;
@@ -304,9 +306,11 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
       data: { titulo: 'Grabar audio' }
     });
 
-    dialogRef.afterClosed().subscribe((file: File | null) => {
-      if (file) {
-        this.audios.push(this.crearAdjuntoDesdeFile(file));
+    dialogRef.afterClosed().subscribe((archivos: File[] | null) => {
+      if (archivos && archivos.length > 0) {
+        for (const archivo of archivos) {
+          this.audios.push(this.crearAdjuntoDesdeFile(archivo));
+        }
       }
     });
   }
@@ -447,7 +451,6 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
       next: (response: unknown) => {
         this.guardando = false;
         if (this.esRespuestaExitosa(response)) {
-          alert(this.modoEdicion ? 'Centro de Monitoreo HSE actualizado correctamente.' : 'Centro de Monitoreo HSE registrado correctamente.');
           this.volver.emit();
         } else {
           alert(this.getRespuestaMensaje(response) || 'No se pudo guardar el Centro de Monitoreo HSE.');
@@ -526,11 +529,7 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
           ),
         })).filter(item => !!item.Cliente_Id && !!item.Cliente_Nombre);
 
-        const clienteId = this.toNumber(this.form.get('cliente')?.value);
-        const seleccionado = this.clientes.find(cliente => this.toNumber(cliente.Cliente_Id) === clienteId);
-        if (seleccionado) {
-          this.comboSearch.cliente = seleccionado.Cliente_Nombre;
-        }
+        this.sincronizarClienteEdicion();
       },
       error: () => {
         this.cargandoClientes = false;
@@ -538,7 +537,6 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
       }
     });
   }
-
   private cargarDatosEdicion(id: number): void {
     this.cargandoEdicion = true;
     this.apiService.getMostrarActualizarCentroMonitoreoHse(id).subscribe({
@@ -550,12 +548,15 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
           return;
         }
 
-        const documentos = this.texto(item['Monitoreo_Documentos_Ubicacion'] ?? item['monitoreo_Documentos_Ubicacion']);
-        const audio = this.texto(item['Monitoreo_Audio_Ubicacion'] ?? item['monitoreo_Audio_Ubicacion']);
+        // El SP devuelve Usr_Nom, Cliente_Nombre, Centro_Hse_Documento, Centro_HSE_Audio y Estado.
+        // Si aún no llega Cliente_Id, usamos el nombre como respaldo para resolverlo contra la lista cargada.
+        const documentos = this.texto(item['Centro_Hse_Documento'] ?? item['centro_Hse_Documento']);
+        const audio = this.texto(item['Centro_HSE_Audio'] ?? item['centro_HSE_Audio']);
 
         const clienteId = this.toNumber(item['Cliente_Id'] ?? item['cliente_Id']);
+        const clienteNombre = this.texto(item['Cliente_Nombre'] ?? item['cliente_Nombre']);
         const estado = this.normalizarEstado(item['Estado'] ?? item['estado']);
-        const supervisorNombre = this.texto(item['Supervisor_Nom'] ?? item['supervisor_Nom']);
+        const supervisorNombre = this.texto(item['Usr_Nom'] ?? item['usr_Nom']);
 
         if (supervisorNombre) {
           this.supervisor.nombre = supervisorNombre;
@@ -566,8 +567,8 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
           estado,
         });
 
-        const clienteEncontrado = this.clientes.find(cliente => this.toNumber(cliente.Cliente_Id) === clienteId);
-        this.comboSearch.cliente = clienteEncontrado?.Cliente_Nombre || '';
+        this.clientePendienteEdicion = clienteNombre;
+        this.sincronizarClienteEdicion();
 
         this.documentos = this.crearAdjuntosDesdeTexto(documentos, 'Documento');
         this.audios = this.crearAdjuntosDesdeTexto(audio, 'Audio', true);
@@ -577,6 +578,37 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
         alert('No se pudo cargar la información del Centro de Monitoreo HSE.');
       }
     });
+  }
+  private sincronizarClienteEdicion(): void {
+    const clienteId = this.toNumber(this.form.get('cliente')?.value);
+
+    if (clienteId) {
+      const seleccionado = this.clientes.find(cliente => this.toNumber(cliente.Cliente_Id) === clienteId);
+      if (seleccionado) {
+        this.comboSearch.cliente = seleccionado.Cliente_Nombre;
+        this.clientePendienteEdicion = '';
+        return;
+      }
+    }
+
+    const nombrePendiente = (this.clientePendienteEdicion || '').trim().toLowerCase();
+    if (!nombrePendiente) {
+      return;
+    }
+
+    const seleccionadoPorNombre = this.clientes.find(cliente => {
+      const nombre = (cliente.Cliente_Nombre || '').trim().toLowerCase();
+      return nombre === nombrePendiente;
+    });
+
+    if (seleccionadoPorNombre) {
+      this.form.patchValue({ cliente: seleccionadoPorNombre.Cliente_Id });
+      this.comboSearch.cliente = seleccionadoPorNombre.Cliente_Nombre;
+      this.clientePendienteEdicion = '';
+      return;
+    }
+
+    this.comboSearch.cliente = this.clientePendienteEdicion;
   }
 
   private crearAdjuntoDesdeFile(file: File): AdjuntoItem {
