@@ -452,8 +452,8 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       next: (response: unknown) => {
         const raw = this.extraerLista<Record<string, unknown>>(response);
         this.motivos = raw.map(item => ({
-          Motivo_Id: this.toNumber(item['Motivo_Id'] ?? item['motivo_Id']),
-          Motivo_Nombre: this.getFirstNonEmptyText(item, ['Motivo_Nombre', 'motivo_Nombre', 'Motivo_Des', 'motivo_Des'])
+          Motivo_Id: this.toNumber(item['Id'] ?? item['id'] ?? item['Motivo_Id'] ?? item['motivo_Id']),
+          Motivo_Nombre: this.getFirstNonEmptyText(item, ['Nombre', 'nombre', 'Motivo_Nombre', 'motivo_Nombre', 'Motivo_Des', 'motivo_Des'])
         }));
         this.cargandoMotivos = false;
         this.aplicarDatosEdicion();
@@ -471,8 +471,8 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       next: (response: unknown) => {
         const raw = this.extraerLista<Record<string, unknown>>(response);
         this.climas = raw.map(item => ({
-          Clima_Id: this.toNumber(item['Clima_Id'] ?? item['clima_Id']),
-          Clima_Nombre: this.getFirstNonEmptyText(item, ['Clima_Nombre', 'clima_Nombre', 'Clima_Des', 'clima_Des', 'Clima', 'clima'])
+          Clima_Id: this.toNumber(item['Id'] ?? item['id'] ?? item['Clima_Id'] ?? item['clima_Id']),
+          Clima_Nombre: this.getFirstNonEmptyText(item, ['Nombre', 'nombre', 'Clima_Nombre', 'clima_Nombre', 'Clima_Des', 'clima_Des', 'Clima', 'clima'])
         }));
         this.cargandoClimas = false;
         this.aplicarDatosEdicion();
@@ -490,8 +490,8 @@ export class ObservacionesPlaneadasComponent implements OnInit {
       next: (response: unknown) => {
         const raw = this.extraerLista<Record<string, unknown>>(response);
         this.tareas = raw.map(item => ({
-          Tarea_Id: this.toNumber(item['Tarea_Id'] ?? item['tarea_Id']),
-          Tarea_Nombre: this.getFirstNonEmptyText(item, ['Tarea_Nombre', 'tarea_Nombre', 'Tarea_Des', 'tarea_Des'])
+          Tarea_Id: this.toNumber(item['Id'] ?? item['id'] ?? item['Tarea_Id'] ?? item['tarea_Id']),
+          Tarea_Nombre: this.getFirstNonEmptyText(item, ['Nombre', 'nombre', 'Tarea_Nombre', 'tarea_Nombre', 'Tarea_Des', 'tarea_Des'])
         }));
         this.cargandoTareas = false;
         this.aplicarDatosEdicion();

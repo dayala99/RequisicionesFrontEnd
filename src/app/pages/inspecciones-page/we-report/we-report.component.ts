@@ -857,8 +857,6 @@ private extraerUnico<T>(response: unknown): T | null {
     });
   }
 
-  private readonly CLIENTES_PERMITIDOS = [2, 3, 4];
-
   private cargarClientes(): void {
     this.cargandoClientes = true;
     this.apiService.getListarInsClientes().subscribe({
@@ -869,7 +867,7 @@ private extraerUnico<T>(response: unknown): T | null {
             Cliente_Id: this.toNumber(item['Cliente_Id'] ?? item['cliente_Id']),
             Cliente_Nombre: this.getRecordValue(item, ['Cliente_Nombre', 'cliente_Nombre', 'Nombre', 'nombre'])
           }))
-          .filter(item => this.CLIENTES_PERMITIDOS.includes(item.Cliente_Id))
+          .filter(item => item.Cliente_Id > 0 && !!item.Cliente_Nombre)
           .sort((a, b) => a.Cliente_Nombre.localeCompare(b.Cliente_Nombre, 'es', { sensitivity: 'base' }));
         this.cargandoClientes = false;
       },

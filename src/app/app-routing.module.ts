@@ -34,6 +34,7 @@ import { SubContrataPageComponent } from './pages/inspecciones/sub-contrata/sub-
 import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
 import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
+import { PreguntasHsePageComponent } from './pages/inspecciones/preguntas-hse/preguntas-hse-page.component';
 import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
 
 const routes: Routes = [
@@ -145,6 +146,10 @@ const routes: Routes = [
       {
         path: 'tipo-inspeccion',
         component: TipoInspeccionPageComponent
+      },
+      {
+        path: 'preguntas-hse',
+        component: PreguntasHsePageComponent
       },
       {
         path: 'tipo-riesgo',

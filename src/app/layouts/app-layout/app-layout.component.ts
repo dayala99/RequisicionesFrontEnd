@@ -50,6 +50,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Tipo Reporte', route: '/jefe' },
     { label: 'Cliente', route: '/cliente' },
     { label: 'Tipo de Inspección', route: '/tipo-inspeccion' },
+    { label: 'Preguntas HSE', route: '/preguntas-hse' },
     { label: 'Tipo de Riesgo', route: '/tipo-riesgo' },
     { label: 'Riesgo', route: '/riesgo' },
     { label: 'Reporte', route: '/reporte' },

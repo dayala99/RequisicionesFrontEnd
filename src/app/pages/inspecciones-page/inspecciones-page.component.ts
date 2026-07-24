@@ -5,6 +5,7 @@ import { ApiService, EliminarObservacionPlaneadaRequest } from 'src/app/Services
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from './confirmacion-accion-dialog.component';
 import { WeReportArchivosDialogComponent } from './we-report-archivos-dialog.component';
+import { CentroMonitoreoHseNotaDialogComponent } from './centro-monitoreo-hse-nota-dialog.component';
 
 type TabActivo = 'prevencion' | 'medio-ambiente' | 'observaciones' | 'stop-work' | 'we-report' | 'centro-monitoreo-hse';
 
@@ -429,7 +430,21 @@ export class InspeccionesPageComponent implements OnInit {
 
   // ── Acciones Centro de Monitoreo HSE ────────────────────────────
   verNotaCentroMonitoreoHse(reg: CentroMonitoreoListado): void {
-    alert(`Nro: ${reg.Centro_HSE_Cod || '-'}\nRevisión: ${reg.Centro_Revision || '-'}\nPuntaje: ${reg.Centro_Puntaje || '-'}`);
+    const dialogRef = this.dialog.open(CentroMonitoreoHseNotaDialogComponent, {
+      width: '1280px',
+      maxWidth: '96vw',
+      disableClose: true,
+      autoFocus: false,
+      data: {
+        centroMonitoreo: reg
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((resultado: { guardado?: boolean } | false | undefined) => {
+      if (resultado && typeof resultado === 'object' && resultado.guardado === true) {
+        this.buscarRegistros();
+      }
+    });
   }
 
   editarCentroMonitoreoHse(id: number): void {

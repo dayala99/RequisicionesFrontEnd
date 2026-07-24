@@ -80,6 +80,7 @@ import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/
 import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
+import { PreguntasHsePageComponent } from './pages/inspecciones/preguntas-hse/preguntas-hse-page.component';
 import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
 import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
 import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
@@ -104,6 +105,7 @@ import { SeleccionCapturaFotoDialogComponent } from './pages/inspecciones-page/s
 import { CapturaFotoDialogComponent } from './pages/inspecciones-page/captura-foto-dialog.component';
 import { CapturaAudioDialogComponent } from './pages/inspecciones-page/captura-audio-dialog.component';
 import { CentroMonitoreoHseComponent } from './pages/inspecciones-page/centro-monitoreo-hse/centro-monitoreo-hse.component';
+import { CentroMonitoreoHseNotaDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-nota-dialog.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -188,6 +190,7 @@ const APP_DATE_FORMATS = {
     TipoReportePageComponent,
     ClientePageComponent,
     TipoInspeccionPageComponent,
+    PreguntasHsePageComponent,
     TipoRiesgoPageComponent,
     RiesgoPageComponent,
     ReportePageComponent,
@@ -211,6 +214,7 @@ const APP_DATE_FORMATS = {
     CapturaFotoDialogComponent,
     CapturaAudioDialogComponent,
     CentroMonitoreoHseComponent,
+    CentroMonitoreoHseNotaDialogComponent,
     GridPaginationComponent,
   ],
   imports: [

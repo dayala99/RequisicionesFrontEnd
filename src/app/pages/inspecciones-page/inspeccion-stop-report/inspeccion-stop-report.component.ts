@@ -177,7 +177,7 @@ export class InspeccionStopReportComponent implements OnInit {
     this.apiService.postInsertarStopReport(payload).subscribe({
       next: () => {
         this.guardando = false;
-        this.guardado.emit();
+        this.volver.emit();
       },
       error: (err: unknown) => {
         this.guardando = false;
@@ -225,7 +225,7 @@ export class InspeccionStopReportComponent implements OnInit {
     this.apiService.putActualizarStopReport(payload).subscribe({
       next: () => {
         this.guardando = false;
-        this.guardado.emit();
+        this.volver.emit();
       },
       error: (err: unknown) => {
         this.guardando = false;
