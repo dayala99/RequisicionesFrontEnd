@@ -21,6 +21,13 @@ export interface ConsultaDatosUsuarioFiltro {
     Usr_Cod: string;
 }
 
+export interface RegistrarAsignacionRequest {
+    Asg_Fec: string;
+    Asg_Usr: string;
+    Asg_Usr_Cen_Cos: number;
+    Usr_Reg: string;
+}
+
 export interface RegistrarObservacionPlaneadaRequest {
     Usr_Cod: string;
     Cliente_Id: number;
@@ -449,6 +456,7 @@ export interface RegistrarIngresoAlmacenDetalleRequest {
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number;
     Usr_Reg: string;
+    Alm_Ser?: string | null;
 }
 
 export interface ActualizarIngresoAlmacenDetalleRequest {
@@ -461,6 +469,7 @@ export interface ActualizarIngresoAlmacenDetalleRequest {
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number;
     Usr_Reg: string;
+    Alm_Ser?: string | null;
 }
 
 export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
@@ -2093,6 +2102,11 @@ export class ApiService {
     deleteEliminarCentroCostoPedidoRegistrado(centroCosto: EliminarCentroCostoPedidoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.request('delete', this.baseUrl + 'Pedido/deleteEliminarCentroCostoPedidoRegistrado', { headers, body: centroCosto });
+    }
+
+    postRegistrarAsignacion(asignacion: RegistrarAsignacionRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Asignacion/postRegistrarAsignacion', asignacion, { headers });
     }
 
     registrarProveedor(proveedor: RegistrarProveedorRequest): Observable<any> {

@@ -204,6 +204,7 @@ export class AuthService {
     const aliases: Record<string, string[]> = {
       '/cliente': ['/jefe'],
       '/jefe': ['/cliente'],
+      '/asignacion': ['/reportes'],
       '/reportes/kardex-general': ['/reportes']
     };
 

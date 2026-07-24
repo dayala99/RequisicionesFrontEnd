@@ -176,7 +176,8 @@ export class RequisicionesPageComponent implements OnInit {
       nroRequisicion: [''],
       proveedor: [''],
       estado: ['Pendiente'],
-      tipo: ['']
+      tipo: [''],
+      ordenCompraServicio: ['Todos']
     });
 
     this.cabeceraForm = this.formBuilder.group({
@@ -271,7 +272,21 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   get paginatedRequisiciones(): RequisitionRow[] {
-    return paginateItems(this.requisiciones, this.currentPedidosPage, this.pageSize);
+    return paginateItems(this.requisicionesFiltradasPorOrden, this.currentPedidosPage, this.pageSize);
+  }
+
+  get requisicionesFiltradasPorOrden(): RequisitionRow[] {
+    const filtro = String(this.filtersForm.controls['ordenCompraServicio']?.value || 'Todos');
+
+    if (filtro === 'Con OC/OS') {
+      return this.requisiciones.filter((item) => this.tieneOrdenCompraServicio(item));
+    }
+
+    if (filtro === 'Pendientes de Generar') {
+      return this.requisiciones.filter((item) => !this.tieneOrdenCompraServicio(item));
+    }
+
+    return this.requisiciones;
   }
 
   get paginatedDetallePedidoExpandido(): PedidoDetalleRow[] {
@@ -308,12 +323,17 @@ export class RequisicionesPageComponent implements OnInit {
     this.cargarPedidos();
   }
 
+  onFiltroOrdenCompraServicioChange(): void {
+    this.currentPedidosPage = 1;
+  }
+
   limpiarFiltros(): void {
     this.filtersForm.reset({
       nroRequisicion: '',
       proveedor: '',
       estado: 'Pendiente',
-      tipo: 'Todos'
+      tipo: 'Todos',
+      ordenCompraServicio: 'Todos'
     });
     this.cargarPedidos();
   }
@@ -617,7 +637,12 @@ export class RequisicionesPageComponent implements OnInit {
   }
 
   onPedidosPageChange(page: number): void {
-    this.currentPedidosPage = normalizePaginationPage(page, this.requisiciones.length, this.pageSize);
+    this.currentPedidosPage = normalizePaginationPage(page, this.requisicionesFiltradasPorOrden.length, this.pageSize);
+  }
+
+  private tieneOrdenCompraServicio(item: RequisitionRow): boolean {
+    const numeroOrden = String(item.ordenCompraServicio || '').trim().toLowerCase();
+    return !!numeroOrden && numeroOrden !== '-' && numeroOrden !== '0';
   }
 
   onDetalleExpandidoPageChange(page: number): void {

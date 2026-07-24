@@ -110,6 +110,7 @@ interface SalidaDetalleDraft {
   cantidad: number;
   fecha: string;
   originalCantidad: number;
+  serie: string | null;
 }
 
 interface AlmacenSolicitanteOption {
@@ -1680,6 +1681,7 @@ export class AlmacenPageComponent implements OnInit {
       materialId: [0, Validators.required],
       materialCode: [''],
       materialDescription: [''],
+      serie: [''],
       unidadId: [0, Validators.required],
       unidadCode: [''],
       unidadDescription: [''],
@@ -1799,6 +1801,7 @@ export class AlmacenPageComponent implements OnInit {
           unidadId: recordUnidadId,
           unidadCode: recordUnidadCode,
           unidadDescription: recordUnidadDescription,
+          serie: this.getTextValue(record, ['Alm_Ser', 'alm_Ser', 'almSer']),
           stockDisponible: recordSalidaStockInfo.disponible,
           stockReservado: recordSalidaStockInfo.reservado,
           stockTotal: recordSalidaStockInfo.stockTotal,
@@ -2844,6 +2847,7 @@ export class AlmacenPageComponent implements OnInit {
       const unidadId = Number(row.controls['unidadId'].value);
       const cantidad = Number(row.controls['cantidad'].value);
       const originalCantidad = Number(row.controls['originalCantidad'].value || 0);
+      const serie = String(row.controls['serie'].value || '').trim() || null;
       const fecha = formatDateRequestValue(row.controls['fecha'].value);
 
       if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -2866,7 +2870,7 @@ export class AlmacenPageComponent implements OnInit {
         return [];
       }
 
-      drafts.push({ detalleId, itemId, itemDescripcion, unidadId, cantidad, fecha, originalCantidad });
+      drafts.push({ detalleId, itemId, itemDescripcion, unidadId, cantidad, fecha, originalCantidad, serie });
     }
 
     return drafts;
@@ -2917,7 +2921,8 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Det_Fec: fecha,
       Alm_Det_Cen_Cos_Id: centroCostoId,
       Alm_Det_Prv_Id: 0,
-      Usr_Reg: currentUser
+      Usr_Reg: currentUser,
+      Alm_Ser: detalle.serie
     };
   }
 
@@ -2964,7 +2969,8 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Det_Fec: detalle.fecha,
       Alm_Det_Cen_Cos_Id: centroCostoId,
       Alm_Det_Prv_Id: 0,
-      Usr_Reg: currentUser
+      Usr_Reg: currentUser,
+      Alm_Ser: detalle.serie
     };
   }
 

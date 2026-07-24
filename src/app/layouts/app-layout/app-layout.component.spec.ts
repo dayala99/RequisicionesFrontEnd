@@ -27,6 +27,7 @@ describe('AppLayoutComponent', () => {
       '/almacen',
       '/stock',
       '/inspecciones',
+      '/asignacion',
       '/reportes',
       '/perfil',
       '/forma-pago',
@@ -90,7 +91,10 @@ describe('AppLayoutComponent', () => {
     expect(links).toContain('Pedidos');
     expect(links).toContain('Orden de Compra');
     expect(links).toContain('Orden de Servicio');
+    expect(links).toContain('Asignacion');
     expect(links).toContain('Reportes');
+
+    expect(links.indexOf('Asignacion')).toBeLessThan(links.indexOf('Reportes'));
   });
 
   it('should toggle the mantenimiento group', () => {

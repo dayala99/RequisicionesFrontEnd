@@ -45,6 +45,15 @@
           </select>
         </label>
 
+        <label class="field field--compact">
+          <span>Orden de compra/servicio</span>
+          <select formControlName="ordenCompraServicio" (change)="onFiltroOrdenCompraServicioChange()">
+            <option value="Todos">Todos</option>
+            <option value="Con OC/OS">Con OC/OS</option>
+            <option value="Pendientes de Generar">Pendientes de Generar</option>
+          </select>
+        </label>
+
         <div class="filters-panel__actions">
           <button type="submit" class="button button--primary">Buscar</button>
           <button type="button" class="button button--secondary" (click)="limpiarFiltros()">Limpiar</button>
@@ -184,16 +193,16 @@
               <td colspan="12" class="empty-row">{{ errorMessage }}</td>
             </tr>
 
-            <tr *ngIf="!isLoadingPedidos && !errorMessage && !requisiciones.length">
-              <td colspan="12" class="empty-row">No se han encontrado pedidos en la base de datos.</td>
+            <tr *ngIf="!isLoadingPedidos && !errorMessage && !requisicionesFiltradasPorOrden.length">
+              <td colspan="12" class="empty-row">No se han encontrado pedidos con los filtros seleccionados.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <app-grid-pagination
-        *ngIf="requisiciones.length"
-        [totalItems]="requisiciones.length"
+        *ngIf="requisicionesFiltradasPorOrden.length"
+        [totalItems]="requisicionesFiltradasPorOrden.length"
         [currentPage]="currentPedidosPage"
         [pageSize]="pageSize"
         (pageChange)="onPedidosPageChange($event)">

@@ -1,0 +1,72 @@
+<section class="asignacion-card">
+  <header class="asignacion-card__header">
+    <div>
+      <p class="asignacion-card__eyebrow">Procesos</p>
+      <h2>Asignacion</h2>
+      <p class="asignacion-card__description">Gestiona la asignacion de usuarios por centro de costo.</p>
+    </div>
+  </header>
+
+  <section *ngIf="!mostrarEditorAsignacion" class="asignacion-listado">
+    <footer class="asignacion-actions asignacion-actions--single">
+      <button type="button" class="button button--primary" (click)="nuevaAsignacion()">Nuevo</button>
+    </footer>
+
+    <section class="asignacion-panel">
+      <p class="asignacion-empty">Usa el boton Nuevo para registrar una asignacion.</p>
+    </section>
+  </section>
+
+  <section *ngIf="mostrarEditorAsignacion" class="asignacion-editor">
+    <header class="asignacion-editor__header">
+      <div>
+        <p class="asignacion-card__eyebrow">Registro</p>
+        <h3>Nueva asignacion</h3>
+        <p class="asignacion-card__description">Selecciona la fecha, el usuario y el centro de costo que se le asignara.</p>
+      </div>
+    </header>
+
+    <form class="asignacion-form" [formGroup]="form" (ngSubmit)="guardar()">
+      <p *ngIf="isLoadingOptions" class="asignacion-feedback">Cargando datos...</p>
+
+      <div class="asignacion-form__grid" *ngIf="!isLoadingOptions">
+        <label class="asignacion-field">
+          <span>Fecha</span>
+          <input type="date" formControlName="fecha">
+          <small *ngIf="form.controls['fecha'].touched && form.controls['fecha'].hasError('required')">La fecha es obligatoria.</small>
+        </label>
+
+        <label class="asignacion-field">
+          <span>Usuario</span>
+          <select formControlName="usuario" (change)="onUsuarioChange()">
+            <option value="">Seleccionar usuario</option>
+            <option *ngFor="let usuario of usuarios" [value]="usuario.codigo">{{ usuario.codigo }} - {{ usuario.nombre }}</option>
+          </select>
+          <small *ngIf="form.controls['usuario'].touched && form.controls['usuario'].hasError('required')">El usuario es obligatorio.</small>
+        </label>
+
+        <label class="asignacion-field asignacion-field--wide">
+          <span>Centro de costo</span>
+          <select formControlName="centroCosto">
+            <option value="">{{ isLoadingCentroCosto ? 'Cargando centro de costo...' : 'Seleccionar centro de costo' }}</option>
+            <option *ngFor="let centro of centrosCosto" [value]="centro.id">{{ centro.id }} - {{ centro.descripcion }}</option>
+          </select>
+          <small *ngIf="form.controls['centroCosto'].touched && form.controls['centroCosto'].hasError('required')">El centro de costo es obligatorio.</small>
+          <small *ngIf="centroCostoMessage" class="asignacion-field__warning">
+            {{ centroCostoMessage }}
+          </small>
+        </label>
+      </div>
+
+      <p *ngIf="errorMessage" class="asignacion-feedback asignacion-feedback--error">{{ errorMessage }}</p>
+      <p *ngIf="successMessage" class="asignacion-feedback asignacion-feedback--success">{{ successMessage }}</p>
+
+      <footer class="asignacion-actions">
+        <button type="button" class="button button--secondary" (click)="cerrarEditor()" [disabled]="isSaving">Cancelar</button>
+        <button type="submit" class="button button--primary" [disabled]="isSaving || isLoadingOptions">
+          {{ isSaving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </footer>
+    </form>
+  </section>
+</section>

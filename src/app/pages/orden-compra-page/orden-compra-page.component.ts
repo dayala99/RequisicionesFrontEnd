@@ -1776,7 +1776,7 @@ export class OrdenCompraPageComponent implements OnInit {
       return null;
     }
 
-    if (total <= 0) {
+    if (!this.isEditingOrdenCompra && total <= 0) {
       this.saveErrorMessage = 'El total debe ser mayor a cero.';
       return null;
     }

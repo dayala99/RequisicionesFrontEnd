@@ -277,7 +277,7 @@
 
 .filters-panel {
   display: grid;
-  grid-template-columns: minmax(10rem, 1.1fr) minmax(12rem, 1.6fr) repeat(3, minmax(8rem, 0.8fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
   gap: 1rem;
   align-items: end;
 }
@@ -286,7 +286,12 @@
 .table-toolbar__actions,
 .attachment-panel__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.filters-panel__actions {
+  min-width: 0;
 }
 
 .table-toolbar {
@@ -310,6 +315,9 @@
 .field input,
 .field select,
 .field textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 3rem;
   padding: 0.7rem 0.85rem;
   border: 1px solid var(--line-soft);
@@ -317,6 +325,7 @@
   background: #ffffff;
   color: var(--text-primary);
   font: inherit;
+  box-sizing: border-box;
 }
 
 .date-input-shell {
@@ -922,15 +931,6 @@
 }
 
 @media screen and (max-width: 1360px) {
-  .filters-panel {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .filters-panel__actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-  }
-
   .requisiciones-table {
     min-width: 70rem;
   }
@@ -955,6 +955,10 @@
   .table-toolbar__actions,
   .attachment-panel__actions {
     flex-wrap: wrap;
+  }
+
+  .filters-panel__actions {
+    grid-column: 1 / -1;
   }
 
   .pedido-b-detalle-section__header {
