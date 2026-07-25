@@ -5,7 +5,7 @@ import { ApiService, EliminarObservacionPlaneadaRequest } from 'src/app/Services
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from './confirmacion-accion-dialog.component';
 import { WeReportArchivosDialogComponent } from './we-report-archivos-dialog.component';
-import { CentroMonitoreoHseNotaDialogComponent } from './centro-monitoreo-hse-nota-dialog.component';
+import { CentroMonitoreoHseNotaResult } from './centro-monitoreo-hse-nota-dialog.component';
 
 type TabActivo = 'prevencion' | 'medio-ambiente' | 'observaciones' | 'stop-work' | 'we-report' | 'centro-monitoreo-hse';
 
@@ -101,7 +101,7 @@ const LABEL_NUEVO: Record<TabActivo, string> = {
   styleUrls: ['./inspecciones-page.component.scss'],
 })
 export class InspeccionesPageComponent implements OnInit {
-  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'stop-report' | 'we-report-form' | 'centro-monitoreo-hse-form' = 'inspecciones';
+  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'stop-report' | 'we-report-form' | 'centro-monitoreo-hse-form' | 'centro-monitoreo-hse-nota' = 'inspecciones';
 
   tabActivo: TabActivo = 'observaciones';
 
@@ -139,6 +139,7 @@ export class InspeccionesPageComponent implements OnInit {
   cargandoCentroMonitoreoHse = false;
   eliminandoCentroMonitoreoHse = false;
   centroMonitoreoIdSeleccionado: number | null = null;
+  centroMonitoreoNotaSeleccionado: CentroMonitoreoListado | null = null;
 
   registrosPorPagina = 10;
   opcionesRegistros = [10, 25, 50, 100, 0];
@@ -430,21 +431,20 @@ export class InspeccionesPageComponent implements OnInit {
 
   // ── Acciones Centro de Monitoreo HSE ────────────────────────────
   verNotaCentroMonitoreoHse(reg: CentroMonitoreoListado): void {
-    const dialogRef = this.dialog.open(CentroMonitoreoHseNotaDialogComponent, {
-      width: '1280px',
-      maxWidth: '96vw',
-      disableClose: true,
-      autoFocus: false,
-      data: {
-        centroMonitoreo: reg
-      }
-    });
+    this.centroMonitoreoNotaSeleccionado = reg;
+    this.vistaActual = 'centro-monitoreo-hse-nota';
+  }
 
-    dialogRef.afterClosed().subscribe((resultado: { guardado?: boolean } | false | undefined) => {
-      if (resultado && typeof resultado === 'object' && resultado.guardado === true) {
-        this.buscarRegistros();
-      }
-    });
+  manejarNotaCentroMonitoreoGuardado(resultado: CentroMonitoreoHseNotaResult): void {
+    // TODO: aún no existe un endpoint en ApiService para persistir las respuestas
+    // de la Nota (audio/documento por pregunta). Falta que backend exponga algo como
+    // 'CentroMonitoreoHse/postGuardarNota' para poder enviar `resultado` antes de volver.
+    console.warn('[CentroMonitoreoHse] Nota respondida (aún no se envía a backend):', resultado);
+    this.volverAInspecciones();
+  }
+
+  cancelarNotaCentroMonitoreoHse(): void {
+    this.volverAInspecciones();
   }
 
   editarCentroMonitoreoHse(id: number): void {
@@ -591,6 +591,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.weReportIdSeleccionado = null;
     this.weReportCodSeleccionado = null;
     this.centroMonitoreoIdSeleccionado = null;
+    this.centroMonitoreoNotaSeleccionado = null;
     this.paginaActual = 1;
     this.closeCombos();
     this.buscarRegistros();

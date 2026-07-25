@@ -22,7 +22,7 @@
     <div class="observador-grid observador-grid--simple">
       <div class="field">
         <label>Código:</label>
-        <input type="text" [value]="centroMonitoreo.Centro_HSE_Cod || '-'" readonly>
+        <input type="text" [value]="centroMonitoreo?.Centro_HSE_Cod || '-'" readonly>
       </div>
 
       <div class="field">
@@ -64,8 +64,10 @@
         <tbody>
           <tr *ngFor="let pregunta of preguntas; let i = index">
             <td class="pregunta-cell">
-              <span class="pregunta-index">{{ i + 1 }}.</span>
-              <span class="pregunta-texto">{{ pregunta.preguntaNombre }}</span>
+              <div class="pregunta-content">
+                <span class="pregunta-index">{{ i + 1 }}.</span>
+                <span class="pregunta-texto">{{ pregunta.preguntaNombre }}</span>
+              </div>
             </td>
             <td>
               <div class="respuesta-group">

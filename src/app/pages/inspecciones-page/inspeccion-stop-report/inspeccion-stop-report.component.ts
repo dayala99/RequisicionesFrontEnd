@@ -367,7 +367,7 @@ export class InspeccionStopReportComponent implements OnInit {
       },
     });
   }
-
+  
   private cargarSupervisoresResponsables(): void {
     this.cargandoSupervisores = true;
     this.apiService.getListarSupervisoresResponsables().subscribe({

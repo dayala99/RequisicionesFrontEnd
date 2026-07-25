@@ -1537,7 +1537,8 @@ export class ApiService {
 
     // ─── Preguntas HSE ───────────────────────────────────────────────
     getListarPreguntasHseSinEstado(): Observable<any> {
-        return this.getListarPreguntasHse({});
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'PreguntasHse/getListarPreguntasHseSinEstado', { headers });
     }
 
     getListarPreguntasHse(filtros: PreguntasHseFiltro = {}): Observable<any> {

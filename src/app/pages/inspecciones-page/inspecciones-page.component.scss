@@ -242,10 +242,13 @@
   height: 1.1rem;
 }
 
+.table-action + .table-action {
+  margin-left: 0.45rem;
+}
+
 .table-action--delete {
   background: #fee2e2;
   color: #991b1b;
-  margin-left: 0.45rem;
 }
 
 .table-action--delete:hover {

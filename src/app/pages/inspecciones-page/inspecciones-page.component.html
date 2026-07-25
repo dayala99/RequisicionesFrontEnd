@@ -510,6 +510,11 @@
     <ng-container *ngTemplateOutlet="vistaCentroMonitoreoHseForm"></ng-container>
   </ng-container>
 
+  <!-- ── Centro de Monitoreo HSE (nota) ── -->
+  <ng-container *ngSwitchCase="'centro-monitoreo-hse-nota'">
+    <ng-container *ngTemplateOutlet="vistaCentroMonitoreoHseNota"></ng-container>
+  </ng-container>
+
 </ng-container>
 
 
@@ -545,4 +550,11 @@
 
 <ng-template #vistaCentroMonitoreoHseForm>
   <app-centro-monitoreo-hse [modoEdicion]="modoFormulario === 'editar'" [centroMonitoreoId]="centroMonitoreoIdSeleccionado" (volver)="volverAInspecciones()"></app-centro-monitoreo-hse>
+</ng-template>
+
+<ng-template #vistaCentroMonitoreoHseNota>
+  <app-centro-monitoreo-hse-nota-dialog
+    [centroMonitoreo]="centroMonitoreoNotaSeleccionado"
+    (volver)="cancelarNotaCentroMonitoreoHse()"
+    (guardado)="manejarNotaCentroMonitoreoGuardado($event)"></app-centro-monitoreo-hse-nota-dialog>
 </ng-template>
