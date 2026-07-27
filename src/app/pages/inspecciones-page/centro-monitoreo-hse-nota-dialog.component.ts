@@ -28,6 +28,7 @@ export interface CentroMonitoreoHseNotaResult {
     audio: RespuestaValor;
     documento: RespuestaValor;
   }>;
+  comentario: string;
 }
 
 @Component({
@@ -45,6 +46,7 @@ export class CentroMonitoreoHseNotaDialogComponent implements OnInit, OnChanges 
   saveError = '';
   errorMessage = '';
   preguntas: CentroMonitoreoNotaItem[] = [];
+  comentario = '';
 
   private preguntasCargadas = false;
 
@@ -66,6 +68,7 @@ export class CentroMonitoreoHseNotaDialogComponent implements OnInit, OnChanges 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['centroMonitoreo'] && !changes['centroMonitoreo'].firstChange) {
       this.preguntas.forEach((item) => { item.audio = ''; item.documento = ''; });
+      this.comentario = '';
       this.saveError = '';
       if (!this.preguntasCargadas) {
         this.cargarPreguntas();
@@ -109,7 +112,8 @@ export class CentroMonitoreoHseNotaDialogComponent implements OnInit, OnChanges 
         preguntaId: item.preguntaId,
         audio: item.audio,
         documento: item.documento
-      }))
+      })),
+      comentario: this.comentario.trim()
     };
 
     this.guardando = false;

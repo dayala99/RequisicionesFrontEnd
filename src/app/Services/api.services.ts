@@ -100,6 +100,7 @@ export interface CentroHseListadoItem {
     Cliente_Nombre?: string;
     Centro_Revision?: string;
     Centro_Puntaje?: string;
+    Centro_Comentario?: string;
 }
 
 export interface EliminarWeReportRequest {
@@ -2130,7 +2131,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getListarCentroMonitoreoHse', { headers, params });
     }
 
-    // Alimenta la tabla de Centro de Monitoreo HSE (Nro, Inspector, Supervisor, Cliente, Revisión, Puntaje).
+    // Alimenta la tabla de Centro de Monitoreo HSE (Nro, Inspector, Supervisor, Cliente, Revisión, Puntaje, Motivo de edición).
     getFiltrarCentroMonitoreoHse(Fecha_Desde: string, Fecha_Hasta: string, Estado: 'A' | 'I'): Observable<any> {
         const headers = this.Header;
         const params = new HttpParams()
@@ -2145,6 +2146,18 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         const headers = this.Header;
         const params = new HttpParams().set('Centro_HSE_Id', String(Centro_HSE_Id));
         return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getMostrarActualizarCentroMonitoreoHse', { headers, params });
+    }
+
+    getDatosReportePdfCentroMonitoreoHse(Centro_HSE_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Centro_HSE_Id', String(Centro_HSE_Id));
+        return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getDatosReportePdfCentroMonitoreoHse', { headers, params });
+    }
+
+    getReportePdfCentroMonitoreoHse(Centro_HSE_Id: number): Observable<ArrayBuffer> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Centro_HSE_Id', String(Centro_HSE_Id));
+        return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getReportePdfCentroMonitoreoHse', { headers, params, responseType: 'arraybuffer' });
     }
 
     postInsertarCentroMonitoreoHse(formData: FormData): Observable<any> {
@@ -2163,6 +2176,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     postInsertarPuntajeCentroHse(payload: {
         Centro_HSE_Id: number;
         Usr_Reg: string;
+        Centro_Comentario?: string;
         Detalles: Array<{ Pregunta_Id: number; Puntaje_Tipo: 'A' | 'D'; Puntaje_Rpta: 'S' | 'N' }>;
     }): Observable<any> {
         const headers = this.Header;
@@ -2182,6 +2196,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         Centro_Revision?: 'CERRADO' | 'ABIERTO';
         Centro_Motivo?: string;
         Motivo?: string;
+        Centro_Comentario?: string;
     }): Observable<any> {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'CentroMonitoreoHse/postActualizarPuntajeCentroHse', payload, { headers });

@@ -33,6 +33,8 @@ interface AdjuntoItem {
 
 type EstadoCentroMonitoreo = 'A' | 'I';
 
+type EstadoUbicacion = 'buscando' | 'concedida' | 'denegada';
+
 @Component({
   selector: 'app-centro-monitoreo-hse',
   templateUrl: './centro-monitoreo-hse.component.html',
@@ -72,6 +74,10 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
   cargandoEdicion = false;
   guardando = false;
 
+  ubicacionEstado: EstadoUbicacion = 'buscando';
+  ubicacionMensaje = '';
+  private ubicacionTexto = '';
+
   constructor(
     private readonly fb: FormBuilder,
     private readonly apiService: ApiService,
@@ -90,9 +96,52 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
     this.cargarSupervisor();
     this.cargarClientes();
 
+    if (!this.modoEdicion) {
+      this.solicitarUbicacion();
+    }
+
     if (this.modoEdicion && this.centroMonitoreoId) {
       setTimeout(() => this.cargarDatosEdicion(this.centroMonitoreoId as number), 0);
     }
+  }
+
+  get ubicacionBloqueada(): boolean {
+    return this.modoEdicion ? false : this.ubicacionEstado !== 'concedida';
+  }
+
+  solicitarUbicacion(): void {
+    if (this.modoEdicion) {
+      this.ubicacionEstado = 'concedida';
+      this.ubicacionMensaje = '';
+      this.ubicacionTexto = '';
+      return;
+    }
+
+    if (!('geolocation' in navigator)) {
+      this.ubicacionEstado = 'denegada';
+      this.ubicacionMensaje = 'Tu navegador no permite obtener la ubicación. Usa un dispositivo o navegador compatible.';
+      return;
+    }
+
+    this.ubicacionEstado = 'buscando';
+    this.ubicacionMensaje = '';
+
+    navigator.geolocation.getCurrentPosition(
+      (posicion: GeolocationPosition) => {
+        const lat = posicion.coords.latitude.toFixed(6);
+        const lng = posicion.coords.longitude.toFixed(6);
+        this.ubicacionTexto = `${lat}, ${lng}`;
+        this.ubicacionEstado = 'concedida';
+        this.ubicacionMensaje = '';
+      },
+      (error: GeolocationPositionError) => {
+        this.ubicacionEstado = 'denegada';
+        this.ubicacionMensaje = error.code === error.PERMISSION_DENIED
+          ? 'Debes permitir el acceso a tu ubicación para poder ingresar a este formulario.'
+          : 'No se pudo obtener tu ubicación. Verifica el GPS o la conexión e inténtalo nuevamente.';
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -383,7 +432,34 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
     }
   }
 
+  descargarPdf(): void {
+    if (!this.modoEdicion || !this.centroMonitoreoId) {
+      return;
+    }
+
+    this.apiService.getReportePdfCentroMonitoreoHse(this.centroMonitoreoId).subscribe({
+      next: (data: ArrayBuffer) => {
+        const blob = new Blob([data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `Centro_HSE_${this.centroMonitoreoId}.pdf`;
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      },
+      error: () => alert('No se pudo generar el PDF del Centro de Monitoreo HSE.')
+    });
+  }
+
   guardar(): void {
+    if (!this.modoEdicion && this.ubicacionBloqueada) {
+      alert('Debes permitir el acceso a tu ubicación para continuar.');
+      this.solicitarUbicacion();
+      return;
+    }
+
     this.form.markAllAsTouched();
     if (this.form.invalid) {
       alert('Completa los datos obligatorios antes de continuar.');
@@ -420,6 +496,10 @@ export class CentroMonitoreoHseComponent implements OnInit, OnChanges, OnDestroy
     formData.append('Cliente_Id', String(clienteId));
     formData.append('Estado', this.normalizarEstado(this.form.get('estado')?.value));
     formData.append('Usr_Reg', usuario);
+
+    if (!this.modoEdicion) {
+      formData.append('Centro_Ubicacion', this.ubicacionTexto);
+    }
 
     if (this.modoEdicion && this.centroMonitoreoId) {
       formData.append('Centro_Monitoreo_Id', String(this.centroMonitoreoId));

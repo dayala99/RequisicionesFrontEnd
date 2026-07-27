@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, EliminarObservacionPlaneadaRequest } from 'src/app/Services/api.services';
@@ -8,6 +9,7 @@ import { ElegirEdicionCentroMonitoreoDialogComponent, ElegirEdicionCentroMonitor
 import { CentroMonitoreoHsePuntajeResult } from './centro-monitoreo-hse-puntaje-dialog.component';
 import { WeReportArchivosDialogComponent } from './we-report-archivos-dialog.component';
 import { CentroMonitoreoHseNotaResult } from './centro-monitoreo-hse-nota-dialog.component';
+import { createCentroMonitoreoHseReportPdf, CentroMonitoreoHseReportePdfData } from 'src/app/shared/utils/centro-monitoreo-hse-report-pdf.utils';
 
 type TabActivo = 'prevencion' | 'medio-ambiente' | 'observaciones' | 'stop-work' | 'we-report' | 'centro-monitoreo-hse';
 
@@ -72,6 +74,11 @@ interface CentroMonitoreoListado {
   Cliente_Nombre: string;
   Centro_Revision: string;
   Centro_Puntaje: string;
+  Centro_Comentario?: string;
+  Centro_Ubicacion?: string;
+  Estado?: string;
+  Fec_Reg?: string;
+  Fec_Mod?: string;
 }
 
 interface StopReportListado {
@@ -143,6 +150,7 @@ export class InspeccionesPageComponent implements OnInit {
   centroMonitoreoIdSeleccionado: number | null = null;
   centroMonitoreoNotaSeleccionado: CentroMonitoreoListado | null = null;
   centroMonitoreoPuntajeSeleccionado: CentroMonitoreoListado | null = null;
+  private centroMonitoreoLogoBytes: Uint8Array | null | undefined;
 
   registrosPorPagina = 10;
   opcionesRegistros = [10, 25, 50, 100, 0];
@@ -471,6 +479,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.apiService.postInsertarPuntajeCentroHse({
       Centro_HSE_Id: resultado.centroMonitoreoId,
       Usr_Reg: usuario,
+      Centro_Comentario: resultado.comentario,
       Detalles: detalles
     }).subscribe({
       next: (response: unknown) => {
@@ -534,7 +543,8 @@ export class InspeccionesPageComponent implements OnInit {
       Detalles: resultado.detalles,
       Centro_Revision: resultado.Centro_Revision,
       Centro_Motivo: resultado.Centro_Motivo ?? resultado.Motivo,
-      Motivo: resultado.Motivo
+      Motivo: resultado.Motivo,
+      Centro_Comentario: resultado.Centro_Comentario
     }).subscribe({
       next: (response: unknown) => {
         if (this.esRespuestaExitosa(response)) {
@@ -548,6 +558,57 @@ export class InspeccionesPageComponent implements OnInit {
         alert(this.getErrorMessage(error, 'No se pudo actualizar el Puntaje de Centro de Monitoreo HSE.'));
       }
     });
+  }
+
+  async verPdfCentroMonitoreoHse(reg: CentroMonitoreoListado): Promise<void> {
+    if (!reg?.Centro_HSE_Id) {
+      alert('No se pudo identificar el registro del Centro de Monitoreo HSE.');
+      return;
+    }
+
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      alert('El navegador bloqueó la vista previa del PDF. Habilita las ventanas emergentes e inténtalo de nuevo.');
+      return;
+    }
+
+    try {
+      const logoBytes = await this.loadArceLogoBytes();
+      const pdfData = await this.obtenerDatosPdfCentroMonitoreoHse(reg);
+      const pdfBlob = createCentroMonitoreoHseReportPdf(pdfData, { logoBytes });
+
+      const url = URL.createObjectURL(pdfBlob);
+      ventana.location.href = url;
+      ventana.focus();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (error: unknown) {
+      ventana.close();
+      alert(this.getErrorMessage(error, 'No se pudo generar la vista previa del PDF del Centro de Monitoreo HSE.'));
+    }
+  }
+
+  async descargarPdfCentroMonitoreoHse(reg: CentroMonitoreoListado): Promise<void> {
+    if (!reg?.Centro_HSE_Id) {
+      alert('No se pudo identificar el registro del Centro de Monitoreo HSE.');
+      return;
+    }
+
+    try {
+      const logoBytes = await this.loadArceLogoBytes();
+      const pdfData = await this.obtenerDatosPdfCentroMonitoreoHse(reg);
+      const pdfBlob = createCentroMonitoreoHseReportPdf(pdfData, { logoBytes });
+
+      const url = URL.createObjectURL(pdfBlob);
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = `Centro_HSE_${reg.Centro_HSE_Cod || reg.Centro_HSE_Id}.pdf`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (error: unknown) {
+      alert(this.getErrorMessage(error, 'No se pudo generar el PDF del Centro de Monitoreo HSE.'));
+    }
   }
 
   editarCentroMonitoreoHse(id: number): void {
@@ -1132,6 +1193,11 @@ export class InspeccionesPageComponent implements OnInit {
           Cliente_Nombre:  this.texto(item?.['Cliente_Nombre']     ?? item?.['cliente_Nombre']),
           Centro_Revision: this.texto(item?.['Centro_Revision']    ?? item?.['centro_Revision']),
           Centro_Puntaje:  this.texto(item?.['Centro_Puntaje']     ?? item?.['centro_Puntaje']),
+          Centro_Comentario: this.texto(item?.['Centro_Comentario'] ?? item?.['centro_Comentario'] ?? item?.['Comentario'] ?? item?.['comentario']),
+          Centro_Ubicacion: this.texto(item?.['Centro_Ubicacion']   ?? item?.['centro_Ubicacion'] ?? item?.['Ubicacion'] ?? item?.['ubicacion']),
+          Estado:          this.texto(item?.['Estado']             ?? item?.['estado'] ?? item?.['Revision'] ?? item?.['revision']),
+          Fec_Reg:         this.texto(item?.['Fec_Reg']            ?? item?.['fec_Reg']),
+          Fec_Mod:         this.texto(item?.['Fec_Mod']            ?? item?.['fec_Mod']),
         }));
         this.ajustarPaginaActual();
         this.cargandoCentroMonitoreoHse = false;
@@ -1181,7 +1247,7 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   private crearTextoBusquedaCentroMonitoreo(item: CentroMonitoreoListado): string {
-    return [item.Centro_HSE_Cod, item.Usr_Inspector, item.Usr_Supervisor, item.Cliente_Nombre, item.Centro_Revision].join(' ');
+    return [item.Centro_HSE_Cod, item.Usr_Inspector, item.Usr_Supervisor, item.Cliente_Nombre, item.Centro_Revision, item.Centro_Comentario, item.Centro_Ubicacion, item.Estado].join(' ');
   }
 
   private normalizarTexto(value: string): string {
@@ -1203,6 +1269,132 @@ export class InspeccionesPageComponent implements OnInit {
       }
     }
     return [];
+  }
+  private async obtenerDatosPdfCentroMonitoreoHse(reg: CentroMonitoreoListado): Promise<CentroMonitoreoHseReportePdfData> {
+    const base: CentroMonitoreoHseReportePdfData = {
+      codigo: reg.Centro_HSE_Cod || `#${reg.Centro_HSE_Id}`,
+      supervisor: reg.Usr_Supervisor || '-',
+      inspector: reg.Usr_Inspector || '-',
+      fecha: this.formatearFechaPdf(reg.Fec_Mod || reg.Fec_Reg),
+      hora: this.formatearHoraPdf(reg.Fec_Mod || reg.Fec_Reg),
+      estado: reg.Estado || reg.Centro_Revision || '-',
+      ubicacion: this.normalizarUbicacionMaps(reg.Centro_Ubicacion) || '-',
+      puntaje: reg.Centro_Puntaje || '-',
+      motivoEdicion: reg.Centro_Comentario || '-',
+    };
+
+    const detalle = await this.cargarDetallePdfCentroMonitoreoHse(reg.Centro_HSE_Id);
+    if (!detalle) {
+      return base;
+    }
+
+    return {
+      codigo: this.texto(this.valor(detalle, 'Centro_HSE_Cod', 'Centro_HSE_COD', 'Codigo_Centro_HSE')) || base.codigo,
+      supervisor: this.texto(this.valor(detalle, 'Supervisor', 'Usr_Supervisor', 'Supervisor_Nom', 'Usr_Nom')) || base.supervisor,
+      inspector: this.texto(this.valor(detalle, 'Inspector', 'Usr_Inspector', 'Inspector_Nom', 'Usr_Nom')) || base.inspector,
+      fecha: this.formatearFechaPdf(this.valor(detalle, 'Fecha', 'Fec_Mod', 'Fec_Reg')) || base.fecha,
+      hora: this.formatearHoraPdf(this.valor(detalle, 'Hora', 'Fec_Mod', 'Fec_Reg')) || base.hora,
+      estado: this.texto(this.valor(detalle, 'Centro_Revision', 'Revision', 'Estado')) || base.estado,
+      ubicacion: this.normalizarUbicacionMaps(this.valor(detalle, 'Centro_Ubicacion', 'Ubicacion', 'ubicacion')) || base.ubicacion,
+      puntaje: this.texto(this.valor(detalle, 'Centro_Puntaje', 'Puntaje')) || base.puntaje,
+      motivoEdicion: this.texto(this.valor(detalle, 'Centro_Comentario', 'Comentario', 'Motivo')) || base.motivoEdicion,
+    };
+  }
+
+  private async cargarDetallePdfCentroMonitoreoHse(id: number): Promise<Record<string, unknown> | null> {
+    try {
+      const response = await firstValueFrom(this.apiService.getDatosReportePdfCentroMonitoreoHse(id));
+      if (Array.isArray(response)) {
+        return (response[0] as Record<string, unknown>) ?? null;
+      }
+      if (response && typeof response === 'object') {
+        return response as Record<string, unknown>;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private valor(obj: Record<string, unknown>, ...keys: string[]): unknown {
+    for (const key of keys) {
+      const value = obj[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return value;
+      }
+    }
+    return '';
+  }
+
+  private formatearFechaPdf(value: unknown): string {
+    const texto = this.texto(value);
+    if (!texto) { return ''; }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) { return texto; }
+
+    const fecha = new Date(texto);
+    if (Number.isNaN(fecha.getTime())) { return texto; }
+
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const year = fecha.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  private formatearHoraPdf(value: unknown): string {
+    const texto = this.texto(value);
+    if (!texto) { return ''; }
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(texto)) { return texto.length === 5 ? `${texto}:00` : texto; }
+
+    const fecha = new Date(texto);
+    if (Number.isNaN(fecha.getTime())) { return texto; }
+
+    const hour = String(fecha.getHours()).padStart(2, '0');
+    const minute = String(fecha.getMinutes()).padStart(2, '0');
+    const second = String(fecha.getSeconds()).padStart(2, '0');
+    return `${hour}:${minute}:${second}`;
+  }
+
+  private normalizarUbicacionMaps(value: unknown): string {
+    const texto = this.texto(value);
+    if (!texto) {
+      return '';
+    }
+
+    if (/^https?:\/\//i.test(texto)) {
+      return texto;
+    }
+
+    const coordenadas = texto.replace(/\s+/g, '');
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordenadas)}`;
+  }
+
+  private async loadArceLogoBytes(): Promise<Uint8Array | undefined> {
+    if (this.centroMonitoreoLogoBytes !== undefined) {
+      return this.centroMonitoreoLogoBytes ?? undefined;
+    }
+
+    const candidates = [
+      'assets/ArceLogo.jpg',
+      './assets/ArceLogo.jpg',
+      '/assets/ArceLogo.jpg'
+    ];
+
+    for (const ruta of candidates) {
+      try {
+        const response = await fetch(ruta, { cache: 'no-cache' });
+        if (!response.ok) {
+          continue;
+        }
+
+        this.centroMonitoreoLogoBytes = new Uint8Array(await response.arrayBuffer());
+        return this.centroMonitoreoLogoBytes;
+      } catch {
+        // Probar la siguiente ruta.
+      }
+    }
+
+    this.centroMonitoreoLogoBytes = null;
+    return undefined;
   }
 
   private texto(value: unknown): string {
@@ -1242,12 +1434,14 @@ export class InspeccionesPageComponent implements OnInit {
       const body = r['error'];
       if (body && typeof body === 'object') {
         const b = body as Record<string, unknown>;
-        for (const k of ['message', 'Message']) {
+        // Priorizar 'detail'/'Detail' (mensaje SQL real) sobre 'message'/'Message',
+        // que suele ser un texto genérico fijo definido en el backend.
+        for (const k of ['detail', 'Detail', 'message', 'Message']) {
           const v = b[k];
           if (v !== undefined && v !== null && String(v).trim() !== '') { return String(v); }
         }
       }
-      for (const k of ['message', 'Message']) {
+      for (const k of ['detail', 'Detail', 'message', 'Message']) {
         const v = r[k];
         if (v !== undefined && v !== null && String(v).trim() !== '') { return String(v); }
       }

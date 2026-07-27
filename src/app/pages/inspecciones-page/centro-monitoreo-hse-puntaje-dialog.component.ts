@@ -32,6 +32,7 @@ export interface CentroMonitoreoHsePuntajeResult {
   Centro_Revision: EstadoRevision;
   Centro_Motivo: string;
   Motivo: string;
+  Centro_Comentario: string;
 }
 
 @Component({
@@ -62,7 +63,8 @@ export class CentroMonitoreoHsePuntajeDialogComponent implements OnInit, OnChang
   ) {
     this.form = this.fb.group({
       estadoRevision: ['CERRADO', Validators.required],
-      motivo: ['', [noWhitespaceValidator()]]
+      motivo: ['', [noWhitespaceValidator()]],
+      comentario: ['']
     });
   }
 
@@ -89,7 +91,8 @@ export class CentroMonitoreoHsePuntajeDialogComponent implements OnInit, OnChang
       this.preguntasCargadas = false;
       this.form.reset({
         estadoRevision: 'CERRADO',
-        motivo: ''
+        motivo: '',
+        comentario: ''
       });
       this.cargarPuntaje();
     }
@@ -126,8 +129,8 @@ export class CentroMonitoreoHsePuntajeDialogComponent implements OnInit, OnChang
     const estadoRevision = this.estadoRevisionSeleccionado;
     const motivo = String(this.form.controls['motivo'].value ?? '').trim();
 
-    if (estadoRevision === 'ABIERTO' && !motivo) {
-      this.saveError = 'Escribe el motivo para abrir el puntaje.';
+    if (!motivo) {
+      this.saveError = 'Escribe el motivo para editar el puntaje.';
       this.form.controls['motivo'].markAsTouched();
       return;
     }
@@ -142,12 +145,15 @@ export class CentroMonitoreoHsePuntajeDialogComponent implements OnInit, OnChang
       }
     }
 
+    const comentario = String(this.form.controls['comentario'].value ?? '').trim();
+
     this.guardado.emit({
       centroMonitoreoId: this.centroMonitoreo?.Centro_HSE_Id ?? null,
       detalles,
       Centro_Revision: estadoRevision,
-      Centro_Motivo: estadoRevision === 'ABIERTO' ? motivo : '',
-      Motivo: estadoRevision === 'ABIERTO' ? motivo : ''
+      Centro_Motivo: motivo,
+      Motivo: motivo,
+      Centro_Comentario: comentario
     });
   }
 
@@ -186,6 +192,7 @@ export class CentroMonitoreoHsePuntajeDialogComponent implements OnInit, OnChang
       next: (response: unknown) => {
         const registros = this.extractRecords(response);
         this.preguntas = this.agruparPorPregunta(registros);
+        this.form.patchValue({ comentario: this.extractComentario(response) }, { emitEvent: false });
         this.cargando = false;
         this.preguntasCargadas = true;
       },
@@ -196,6 +203,15 @@ export class CentroMonitoreoHsePuntajeDialogComponent implements OnInit, OnChang
         this.cargando = false;
       }
     });
+  }
+
+  private extractComentario(response: unknown): string {
+    if (!this.isRecord(response)) {
+      return '';
+    }
+
+    const valor = response['Centro_Comentario'] ?? response['centro_Comentario'];
+    return valor === null || valor === undefined ? '' : String(valor).trim();
   }
 
   private agruparPorPregunta(registros: DataRecord[]): CentroMonitoreoPuntajeItem[] {
@@ -256,7 +272,7 @@ export class CentroMonitoreoHsePuntajeDialogComponent implements OnInit, OnChang
       return [];
     }
 
-    for (const key of ['Elements', 'elements', 'Data', 'data', 'Result', 'result', 'Items', 'items', 'Lista', 'lista']) {
+    for (const key of ['Detalles', 'detalles', 'Elements', 'elements', 'Data', 'data', 'Result', 'result', 'Items', 'items', 'Lista', 'lista']) {
       const value = response[key];
       if (Array.isArray(value)) {
         return value.filter((item): item is DataRecord => this.isRecord(item));

@@ -111,5 +111,20 @@
     </div>
   </section>
 
+  <section class="cmhse-card">
+    <h3>Comentario</h3>
+
+    <div class="observador-grid observador-grid--simple">
+      <div class="field field--wide">
+        <label>Comentario:</label>
+        <textarea
+          rows="3"
+          [(ngModel)]="comentario"
+          name="comentario"
+          placeholder="Escriba un comentario (opcional)"></textarea>
+      </div>
+    </div>
+  </section>
+
   <p *ngIf="saveError" class="save-error">{{ saveError }}</p>
 </div>
