@@ -4,6 +4,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { ApiService, EliminarObservacionPlaneadaRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from './confirmacion-accion-dialog.component';
+import { ElegirEdicionCentroMonitoreoDialogComponent, ElegirEdicionCentroMonitoreoResultado } from './elegir-edicion-centro-monitoreo-dialog.component';
+import { CentroMonitoreoHsePuntajeResult } from './centro-monitoreo-hse-puntaje-dialog.component';
 import { WeReportArchivosDialogComponent } from './we-report-archivos-dialog.component';
 import { CentroMonitoreoHseNotaResult } from './centro-monitoreo-hse-nota-dialog.component';
 
@@ -101,7 +103,7 @@ const LABEL_NUEVO: Record<TabActivo, string> = {
   styleUrls: ['./inspecciones-page.component.scss'],
 })
 export class InspeccionesPageComponent implements OnInit {
-  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'stop-report' | 'we-report-form' | 'centro-monitoreo-hse-form' | 'centro-monitoreo-hse-nota' = 'inspecciones';
+  vistaActual: 'inspecciones' | 'observaciones-planeadas' | 'medio-ambiente' | 'prevencion' | 'stop-report' | 'we-report-form' | 'centro-monitoreo-hse-form' | 'centro-monitoreo-hse-nota' | 'centro-monitoreo-hse-puntaje' = 'inspecciones';
 
   tabActivo: TabActivo = 'observaciones';
 
@@ -140,6 +142,7 @@ export class InspeccionesPageComponent implements OnInit {
   eliminandoCentroMonitoreoHse = false;
   centroMonitoreoIdSeleccionado: number | null = null;
   centroMonitoreoNotaSeleccionado: CentroMonitoreoListado | null = null;
+  centroMonitoreoPuntajeSeleccionado: CentroMonitoreoListado | null = null;
 
   registrosPorPagina = 10;
   opcionesRegistros = [10, 25, 50, 100, 0];
@@ -430,21 +433,121 @@ export class InspeccionesPageComponent implements OnInit {
   }
 
   // ── Acciones Centro de Monitoreo HSE ────────────────────────────
+  esRevisionAbierta(centroRevision: string | null | undefined): boolean {
+    return String(centroRevision ?? '').trim().toUpperCase() === 'ABIERTO';
+  }
+
   verNotaCentroMonitoreoHse(reg: CentroMonitoreoListado): void {
     this.centroMonitoreoNotaSeleccionado = reg;
     this.vistaActual = 'centro-monitoreo-hse-nota';
   }
 
   manejarNotaCentroMonitoreoGuardado(resultado: CentroMonitoreoHseNotaResult): void {
-    // TODO: aún no existe un endpoint en ApiService para persistir las respuestas
-    // de la Nota (audio/documento por pregunta). Falta que backend exponga algo como
-    // 'CentroMonitoreoHse/postGuardarNota' para poder enviar `resultado` antes de volver.
-    console.warn('[CentroMonitoreoHse] Nota respondida (aún no se envía a backend):', resultado);
-    this.volverAInspecciones();
+    const usuario = (this.authService.getCurrentUser?.() ?? '').trim();
+    if (!usuario) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    if (!resultado.centroMonitoreoId) {
+      alert('No se pudo identificar el Centro de Monitoreo HSE.');
+      return;
+    }
+
+    const detalles: Array<{ Pregunta_Id: number; Puntaje_Tipo: 'A' | 'D'; Puntaje_Rpta: 'S' | 'N' }> = [];
+    for (const respuesta of resultado.respuestas) {
+      detalles.push({
+        Pregunta_Id: respuesta.preguntaId,
+        Puntaje_Tipo: 'A',
+        Puntaje_Rpta: respuesta.audio === 'P' ? 'S' : 'N'
+      });
+      detalles.push({
+        Pregunta_Id: respuesta.preguntaId,
+        Puntaje_Tipo: 'D',
+        Puntaje_Rpta: respuesta.documento === 'P' ? 'S' : 'N'
+      });
+    }
+
+    this.apiService.postInsertarPuntajeCentroHse({
+      Centro_HSE_Id: resultado.centroMonitoreoId,
+      Usr_Reg: usuario,
+      Detalles: detalles
+    }).subscribe({
+      next: (response: unknown) => {
+        if (this.esRespuestaExitosa(response)) {
+          this.volverAInspecciones();
+          this.cargarCentroMonitoreoHse();
+        } else {
+          alert(this.getRespuestaMensaje(response) || 'No se pudo guardar la Nota de Centro de Monitoreo HSE.');
+        }
+      },
+      error: (error: unknown) => {
+        alert(this.getErrorMessage(error, 'No se pudo guardar la Nota de Centro de Monitoreo HSE.'));
+      }
+    });
   }
 
   cancelarNotaCentroMonitoreoHse(): void {
     this.volverAInspecciones();
+  }
+
+  elegirEdicionCentroMonitoreoHse(id: number): void {
+    const dialogRef = this.dialog.open(ElegirEdicionCentroMonitoreoDialogComponent, {
+      width: '420px',
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe((resultado: ElegirEdicionCentroMonitoreoResultado) => {
+      if (resultado === 'centro-monitoreo') {
+        this.editarCentroMonitoreoHse(id);
+      } else if (resultado === 'puntaje') {
+        this.editarPuntajeCentroMonitoreoHse(id);
+      }
+    });
+  }
+
+  editarPuntajeCentroMonitoreoHse(id: number): void {
+    const reg = this.registrosCentroMonitoreoHse.find((item) => item.Centro_HSE_Id === id) ?? null;
+    this.centroMonitoreoPuntajeSeleccionado = reg;
+    this.vistaActual = 'centro-monitoreo-hse-puntaje';
+  }
+
+  cancelarPuntajeCentroMonitoreoHse(): void {
+    this.volverAInspecciones();
+  }
+
+  manejarPuntajeCentroMonitoreoGuardado(resultado: CentroMonitoreoHsePuntajeResult): void {
+    const usuario = (this.authService.getCurrentUser?.() ?? '').trim();
+    if (!usuario) {
+      alert('No se pudo identificar el usuario. Vuelve a iniciar sesión.');
+      return;
+    }
+
+    if (!resultado.centroMonitoreoId) {
+      alert('No se pudo identificar el Centro de Monitoreo HSE.');
+      return;
+    }
+
+    this.apiService.postActualizarPuntajeCentroHse({
+      Centro_HSE_Id: resultado.centroMonitoreoId,
+      Usr_Mod: usuario,
+      Detalles: resultado.detalles,
+      Centro_Revision: resultado.Centro_Revision,
+      Centro_Motivo: resultado.Centro_Motivo ?? resultado.Motivo,
+      Motivo: resultado.Motivo
+    }).subscribe({
+      next: (response: unknown) => {
+        if (this.esRespuestaExitosa(response)) {
+          this.volverAInspecciones();
+          this.cargarCentroMonitoreoHse();
+        } else {
+          alert(this.getRespuestaMensaje(response) || 'No se pudo actualizar el Puntaje de Centro de Monitoreo HSE.');
+        }
+      },
+      error: (error: unknown) => {
+        alert(this.getErrorMessage(error, 'No se pudo actualizar el Puntaje de Centro de Monitoreo HSE.'));
+      }
+    });
   }
 
   editarCentroMonitoreoHse(id: number): void {
@@ -592,6 +695,7 @@ export class InspeccionesPageComponent implements OnInit {
     this.weReportCodSeleccionado = null;
     this.centroMonitoreoIdSeleccionado = null;
     this.centroMonitoreoNotaSeleccionado = null;
+    this.centroMonitoreoPuntajeSeleccionado = null;
     this.paginaActual = 1;
     this.closeCombos();
     this.buscarRegistros();

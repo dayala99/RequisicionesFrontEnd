@@ -122,7 +122,9 @@
   font-weight: 700;
 }
 
-.field input {
+.field input,
+.field select,
+.field textarea {
   width: 100%;
   min-height: 2.75rem;
   padding: 0.7rem 0.8rem;
@@ -132,11 +134,21 @@
   color: var(--text-primary);
   outline: none;
   box-sizing: border-box;
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 6.5rem;
+  resize: vertical;
 }
 
 .field input[readonly] {
   background: #fafbfc;
   color: #334155;
+}
+
+.field--wide {
+  grid-column: 1 / -1;
 }
 
 .table-wrapper {

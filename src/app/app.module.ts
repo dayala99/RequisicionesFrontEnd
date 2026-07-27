@@ -95,6 +95,9 @@ import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-re
 import { GridPaginationComponent } from './shared/components/grid-pagination/grid-pagination.component';
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
 import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/confirmacion-accion-dialog.component';
+import { ElegirEdicionCentroMonitoreoDialogComponent } from './pages/inspecciones-page/elegir-edicion-centro-monitoreo-dialog.component';
+import { CentroMonitoreoHsePuntajeDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-puntaje-dialog.component';
+import { CentroMonitoreoHseMotivoDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-motivo-dialog.component';
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
 import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
 import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
@@ -204,6 +207,7 @@ const APP_DATE_FORMATS = {
     UsuarioRegisterDialogComponent,
     InspeccionesPageComponent,
     ConfirmacionAccionDialogComponent,
+    ElegirEdicionCentroMonitoreoDialogComponent,
     ObservacionesPlaneadasComponent,
     InspeccionMedioAmbienteComponent,
     InspeccionPrevencionComponent,
@@ -215,6 +219,8 @@ const APP_DATE_FORMATS = {
     CapturaAudioDialogComponent,
     CentroMonitoreoHseComponent,
     CentroMonitoreoHseNotaDialogComponent,
+    CentroMonitoreoHsePuntajeDialogComponent,
+    CentroMonitoreoHseMotivoDialogComponent,
     GridPaginationComponent,
   ],
   imports: [

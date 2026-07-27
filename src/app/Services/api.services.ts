@@ -2160,6 +2160,33 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.post(this.baseUrl + 'CentroMonitoreoHse/postEliminarCentroMonitoreoHse', payload, { headers });
     }
 
+    postInsertarPuntajeCentroHse(payload: {
+        Centro_HSE_Id: number;
+        Usr_Reg: string;
+        Detalles: Array<{ Pregunta_Id: number; Puntaje_Tipo: 'A' | 'D'; Puntaje_Rpta: 'S' | 'N' }>;
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'CentroMonitoreoHse/postInsertarPuntajeCentroHse', payload, { headers });
+    }
+
+    getMostrarActualizarPuntajeCentroHse(Centro_HSE_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Centro_HSE_Id', String(Centro_HSE_Id));
+        return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getMostrarActualizarPuntajeCentroHse', { headers, params });
+    }
+
+    postActualizarPuntajeCentroHse(payload: {
+        Centro_HSE_Id: number;
+        Usr_Mod: string;
+        Detalles: Array<{ Puntaje_Id: number; Puntaje_Rpta: 'S' | 'N' }>;
+        Centro_Revision?: 'CERRADO' | 'ABIERTO';
+        Centro_Motivo?: string;
+        Motivo?: string;
+    }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'CentroMonitoreoHse/postActualizarPuntajeCentroHse', payload, { headers });
+    }
+
     // postRegistrarPedido(pedido: RegistrarPedidoRequest): Observable<any> {
     //     const headers = this.Header;
     //     return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', pedido, { headers });

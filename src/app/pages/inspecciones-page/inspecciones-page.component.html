@@ -435,7 +435,13 @@
                 <td>{{ cm.Centro_Revision || '-' }}</td>
                 <td>{{ cm.Centro_Puntaje || '-' }}</td>
                 <td>
-                  <button type="button" class="table-action" aria-label="Ver nota" title="Nota" (click)="verNotaCentroMonitoreoHse(cm)">
+                  <button
+                    type="button"
+                    class="table-action"
+                    aria-label="Ver nota"
+                    [title]="esRevisionAbierta(cm.Centro_Revision) ? 'Nota' : 'Disponible solo cuando la revisión está ABIERTO'"
+                    (click)="verNotaCentroMonitoreoHse(cm)"
+                    [disabled]="!esRevisionAbierta(cm.Centro_Revision)">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"></path>
                       <path d="M14 3v6h6"></path>
@@ -443,7 +449,7 @@
                       <path d="M9 17h6"></path>
                     </svg>
                   </button>
-                  <button type="button" class="table-action" aria-label="Editar Monitoreo HSE" title="Editar" (click)="editarCentroMonitoreoHse(cm.Centro_HSE_Id)">
+                  <button type="button" class="table-action" aria-label="Editar Monitoreo HSE" title="Editar" (click)="elegirEdicionCentroMonitoreoHse(cm.Centro_HSE_Id)">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
                     </svg>
@@ -515,6 +521,11 @@
     <ng-container *ngTemplateOutlet="vistaCentroMonitoreoHseNota"></ng-container>
   </ng-container>
 
+  <!-- ── Centro de Monitoreo HSE (puntaje) ── -->
+  <ng-container *ngSwitchCase="'centro-monitoreo-hse-puntaje'">
+    <ng-container *ngTemplateOutlet="vistaCentroMonitoreoHsePuntaje"></ng-container>
+  </ng-container>
+
 </ng-container>
 
 
@@ -557,4 +568,11 @@
     [centroMonitoreo]="centroMonitoreoNotaSeleccionado"
     (volver)="cancelarNotaCentroMonitoreoHse()"
     (guardado)="manejarNotaCentroMonitoreoGuardado($event)"></app-centro-monitoreo-hse-nota-dialog>
+</ng-template>
+
+<ng-template #vistaCentroMonitoreoHsePuntaje>
+  <app-centro-monitoreo-hse-puntaje-dialog
+    [centroMonitoreo]="centroMonitoreoPuntajeSeleccionado"
+    (volver)="cancelarPuntajeCentroMonitoreoHse()"
+    (guardado)="manejarPuntajeCentroMonitoreoGuardado($event)"></app-centro-monitoreo-hse-puntaje-dialog>
 </ng-template>
