@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ApiService, EliminarObservacionPlaneadaRequest } from 'src/app/Services/api.services';
+import type { CentroMonitoreoHseExcelRow } from 'src/app/shared/utils/centro-monitoreo-hse-excel.utils';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
 import { ConfirmacionAccionDialogComponent } from './confirmacion-accion-dialog.component';
 import { ElegirEdicionCentroMonitoreoDialogComponent, ElegirEdicionCentroMonitoreoResultado } from './elegir-edicion-centro-monitoreo-dialog.component';
@@ -10,6 +11,7 @@ import { CentroMonitoreoHsePuntajeResult } from './centro-monitoreo-hse-puntaje-
 import { WeReportArchivosDialogComponent } from './we-report-archivos-dialog.component';
 import { CentroMonitoreoHseNotaResult } from './centro-monitoreo-hse-nota-dialog.component';
 import { createCentroMonitoreoHseReportPdf, CentroMonitoreoHseReportePdfData } from 'src/app/shared/utils/centro-monitoreo-hse-report-pdf.utils';
+import { createCentroMonitoreoHseExcel } from 'src/app/shared/utils/centro-monitoreo-hse-excel.utils';
 
 type TabActivo = 'prevencion' | 'medio-ambiente' | 'observaciones' | 'stop-work' | 'we-report' | 'centro-monitoreo-hse';
 
@@ -611,6 +613,52 @@ export class InspeccionesPageComponent implements OnInit {
     }
   }
 
+  descargarExcelGeneralCentroMonitoreoHse(): void {
+    this.apiService.getExcelGeneralCentroMonitoreoHse().subscribe({
+      next: (rows: CentroMonitoreoHseExcelRow[]) => {
+        const blob = createCentroMonitoreoHseExcel(rows ?? []);
+        const url = URL.createObjectURL(blob);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `Centro_Monitoreo_HSE_General_${this.formatearFechaArchivo(new Date())}.xlsx`;
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      },
+      error: (error: unknown) => {
+        alert(this.getErrorMessage(error, 'No se pudo generar el Excel general del Centro de Monitoreo HSE.'));
+      }
+    });
+  }
+
+  descargarExcelEspecificoCentroMonitoreoHse(): void {
+    const fechaDesde = this.formatearFechaConsulta(this.filtroDesde);
+    const fechaHasta = this.formatearFechaConsulta(this.filtroHasta);
+
+    if (!fechaDesde || !fechaHasta) {
+      alert('Selecciona un rango de fechas para exportar el Excel específico.');
+      return;
+    }
+
+    this.apiService.getExcelEspecificoCentroMonitoreoHse(fechaDesde, fechaHasta, this.estadoFiltro).subscribe({
+      next: (rows: CentroMonitoreoHseExcelRow[]) => {
+        const blob = createCentroMonitoreoHseExcel(rows ?? []);
+        const url = URL.createObjectURL(blob);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `Centro_Monitoreo_HSE_Especifico_${this.formatearFechaArchivo(new Date())}.xlsx`;
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      },
+      error: (error: unknown) => {
+        alert(this.getErrorMessage(error, 'No se pudo generar el Excel específico del Centro de Monitoreo HSE.'));
+      }
+    });
+  }
+
   editarCentroMonitoreoHse(id: number): void {
     this.modoFormulario = 'editar';
     this.centroMonitoreoIdSeleccionado = id ?? null;
@@ -1207,6 +1255,16 @@ export class InspeccionesPageComponent implements OnInit {
         this.cargandoCentroMonitoreoHse = false;
       }
     });
+  }
+
+  private formatearFechaArchivo(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    const hours = String(fecha.getHours()).padStart(2, '0');
+    const minutes = String(fecha.getMinutes()).padStart(2, '0');
+    const seconds = String(fecha.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
   }
 
   // ── Helpers ─────────────────────────────────────────────────────

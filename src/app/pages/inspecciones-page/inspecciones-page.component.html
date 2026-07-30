@@ -69,8 +69,8 @@
 
     <div class="actions">
       <button type="button" class="btn-orange" (click)="abrirObservacionesPlaneadas()">+ {{ labelNuevo }}</button>
-      <button type="button" class="btn-orange">Excel General</button>
-      <button type="button" class="btn-orange">Excel Específico</button>
+      <button type="button" class="btn-orange" (click)="descargarExcelGeneralCentroMonitoreoHse()">Excel General</button>
+      <button type="button" class="btn-orange" (click)="descargarExcelEspecificoCentroMonitoreoHse()">Excel Específico</button>
       <button type="button" class="btn-orange btn-search" (click)="buscarObservaciones()">Buscar</button>
     </div>
 

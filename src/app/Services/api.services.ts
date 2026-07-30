@@ -4,6 +4,7 @@ import { Observable, catchError } from 'rxjs';
 import { GlobalVariable } from '../VarGlobals';
 import { HttpHeaders } from '@angular/common/http';
 import { HttpParams } from '@angular/common/http';
+import type { CentroMonitoreoHseExcelRow } from 'src/app/shared/utils/centro-monitoreo-hse-excel.utils';
 
 export interface UsuariosFiltro {
     Usr_Id?: number;
@@ -102,6 +103,7 @@ export interface CentroHseListadoItem {
     Centro_Puntaje?: string;
     Centro_Comentario?: string;
 }
+
 
 export interface EliminarWeReportRequest {
     We_Report_Id: number;
@@ -2158,6 +2160,21 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         const headers = this.Header;
         const params = new HttpParams().set('Centro_HSE_Id', String(Centro_HSE_Id));
         return this.http.get(this.baseUrl + 'CentroMonitoreoHse/getReportePdfCentroMonitoreoHse', { headers, params, responseType: 'arraybuffer' });
+    }
+
+    getExcelGeneralCentroMonitoreoHse(): Observable<CentroMonitoreoHseExcelRow[]> {
+        const headers = this.Header;
+        return this.http.get<CentroMonitoreoHseExcelRow[]>(this.baseUrl + 'CentroMonitoreoHse/getExcelGeneralCentroMonitoreoHse', { headers });
+    }
+
+    getExcelEspecificoCentroMonitoreoHse(Fecha_Desde: string, Fecha_Hasta: string, Estado: 'A' | 'I'): Observable<CentroMonitoreoHseExcelRow[]> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Fecha_Desde', Fecha_Desde)
+            .set('Fecha_Hasta', Fecha_Hasta)
+            .set('Estado', Estado);
+
+        return this.http.get<CentroMonitoreoHseExcelRow[]>(this.baseUrl + 'CentroMonitoreoHse/getExcelEspecificoCentroMonitoreoHse', { headers, params });
     }
 
     postInsertarCentroMonitoreoHse(formData: FormData): Observable<any> {
