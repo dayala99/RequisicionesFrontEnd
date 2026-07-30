@@ -2,18 +2,22 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatDialog } from '@angular/material/dialog';
-import { forkJoin, Observable, of } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { ActivatedRoute } from '@angular/router';
+import { forkJoin, from, Observable, of } from 'rxjs';
+import { concatMap, map, switchMap, toArray } from 'rxjs/operators';
 
 import {
+  ActualizarEstadoConfirmacionOrdenCompraRequest,
   AsignarOrdenCompraDetallePedidoRequest,
   ActualizarDetallePedidoRequest,
   ActualizarOrdenCompraRequest,
   ActualizarReferenciaGeneralRequest,
+  AnularOrdenCompraRequest,
   ApiService,
   DesAsignarOrdenCompraDetallePedidoRequest,
   OrdenCompraFiltro,
   PedidosFiltro,
+  RegistrarArchivoAdjuntoOrdenCompraRequest,
   RegistrarOrdenCompraRequest
 } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
@@ -28,6 +32,8 @@ import {
 } from 'src/app/shared/utils/orden-compra-report-pdf.utils';
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 import { OrdenCompraParcialDialogComponent } from './orden-compra-parcial-dialog.component';
+import { PedidoArchivoDialogRow, PedidoArchivosDialogComponent } from '../requisiciones-page/pedido-archivos-dialog.component';
+import { ConfirmacionAccionDialogComponent, ConfirmacionDialogData } from '../inspecciones-page/confirmacion-accion-dialog.component';
 
 type DataRecord = Record<string, unknown>;
 type OrdenCompraListadoModo = 'pendientes' | 'generados';
@@ -35,8 +41,15 @@ type OrdenCompraListadoModo = 'pendientes' | 'generados';
 interface OrdenCompraRow {
   id: number;
   ordenCompraId: number | null;
+  correlativo: string;
   pedidoIdAtencion: number | null;
+  usuarioRegistro: string;
+  usuarioAprobacionPedido: string;
+  flgEstCon: number;
+  conformidadRegistro: boolean;
+  conformidadAprobacion: boolean;
   proveedorId: number;
+  monedaId: number;
   proveedor: string;
   proveedorRuc: string;
   proveedorBancoId: number;
@@ -47,6 +60,7 @@ interface OrdenCompraRow {
   proveedorEmail: string;
   proveedorDireccion: string;
   tipoServicio: string;
+  monedaAbreviacion: string;
   formaPagoId: number;
   formaPago: string;
   referenciaObra: string;
@@ -112,11 +126,33 @@ interface OrdenCompraDetallePedidoRow {
   selected: boolean;
 }
 
+interface OrdenCompraArchivoAdjuntoGuardado {
+  id: number;
+  ordenCompraId: number;
+  nombre: string;
+  ruta: string;
+}
+
+interface OrdenCompraArchivoAdjuntoVista {
+  id: number;
+  ordenCompraId: number;
+  nombre: string;
+  ruta: string;
+  local: boolean;
+  index: number;
+}
+
 interface DetraccionOption {
   id: number;
   descripcion: string;
   porcentaje: number;
   label: string;
+}
+
+interface MonedaOption {
+  id: number;
+  descripcion: string;
+  abreviacion: string;
 }
 
 @Component({
@@ -142,6 +178,7 @@ export class OrdenCompraPageComponent implements OnInit {
   pedidosPendientes: PedidoPendienteRow[] = [];
   proveedores: ProviderRecord[] = [];
   formasPago: PaymentOption[] = [];
+  monedas: MonedaOption[] = [];
   centrosCostoCatalogo: OrdenCompraCentroCostoRow[] = [];
   centrosCosto: OrdenCompraCentroCostoRow[] = [];
   pedidoDetalles: OrdenCompraDetallePedidoRow[] = [];
@@ -158,12 +195,16 @@ export class OrdenCompraPageComponent implements OnInit {
   isLoadingOrdenesCompra = false;
   isLoadingProveedores = false;
   isLoadingFormasPago = false;
+  isLoadingMonedas = false;
   isLoadingCentrosCosto = false;
   isLoadingDetracciones = false;
   isLoadingPedidoCentrosCosto = false;
   isLoadingPedidoDetalle = false;
   isSavingOrdenCompra = false;
   isLoadingReporteOrdenCompraId: number | null = null;
+  isUpdatingConformidadOrdenCompraId: number | null = null;
+  isLoadingArchivosOrdenCompraListado: number | null = null;
+  isUpdatingEstadoOrdenCompraId: number | null = null;
   esParcial = false;
   errorMessage = '';
   saveErrorMessage = '';
@@ -172,15 +213,20 @@ export class OrdenCompraPageComponent implements OnInit {
   ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
   ordenCompraArchivoRuta = '';
   ordenCompraArchivoFile: File | null = null;
+  ordenCompraArchivoFiles: File[] = [];
+  ordenCompraArchivosAdjuntosGuardados: OrdenCompraArchivoAdjuntoGuardado[] = [];
   pedidoArchivoAdjunto = 'Sin archivo adjunto';
+  isLoadingPedidoArchivosAdjuntos = false;
   detallesPendientesDesasignacion: OrdenCompraDetallePedidoRow[] = [];
   private ordenCompraLogoBytes: Uint8Array | null | undefined;
+  private ordenCompraHeaderImageBytes: Uint8Array | null | undefined;
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly dialog: MatDialog,
     private readonly apiService: ApiService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly route: ActivatedRoute
   ) {
     this.filtersForm = this.formBuilder.group({
       modoListado: ['pendientes'],
@@ -200,6 +246,7 @@ export class OrdenCompraPageComponent implements OnInit {
       ruc: [''],
       formaPagoId: [0],
       formaPago: ['', [Validators.required, noWhitespaceValidator()]],
+      monedaId: [0],
       referenciaObra: [''],
       referencia: [''],
       pedidoReferenciaGeneral: [''],
@@ -219,10 +266,34 @@ export class OrdenCompraPageComponent implements OnInit {
   ngOnInit(): void {
     this.cargarProveedores();
     this.cargarFormasPago();
+    this.cargarMonedas();
     this.cargarCentrosCosto();
     this.cargarDetracciones();
     this.cargarPedidosPendientes();
     this.resetEditor();
+  }
+
+  private get ordenCompraTipoId(): number {
+    const routeValue = Number(this.route.snapshot.data?.['ordComTip']);
+    return Number.isInteger(routeValue) && routeValue > 0 ? routeValue : 1;
+  }
+
+  get isOrdenServicio(): boolean {
+    return this.ordenCompraTipoId === 2;
+  }
+
+  get paginaTitulo(): string {
+    return this.ordenCompraTipoId === 2 ? 'Orden de Servicio' : 'Orden de Compra';
+  }
+
+  get numeroOrdenLabel(): string {
+    return this.ordenCompraTipoId === 2 ? 'Nro. O/S' : 'Nro. O/C';
+  }
+
+  get paginaDescripcion(): string {
+    return this.ordenCompraTipoId === 2
+      ? 'Registra y actualiza ordenes de servicio con un flujo de trabajo unico y una grilla de centros de costo habilitable para casos parciales.'
+      : 'Registra y actualiza ordenes de compra con un flujo de trabajo unico y una grilla de centros de costo habilitable para casos parciales.';
   }
 
   get proveedorButtonLabel(): string {
@@ -245,7 +316,16 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get igvCalculado(): number {
-    return this.normalizeDecimal(this.subtotalCalculado * this.getPorcentajeIgv() / 100);
+    const subtotalCuatroDecimales = this.normalizeDecimalPrecision(
+      this.detallesPedidoSeleccionados.reduce((total, item) => total + item.subtotal, 0),
+      4
+    );
+    const igvCuatroDecimales = this.normalizeDecimalPrecision(
+      subtotalCuatroDecimales * this.getPorcentajeIgv() / 100,
+      4
+    );
+
+    return this.redondearIgvSegunTercerDecimal(igvCuatroDecimales);
   }
 
   get totalCalculado(): number {
@@ -263,7 +343,10 @@ export class OrdenCompraPageComponent implements OnInit {
 
   get montoDetraccionCalculado(): number {
     const porcentaje = this.detraccionSeleccionada?.porcentaje ?? 0;
-    return this.normalizeDecimal(this.totalConIgvCalculado * porcentaje / 100);
+    return this.aplicarRedondeoMontoDetraccion(
+      this.normalizeDecimal(this.totalConIgvCalculado * porcentaje / 100),
+      this.getDetraccionIdSeleccionada()
+    );
   }
 
   get filteredDetracciones(): DetraccionOption[] {
@@ -320,6 +403,18 @@ export class OrdenCompraPageComponent implements OnInit {
 
   get paginatedPedidoDetalles(): OrdenCompraDetallePedidoRow[] {
     return paginateItems(this.pedidoDetalles, this.currentDetallePedidoPage, this.pageSize);
+  }
+
+  get totalCantidadDetallePedido(): number {
+    return this.normalizeDecimal(this.pedidoDetalles.reduce((total, item) => total + item.cantidad, 0));
+  }
+
+  get totalCostoUnitarioDetallePedido(): number {
+    return this.normalizeDecimalPrecision(this.pedidoDetalles.reduce((total, item) => total + item.costoUnitario, 0), 4);
+  }
+
+  get totalSubtotalDetallePedido(): number {
+    return this.normalizeDecimalPrecision(this.pedidoDetalles.reduce((total, item) => total + item.subtotal, 0), 4);
   }
 
   get estanTodosLosDetallesSeleccionados(): boolean {
@@ -390,6 +485,34 @@ export class OrdenCompraPageComponent implements OnInit {
     this.iniciarEdicionOrdenCompra();
   }
 
+  anularOrdenCompraFila(item: OrdenCompraRow, event?: Event): void {
+    event?.stopPropagation();
+
+    if (!this.canAnularOrdenCompra(item)) {
+      return;
+    }
+
+    const dialogData: ConfirmacionDialogData = {
+      titulo: 'Anular orden de compra',
+      mensaje: `¿Deseas anular la orden ${item.correlativo}?`,
+      textoConfirmar: 'Anular',
+      textoCancelar: 'Cancelar',
+      tipo: 'peligro'
+    };
+
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '28rem',
+      maxWidth: '95vw',
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean | undefined) => {
+      if (confirmado) {
+        this.anularOrdenCompra(item);
+      }
+    });
+  }
+
   verReporteOrdenCompra(item: OrdenCompraRow): void {
     if (!item.ordenCompraId || this.isLoadingReporteOrdenCompraId === item.id) {
       return;
@@ -418,10 +541,9 @@ export class OrdenCompraPageComponent implements OnInit {
             : of([] as unknown)
         }).pipe(
           switchMap((context) => {
-            const proveedorBancoId = this.resolveProveedorBancoIdFromProveedorResponse(context.proveedorResponse);
             const proveedorBancoRequest = ordenCompra.proveedorId
               ? this.apiService.getListarProveedorBanco({
-                  Prv_Ban_Id: proveedorBancoId,
+                  Prv_Ban_Id: ordenCompra.proveedorBancoId,
                   Prv_Id: ordenCompra.proveedorId
                 })
               : of([] as unknown);
@@ -448,9 +570,10 @@ export class OrdenCompraPageComponent implements OnInit {
     ).subscribe({
       next: async ({ ordenCompra, detalleResponse, pedidoResponse, proveedorResponse, proveedorBancoResponse, bancoResponse }) => {
         const logoBytes = await this.loadOrdenCompraLogoBytes();
+        const headerImageBytes = await this.loadOrdenCompraHeaderImageBytes();
         const pdfBlob = createOrdenCompraReportPdf(
           this.buildOrdenCompraReportePdfData(ordenCompra, detalleResponse, pedidoResponse, proveedorResponse, proveedorBancoResponse, bancoResponse),
-          { logoBytes }
+          { logoBytes, headerImageBytes }
         );
         const url = URL.createObjectURL(pdfBlob);
         window.open(url, '_blank');
@@ -472,6 +595,14 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.selectedOrdenCompraId === item.id;
   }
 
+  canAnularOrdenCompra(item: OrdenCompraRow): boolean {
+    return item.canEdit && item.estadoCodigo === 'A' && !this.isAnulandoOrdenCompra(item);
+  }
+
+  isAnulandoOrdenCompra(item: OrdenCompraRow): boolean {
+    return this.isUpdatingEstadoOrdenCompraId === item.id;
+  }
+
   trackByOrdenCompra(_: number, item: OrdenCompraRow): number {
     return item.id;
   }
@@ -482,6 +613,162 @@ export class OrdenCompraPageComponent implements OnInit {
 
   trackByDetallePedido(_: number, item: OrdenCompraDetallePedidoRow): number {
     return item.id;
+  }
+
+  confirmarConformidadRegistro(item: OrdenCompraRow, event: Event): void {
+    event.stopPropagation();
+
+    if (!this.puedeConfirmarConformidadRegistro(item)) {
+      return;
+    }
+
+    this.confirmarAccionConformidad(item, 1);
+  }
+
+  confirmarConformidadAprobacion(item: OrdenCompraRow, event: Event): void {
+    event.stopPropagation();
+
+    if (!this.puedeConfirmarConformidadAprobacion(item)) {
+      return;
+    }
+
+    this.confirmarAccionConformidad(item, 2);
+  }
+
+  puedeConfirmarConformidadRegistro(item: OrdenCompraRow): boolean {
+    if (item.conformidadRegistro || this.isUpdatingConformidadOrdenCompraId === item.id) {
+      return false;
+    }
+
+    const usuarioRegistro = this.normalizeUsuarioConformidad(item.usuarioRegistro);
+
+    if (!usuarioRegistro) {
+      return false;
+    }
+
+    return usuarioRegistro === this.getUsuarioSesionNormalizado();
+  }
+
+  puedeConfirmarConformidadAprobacion(item: OrdenCompraRow): boolean {
+    if (item.flgEstCon !== 1 || item.conformidadAprobacion || this.isUpdatingConformidadOrdenCompraId === item.id) {
+      return false;
+    }
+
+    const usuarioAprobacion = this.normalizeUsuarioConformidad(item.usuarioAprobacionPedido);
+
+    if (!usuarioAprobacion) {
+      return false;
+    }
+
+    return usuarioAprobacion === this.getUsuarioSesionNormalizado();
+  }
+
+  private actualizarEstadoConformidadOrdenCompra(item: OrdenCompraRow, flgEstCon: number): void {
+    if (!item.ordenCompraId) {
+      return;
+    }
+
+    const payload: ActualizarEstadoConfirmacionOrdenCompraRequest = {
+      Ord_Com_Id: item.ordenCompraId,
+      Flg_Est_Con: flgEstCon
+    };
+
+    this.isUpdatingConformidadOrdenCompraId = item.id;
+    this.errorMessage = '';
+
+    this.apiService.patchActualizarEstadoConfirmacionOrdenCompra(payload).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo actualizar el estado de conformidad.');
+        } catch (error: unknown) {
+          this.errorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el estado de conformidad.');
+          this.isUpdatingConformidadOrdenCompraId = null;
+          return;
+        }
+
+        this.ordenesCompra = this.ordenesCompra.map((current) =>
+          current.id === item.id
+            ? {
+                ...current,
+                flgEstCon,
+                conformidadRegistro: flgEstCon >= 1,
+                conformidadAprobacion: flgEstCon >= 2
+              }
+            : current
+        );
+        this.isUpdatingConformidadOrdenCompraId = null;
+      },
+      error: (error: unknown) => {
+        this.errorMessage = this.resolveErrorMessage(error, 'No se pudo actualizar el estado de conformidad.');
+        this.isUpdatingConformidadOrdenCompraId = null;
+      }
+    });
+  }
+
+  private confirmarAccionConformidad(item: OrdenCompraRow, flgEstCon: number): void {
+    const esAprobacion = flgEstCon === 2;
+    const dialogData: ConfirmacionDialogData = {
+      titulo: esAprobacion ? 'Confirmar conformidad de aprobacion' : 'Confirmar conformidad de registro',
+      mensaje: esAprobacion
+        ? `Se confirmara la conformidad del usuario de aprobacion para la orden ${item.correlativo}.`
+        : `Se confirmara la conformidad del usuario de registro para la orden ${item.correlativo}.`,
+      textoConfirmar: 'Confirmar',
+      textoCancelar: 'Cancelar'
+    };
+
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '28rem',
+      maxWidth: '95vw',
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean | undefined) => {
+      if (confirmado) {
+        this.actualizarEstadoConformidadOrdenCompra(item, flgEstCon);
+      }
+    });
+  }
+
+  private anularOrdenCompra(item: OrdenCompraRow): void {
+    if (!item.ordenCompraId) {
+      this.errorMessage = 'La orden de compra seleccionada no tiene un identificador valido.';
+      return;
+    }
+
+    const currentUser = this.authService.getCurrentUser().trim();
+
+    if (!currentUser) {
+      this.errorMessage = 'No se encontro el usuario actual de la sesion.';
+      return;
+    }
+
+    this.isUpdatingEstadoOrdenCompraId = item.id;
+    this.errorMessage = '';
+
+    const request: AnularOrdenCompraRequest = {
+      Ord_Com_Id: item.ordenCompraId,
+      Flg_Est: 'I',
+      Usr_Mod: currentUser
+    };
+
+    this.apiService.patchAnularOrdenCompra(request).subscribe({
+      next: (response: unknown) => {
+        try {
+          this.assertSuccessfulResponse(response, 'No se pudo anular la orden de compra.');
+        } catch (error: unknown) {
+          this.errorMessage = this.resolveErrorMessage(error, 'No se pudo anular la orden de compra.');
+          this.isUpdatingEstadoOrdenCompraId = null;
+          return;
+        }
+
+        this.isUpdatingEstadoOrdenCompraId = null;
+        this.cargarListadoSeleccionado();
+      },
+      error: (error: unknown) => {
+        this.errorMessage = this.resolveErrorMessage(error, 'No se pudo anular la orden de compra.');
+        this.isUpdatingEstadoOrdenCompraId = null;
+      }
+    });
   }
 
   onOrdenesCompraPageChange(page: number): void {
@@ -526,10 +813,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const checked = !!input?.checked;
 
     this.form.controls['usarIgv18'].setValue(checked, { emitEvent: false });
-
-    if (checked) {
-      this.form.controls['porcentajeIgv'].setValue(18, { emitEvent: false });
-    }
+    this.form.controls['porcentajeIgv'].setValue(checked ? 18 : 0, { emitEvent: false });
 
     this.syncTotalesCalculados();
   }
@@ -541,7 +825,7 @@ export class OrdenCompraPageComponent implements OnInit {
       return;
     }
 
-    const sanitizedValue = this.sanitizeDecimalInput(input.value);
+    const sanitizedValue = this.sanitizeDecimalInput(input.value, 4);
 
     if (sanitizedValue !== input.value) {
       input.value = sanitizedValue;
@@ -573,18 +857,65 @@ export class OrdenCompraPageComponent implements OnInit {
       return;
     }
 
+    const sanitizedValue = this.sanitizeDecimalInput(input.value, 4);
+
+    if (sanitizedValue !== input.value) {
+      input.value = sanitizedValue;
+    }
+
+    const costoUnitario = this.parseMontoControlValue(sanitizedValue, 4);
+    const subtotal = this.normalizeDecimalPrecision(item.cantidad * costoUnitario, 4);
+
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, costoUnitario, subtotal }
+        : detalle
+    );
+    this.syncTotalesCalculados();
+  }
+
+  actualizarCantidadDetallePedido(item: OrdenCompraDetallePedidoRow, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
     const sanitizedValue = this.sanitizeDecimalInput(input.value);
 
     if (sanitizedValue !== input.value) {
       input.value = sanitizedValue;
     }
 
-    const costoUnitario = this.parseMontoControlValue(sanitizedValue);
-    const subtotal = this.normalizeDecimal(item.cantidad * costoUnitario);
+    const cantidad = this.parseMontoControlValue(sanitizedValue);
+    const subtotal = this.normalizeDecimalPrecision(cantidad * item.costoUnitario, 4);
 
     this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
       detalle.id === item.id
-        ? { ...detalle, costoUnitario, subtotal }
+        ? { ...detalle, cantidad, subtotal }
+        : detalle
+    );
+    this.syncTotalesCalculados();
+  }
+
+  actualizarSubtotalDetallePedido(item: OrdenCompraDetallePedidoRow, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = this.sanitizeDecimalInput(input.value, 4);
+
+    if (sanitizedValue !== input.value) {
+      input.value = sanitizedValue;
+    }
+
+    const subtotal = this.parseMontoControlValue(sanitizedValue, 4);
+
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, subtotal }
         : detalle
     );
     this.syncTotalesCalculados();
@@ -711,7 +1042,7 @@ export class OrdenCompraPageComponent implements OnInit {
     this.syncTotalesCalculados();
   }
 
-  cargarCentrosCostoDesdePedido(): void {
+  cargarCentrosCostoDesdePedido(totalOrdenGuardado?: number): void {
     const pedidoId = Number(this.form.controls['pedidoIdAtencion'].value);
 
     this.centrosCostoErrorMessage = '';
@@ -734,10 +1065,15 @@ export class OrdenCompraPageComponent implements OnInit {
 
     this.loadPedidoData(pedidoId).subscribe({
       next: ({ centrosCostoResponse, detalleResponse, pedidoResponse }) => {
-        this.applyPedidoDataResponse(centrosCostoResponse, detalleResponse, pedidoResponse);
+        this.applyPedidoDataResponse(
+          centrosCostoResponse,
+          detalleResponse,
+          pedidoResponse,
+          totalOrdenGuardado
+        );
       },
       error: (error: unknown) => {
-        this.handlePedidoDataError(error);
+        this.handlePedidoDataError(error, totalOrdenGuardado);
       }
     });
   }
@@ -767,6 +1103,12 @@ export class OrdenCompraPageComponent implements OnInit {
     request$.pipe(
       switchMap((response: unknown) => {
         this.assertSuccessfulResponse(response, 'No se pudo guardar la orden de compra.');
+        return this.resolveOrdenCompraIdParaAsignacion(response).pipe(
+          switchMap((ordenCompraId) => this.sincronizarArchivosAdjuntosOrdenCompra(ordenCompraId)),
+          map(() => response)
+        );
+      }),
+      switchMap((response: unknown) => {
         return this.sincronizarDetallePedidoSeleccionado(response);
       })
     ).subscribe({
@@ -818,44 +1160,92 @@ export class OrdenCompraPageComponent implements OnInit {
       return;
     }
 
-    this.ordenCompraArchivoFile = input.files[0];
-    this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile.name;
+    const archivosSeleccionados = Array.from(input.files);
+    this.ordenCompraArchivoFiles = [
+      ...this.ordenCompraArchivoFiles,
+      ...archivosSeleccionados.filter((archivo) =>
+        !this.ordenCompraArchivosAdjuntosGuardados.some((existente) =>
+          existente.nombre.toLowerCase() === archivo.name.toLowerCase()
+        ) &&
+        !this.ordenCompraArchivoFiles.some((existente) =>
+          existente.name === archivo.name &&
+          existente.size === archivo.size &&
+          existente.lastModified === archivo.lastModified
+        )
+      )
+    ];
+    this.ordenCompraArchivoFile = this.ordenCompraArchivoFiles[0] ?? null;
+    this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile?.name ?? 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = '';
-    this.form.patchValue({
-      archivo: this.ordenCompraArchivoAdjunto
-    });
+    this.actualizarOrdenCompraArchivoFormControl();
+    input.value = '';
   }
 
-  quitarOrdenCompraArchivo(fileInput?: HTMLInputElement): void {
-    this.ordenCompraArchivoFile = null;
-    this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
-    this.ordenCompraArchivoRuta = '';
-    this.form.patchValue({
-      archivo: this.ordenCompraArchivoAdjunto
-    });
+  quitarOrdenCompraArchivoAdjunto(archivo: OrdenCompraArchivoAdjuntoVista, fileInput?: HTMLInputElement): void {
+    if (archivo.local) {
+      this.ordenCompraArchivoFiles.splice(archivo.index, 1);
+      this.ordenCompraArchivoFile = this.ordenCompraArchivoFiles[0] ?? null;
+      this.ordenCompraArchivoAdjunto = this.ordenCompraArchivoFile?.name ?? 'Sin archivo adjunto';
+      this.actualizarOrdenCompraArchivoFormControl();
+
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      return;
+    }
+
+    if (archivo.id > 0) {
+      const request: RegistrarArchivoAdjuntoOrdenCompraRequest = {
+        Ord_Com_Arc_Id: archivo.id,
+        Ord_Com_Id: archivo.ordenCompraId,
+        Ord_Com_Arc_Rut: archivo.ruta,
+        Ord_Com_Arc_Nom: archivo.nombre
+      };
+
+      this.apiService.deleteEliminarArchivoAdjuntoOrdenCompra(request).subscribe({
+        next: (response: unknown) => {
+          this.assertSuccessfulResponse(response, 'No se pudo eliminar el archivo adjunto de la orden de compra.');
+          this.ordenCompraArchivosAdjuntosGuardados = this.ordenCompraArchivosAdjuntosGuardados
+            .filter((item) => item.id !== archivo.id);
+          this.actualizarOrdenCompraArchivoFormControl();
+        },
+        error: (error: unknown) => {
+          this.saveErrorMessage = this.resolveErrorMessage(error, 'No se pudo eliminar el archivo adjunto de la orden de compra.');
+        }
+      });
+    } else {
+      this.ordenCompraArchivosAdjuntosGuardados = this.ordenCompraArchivosAdjuntosGuardados
+        .filter((item) => item.nombre !== archivo.nombre);
+      this.actualizarOrdenCompraArchivoFormControl();
+    }
 
     if (fileInput) {
       fileInput.value = '';
     }
   }
 
-  verOrdenCompraArchivo(): void {
+  verOrdenCompraArchivoAdjunto(archivo: OrdenCompraArchivoAdjuntoVista): void {
     this.saveErrorMessage = '';
 
-    if (this.ordenCompraArchivoFile) {
-      const url = URL.createObjectURL(this.ordenCompraArchivoFile);
-      window.open(url, '_blank');
+    if (archivo.local) {
+      const archivoLocal = this.ordenCompraArchivoFiles[archivo.index];
+
+      if (!archivoLocal) {
+        this.saveErrorMessage = 'No se encontro el archivo para visualizar.';
+        return;
+      }
+
+      this.openArchivoLocalEnChrome(archivoLocal);
       return;
     }
 
-    const nombreArchivo = String(this.form.controls['archivo'].value || '').trim();
+    const nombreArchivo = archivo.nombre.trim();
 
     if (nombreArchivo && nombreArchivo !== 'Sin archivo adjunto') {
       this.apiService.getArchivoOrdenCompra(nombreArchivo).subscribe({
         next: (arrayBuffer: ArrayBuffer) => {
-          const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
-          const url = URL.createObjectURL(blob);
-          window.open(url, '_blank');
+          this.openArrayBufferArchivoEnChrome(nombreArchivo, arrayBuffer);
         },
         error: (error: unknown) => {
           console.error('Error abriendo archivo de orden de compra:', error);
@@ -866,6 +1256,133 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     this.saveErrorMessage = 'No hay archivo adjunto para visualizar.';
+  }
+
+  get ordenCompraArchivosAdjuntosVista(): OrdenCompraArchivoAdjuntoVista[] {
+    const archivosGuardados = this.ordenCompraArchivosAdjuntosGuardados.map((archivo) => ({
+      id: archivo.id,
+      ordenCompraId: archivo.ordenCompraId,
+      nombre: archivo.nombre,
+      ruta: archivo.ruta,
+      local: false,
+      index: -1
+    }));
+    const archivosLocales = this.ordenCompraArchivoFiles.map((archivo, index) => ({
+      id: 0,
+      ordenCompraId: Number(this.form.controls['ordenCompraId'].value) || 0,
+      nombre: archivo.name,
+      ruta: '',
+      local: true,
+      index
+    }));
+
+    return [...archivosGuardados, ...archivosLocales];
+  }
+
+  private actualizarOrdenCompraArchivoFormControl(): void {
+    const archivo = this.ordenCompraArchivosAdjuntosVista
+      .map((item) => item.nombre)
+      .filter((nombre) => !!nombre)
+      .join(', ') || 'Sin archivo adjunto';
+
+    this.ordenCompraArchivoAdjunto = archivo;
+
+    this.form.patchValue({ archivo }, { emitEvent: false });
+  }
+
+  private cargarArchivosAdjuntosOrdenCompra(ordenCompraId: number): void {
+    if (!Number.isInteger(ordenCompraId) || ordenCompraId <= 0) {
+      this.ordenCompraArchivosAdjuntosGuardados = [];
+      this.actualizarOrdenCompraArchivoFormControl();
+      return;
+    }
+
+    this.apiService.getListarArchivosAdjuntosOrdenCompra(ordenCompraId).subscribe({
+      next: (response: unknown) => {
+        const archivos = this.extractRecords(response)
+          .map((item) => this.mapOrdenCompraArchivoAdjunto(item, ordenCompraId))
+          .filter((item): item is OrdenCompraArchivoAdjuntoGuardado => item !== null);
+
+        console.log('[OrdenCompra][Archivos adjuntos][Respuesta backend]', {
+          ordenCompraId,
+          response,
+          archivos
+        });
+
+        this.ordenCompraArchivosAdjuntosGuardados = archivos;
+        this.actualizarOrdenCompraArchivoFormControl();
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando archivos adjuntos de orden de compra:', error);
+        this.ordenCompraArchivosAdjuntosGuardados = [];
+        this.actualizarOrdenCompraArchivoFormControl();
+      }
+    });
+  }
+
+  private sincronizarArchivosAdjuntosOrdenCompra(ordenCompraId: number): Observable<unknown> {
+    if (!this.ordenCompraArchivoFiles.length) {
+      return of([]);
+    }
+
+    return from(this.ordenCompraArchivoFiles).pipe(
+      concatMap((archivo) => {
+        const request: RegistrarArchivoAdjuntoOrdenCompraRequest = {
+          Ord_Com_Arc_Id: 0,
+          Ord_Com_Id: ordenCompraId,
+          Ord_Com_Arc_Nom: archivo.name,
+          Ord_Com_Arc_Rut: ''
+        };
+
+        return this.apiService.postRegistrarArchivoAdjuntoOrdenCompra(request, archivo).pipe(
+          map((response: unknown) => {
+            this.assertSuccessfulResponse(response, `No se pudo registrar el archivo ${archivo.name}.`);
+            return response;
+          })
+        );
+      }),
+      toArray()
+    );
+  }
+
+  private mapOrdenCompraArchivoAdjunto(item: DataRecord, fallbackOrdenCompraId: number): OrdenCompraArchivoAdjuntoGuardado | null {
+    const id = this.getNumberValue(item, [
+      'Ord_Com_Arc_Id',
+      'ord_Com_Arc_Id',
+      'ordComArcId'
+    ]) || 0;
+    const ordenCompraId = this.getNumberValue(item, [
+      'Ord_Com_Id',
+      'ord_Com_Id',
+      'ordComId'
+    ]) || fallbackOrdenCompraId;
+    const nombre = this.getTextValue(item, [
+      'Ord_Com_Arc_Nom',
+      'ord_Com_Arc_Nom',
+      'ordComArcNom',
+      'Archivo',
+      'archivo',
+      'Nombre',
+      'nombre'
+    ]);
+    const ruta = this.getTextValue(item, [
+      'Ord_Com_Arc_Rut',
+      'ord_Com_Arc_Rut',
+      'ordComArcRut',
+      'Ruta',
+      'ruta'
+    ]);
+
+    if (!nombre) {
+      return null;
+    }
+
+    return {
+      id,
+      ordenCompraId,
+      nombre,
+      ruta
+    };
   }
 
   verPedidoArchivo(): void {
@@ -879,21 +1396,175 @@ export class OrdenCompraPageComponent implements OnInit {
 
     this.apiService.getArchivoPedido(nombreArchivo).subscribe({
       next: (arrayBuffer: ArrayBuffer) => {
-        const blob = new Blob([arrayBuffer], { type: this.getMimeTypeFromFileName(nombreArchivo) });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        this.openArrayBufferArchivoEnChrome(nombreArchivo, arrayBuffer);
       },
       error: (error: unknown) => {
         console.error('Error abriendo archivo del pedido:', error);
-        this.saveErrorMessage = 'No se pudo abrir el PDF asignado al pedido.';
+        this.saveErrorMessage = 'No se pudo abrir el archivo asignado al pedido.';
       }
     });
   }
 
+  abrirArchivosPedido(): void {
+    this.saveErrorMessage = '';
+    const pedidoId = Number(this.form.controls['pedidoIdAtencion'].value);
+
+    if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
+      this.saveErrorMessage = 'Ingresa un numero de pedido valido para listar sus archivos.';
+      this.form.controls['pedidoIdAtencion'].markAsTouched();
+      return;
+    }
+
+    this.isLoadingPedidoArchivosAdjuntos = true;
+    console.log('[OrdenCompra][Archivos adjuntos][Ped_Cab_Id enviado]', pedidoId);
+
+    this.apiService.getListarArchivosAdjuntos(pedidoId).subscribe({
+      next: (response: unknown) => {
+        console.log('[OrdenCompra][Archivos adjuntos][Respuesta backend]', response);
+        const archivos = this.extractRecords(response)
+          .map((record) => this.mapPedidoArchivoAdjunto(record))
+          .filter((archivo): archivo is PedidoArchivoDialogRow => archivo !== null);
+        console.log('[OrdenCompra][Archivos adjuntos][Mapeados popup]', archivos);
+        this.isLoadingPedidoArchivosAdjuntos = false;
+
+        this.dialog.open(PedidoArchivosDialogComponent, {
+          width: 'min(720px, 96vw)',
+          maxWidth: '96vw',
+          data: {
+            pedidoCodigo: `PED-${pedidoId}`,
+            archivos,
+            verArchivo: (archivo: PedidoArchivoDialogRow) => this.abrirArchivoPedidoPorNombre(archivo.nombre)
+          }
+        });
+      },
+      error: (error: unknown) => {
+        console.error('[OrdenCompra][Archivos adjuntos][Error]', error);
+        this.isLoadingPedidoArchivosAdjuntos = false;
+        this.saveErrorMessage = 'No se pudieron cargar los archivos adjuntos del pedido.';
+      }
+    });
+  }
+
+  private abrirArchivoPedidoPorNombre(nombreArchivo: string): void {
+    const nombre = nombreArchivo.trim();
+
+    if (!nombre) {
+      this.saveErrorMessage = 'No se encontro el nombre del archivo para visualizar.';
+      return;
+    }
+
+    this.apiService.getArchivoPedido(nombre).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        this.openArrayBufferArchivoEnChrome(nombre, arrayBuffer);
+      },
+      error: (error: unknown) => {
+        console.error('[OrdenCompra][Archivo adjunto][Error]', error);
+        this.saveErrorMessage = 'No se pudo abrir el archivo del pedido.';
+      }
+    });
+  }
+
+  abrirArchivosOrdenCompraListado(item: OrdenCompraRow, event?: Event): void {
+    event?.stopPropagation();
+    this.errorMessage = '';
+
+    const ordenCompraId = item.ordenCompraId ?? 0;
+
+    if (!Number.isInteger(ordenCompraId) || ordenCompraId <= 0) {
+      this.errorMessage = 'La orden de compra seleccionada no tiene un identificador valido.';
+      return;
+    }
+
+    this.isLoadingArchivosOrdenCompraListado = item.id;
+
+    this.apiService.getListarArchivosAdjuntosOrdenCompra(ordenCompraId).subscribe({
+      next: (response: unknown) => {
+        const archivos = this.extractRecords(response)
+          .map((record) => this.mapOrdenCompraArchivoAdjunto(record, ordenCompraId))
+          .filter((archivo): archivo is OrdenCompraArchivoAdjuntoGuardado => archivo !== null)
+          .map((archivo): PedidoArchivoDialogRow => ({
+            id: archivo.id,
+            pedidoId: archivo.ordenCompraId,
+            nombre: archivo.nombre,
+            ruta: archivo.ruta
+          }));
+
+        this.isLoadingArchivosOrdenCompraListado = null;
+
+        this.dialog.open(PedidoArchivosDialogComponent, {
+          width: 'min(720px, 96vw)',
+          maxWidth: '96vw',
+          data: {
+            pedidoCodigo: `OC-${ordenCompraId}`,
+            archivos,
+            verArchivo: (archivo: PedidoArchivoDialogRow) => this.abrirArchivoOrdenCompraPorNombre(archivo.nombre)
+          }
+        });
+      },
+      error: (error: unknown) => {
+        console.error('[OrdenCompra][Archivos adjuntos listado][Error]', error);
+        this.isLoadingArchivosOrdenCompraListado = null;
+        this.errorMessage = 'No se pudieron cargar los archivos adjuntos de la orden de compra.';
+      }
+    });
+  }
+
+  private abrirArchivoOrdenCompraPorNombre(nombreArchivo: string): void {
+    const nombre = nombreArchivo.trim();
+
+    if (!nombre) {
+      this.errorMessage = 'No hay archivo adjunto para visualizar.';
+      return;
+    }
+
+    this.apiService.getArchivoOrdenCompra(nombre).subscribe({
+      next: (arrayBuffer: ArrayBuffer) => {
+        this.openArrayBufferArchivoEnChrome(nombre, arrayBuffer);
+      },
+      error: (error: unknown) => {
+        console.error('Error abriendo archivo de orden de compra:', error);
+        this.errorMessage = 'No se pudo abrir el archivo de la orden de compra.';
+      }
+    });
+  }
+
+  private mapPedidoArchivoAdjunto(item: DataRecord): PedidoArchivoDialogRow | null {
+    const nombre = this.getTextValue(item, [
+      'Ped_Cab_Arc_Nom',
+      'ped_Cab_Arc_Nom',
+      'pedCabArcNom',
+      'Archivo',
+      'archivo',
+      'Nombre',
+      'nombre'
+    ]);
+
+    if (!nombre) {
+      return null;
+    }
+
+    return {
+      id: this.getNumberValue(item, ['Ped_Cab_Arc_Id', 'ped_Cab_Arc_Id', 'pedCabArcId']) ?? 0,
+      pedidoId: this.getNumberValue(item, ['Ped_Cab_Id', 'ped_Cab_Id', 'pedCabId']) ?? 0,
+      nombre,
+      ruta: this.getTextValue(item, [
+        'Ped_Cab_Arc_Rut',
+        'ped_Cab_Arc_Rut',
+        'pedCabArcRut',
+        'Ruta',
+        'ruta'
+      ])
+    };
+  }
+
   formatCurrency(value: number): string {
+    return this.formatCurrencyWithPrecision(value, 2);
+  }
+
+  formatCurrencyWithPrecision(value: number, precision: number): string {
     return new Intl.NumberFormat('es-PE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision
     }).format(value);
   }
 
@@ -951,6 +1622,7 @@ export class OrdenCompraPageComponent implements OnInit {
       pedidoReferenciaGeneral: '',
       observacion: '',
       archivo: 'Sin archivo adjunto',
+      monedaId: 0,
       detraccionId: null,
       montoDetraccion: 0,
       subtotal: 0,
@@ -970,6 +1642,8 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenCompraArchivoAdjunto = 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = '';
     this.ordenCompraArchivoFile = null;
+    this.ordenCompraArchivoFiles = [];
+    this.ordenCompraArchivosAdjuntosGuardados = [];
     this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
     this.syncTotalesCalculados();
   }
@@ -1005,7 +1679,7 @@ export class OrdenCompraPageComponent implements OnInit {
       Usr_Reg: currentUser
     };
 
-    return this.apiService.postRegistrarOrdenCompra(request, this.ordenCompraArchivoFile);
+    return this.apiService.postRegistrarOrdenCompra(request, null);
   }
 
   private buildActualizarOrdenCompraRequest(): Observable<unknown> | null {
@@ -1048,7 +1722,7 @@ export class OrdenCompraPageComponent implements OnInit {
         : null
     });
 
-    return this.apiService.patchActualizarOrdenCompra(request, this.ordenCompraArchivoFile);
+    return this.apiService.patchActualizarOrdenCompra(request, null);
   }
 
   private buildOrdenCompraPayloadBase(): Omit<RegistrarOrdenCompraRequest, 'Usr_Reg'> | null {
@@ -1057,16 +1731,21 @@ export class OrdenCompraPageComponent implements OnInit {
     const proveedor = String(this.form.controls['proveedor'].value || '').trim();
     const formaPagoId = Number(this.form.controls['formaPagoId'].value);
     const formaPago = String(this.form.controls['formaPago'].value || '').trim();
+    const contacto = String(this.form.controls['contacto'].value || '').trim();
+    const monedaId = Number(this.form.controls['monedaId'].value);
     const referenciaObra = String(this.form.controls['referenciaObra'].value || '').trim();
     const referencia = String(this.form.controls['referencia'].value || '').trim();
     const observacion = String(this.form.controls['observacion'].value || '').trim();
     const subtotal = this.parseMontoControlValue(this.form.controls['subtotal'].value);
-    const igv = this.parseMontoControlValue(this.form.controls['igv'].value);
+    const igv = this.parseMontoControlValue(this.form.controls['igv'].value, 4);
     const total = this.parseMontoControlValue(this.form.controls['total'].value);
     const detraccionId = this.getDetraccionIdSeleccionada();
-    const montoDetraccion = this.parseMontoControlValue(this.form.controls['montoDetraccion'].value);
+    const montoDetraccion = this.aplicarRedondeoMontoDetraccion(
+      this.parseMontoControlValue(this.form.controls['montoDetraccion'].value),
+      detraccionId
+    );
     const usarIgvAutomatico = Boolean(this.form.controls['usarIgv18'].value);
-    const porcentajeIgv = this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value);
+    const porcentajeIgv = this.getPorcentajeIgv();
 
     if (!proveedorId || !proveedor) {
       this.form.controls['proveedor'].markAsTouched();
@@ -1086,22 +1765,31 @@ export class OrdenCompraPageComponent implements OnInit {
       return null;
     }
 
+    if (!Number.isInteger(monedaId) || monedaId <= 0) {
+      this.form.controls['monedaId'].markAsTouched();
+      this.saveErrorMessage = 'Selecciona un tipo de moneda antes de guardar.';
+      return null;
+    }
+
     if (!this.detallesPedidoSeleccionados.length && !(this.isEditingOrdenCompra && this.detallesPendientesDesasignacion.length)) {
       this.saveErrorMessage = 'Selecciona al menos una fila del detalle para la orden de compra.';
       return null;
     }
 
-    if (total <= 0) {
+    if (!this.isEditingOrdenCompra && total <= 0) {
       this.saveErrorMessage = 'El total debe ser mayor a cero.';
       return null;
     }
 
     return {
+      Ord_Com_Tip: this.ordenCompraTipoId,
       Ord_Com_Prv: proveedorId,
       Ord_Com_For_Pag: formaPagoId,
+      Con_Nom: contacto,
       Ord_Com_Ref_Obr: referenciaObra,
       Ord_Com_Obs: observacion,
       Ord_Com_Ref: referencia,
+      Mon_Id: monedaId,
       Ord_Com_Sub_Tot: subtotal,
       Ord_Com_Igv: igv,
       Ord_Com_Tot: total,
@@ -1121,9 +1809,6 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.resolveOrdenCompraIdParaAsignacion(response).pipe(
       switchMap((ordenCompraId) => {
         const currentUser = this.authService.getCurrentUser().trim();
-        const detallesParaAsignar = this.isEditingOrdenCompra
-          ? this.detallesPedidoSeleccionados.filter((item) => !this.isDetalleYaAsignadoAOrden(item, ordenCompraId))
-          : this.detallesPedidoSeleccionados;
         const actualizarDetalleRequests = this.detallesPedidoSeleccionados.map((item) =>
           this.apiService.patchActualizarDetallePedido(
             this.buildActualizarDetallePedidoPayload(item, currentUser)
@@ -1134,7 +1819,9 @@ export class OrdenCompraPageComponent implements OnInit {
             })
           )
         );
-        const asignarRequests = detallesParaAsignar.map((item) =>
+        // Reaplicamos la asignacion incluso en edicion para que el backend
+        // sincronice Ped_Obs, que es el campo expuesto por la grilla de O/C.
+        const asignarRequests = this.detallesPedidoSeleccionados.map((item) =>
           this.apiService.patchAsignarOrdenCompraADetallePedido(
             this.buildAsignarOrdenCompraDetallePedidoPayload(item, ordenCompraId, currentUser)
           ).pipe(
@@ -1262,6 +1949,25 @@ export class OrdenCompraPageComponent implements OnInit {
     });
   }
 
+  private cargarMonedas(): void {
+    this.isLoadingMonedas = true;
+
+    this.apiService.getListarMoneda({ Flg_Est: 'A' }).subscribe({
+      next: (response: unknown) => {
+        this.monedas = this.extractRecords(response)
+          .map((item) => this.mapMonedaOption(item))
+          .filter((item): item is MonedaOption => item !== null)
+          .sort((left, right) => left.descripcion.localeCompare(right.descripcion));
+        this.reconciliarEtiquetasCatalogo();
+        this.isLoadingMonedas = false;
+      },
+      error: () => {
+        this.monedas = [];
+        this.isLoadingMonedas = false;
+      }
+    });
+  }
+
   private cargarCentrosCosto(): void {
     this.isLoadingCentrosCosto = true;
 
@@ -1289,7 +1995,7 @@ export class OrdenCompraPageComponent implements OnInit {
       next: (response: unknown) => {
         this.pedidosPendientes = this.extractRecords(response)
           .map((item, index) => this.mapPedidoPendiente(item, index))
-          .filter((item): item is PedidoPendienteRow => item !== null);
+          .filter((item): item is PedidoPendienteRow => item !== null && item.estadoCodigo === 'A');
         this.currentPedidosPendientesPage = normalizePaginationPage(
           this.currentPedidosPendientesPage,
           this.pedidosPendientes.length,
@@ -1363,9 +2069,10 @@ export class OrdenCompraPageComponent implements OnInit {
     this.esParcial = false;
     this.aplicarModoCentrosCosto();
     this.mostrarEditor = true;
+    this.cargarArchivosAdjuntosOrdenCompra(ordenCompra.ordenCompraId ?? 0);
 
     if (ordenCompra.pedidoIdAtencion) {
-      this.cargarCentrosCostoDesdePedido();
+      this.cargarCentrosCostoDesdePedido(ordenCompra.total);
     }
   }
 
@@ -1377,10 +2084,11 @@ export class OrdenCompraPageComponent implements OnInit {
         proveedor: item.proveedor,
         telefono: this.resolveProveedor(item.proveedorId)?.phone || '',
         direccion: this.resolveProveedor(item.proveedorId)?.address || '',
-        contacto: this.resolveProveedor(item.proveedorId)?.contact || '',
+        contacto: item.proveedorContacto || this.resolveProveedor(item.proveedorId)?.contact || '',
         ruc: this.resolveProveedor(item.proveedorId)?.ruc || '',
         formaPagoId: item.formaPagoId,
         formaPago: item.formaPago,
+        monedaId: item.monedaId > 0 ? item.monedaId : 0,
         referenciaObra: item.referenciaObra,
       referencia: item.referencia,
       observacion: item.observacion,
@@ -1397,6 +2105,16 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenCompraArchivoAdjunto = item.archivo || 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = item.archivoRuta;
     this.ordenCompraArchivoFile = null;
+    this.ordenCompraArchivoFiles = [];
+    this.ordenCompraArchivosAdjuntosGuardados = item.archivo && item.archivo !== 'Sin archivo adjunto'
+      ? [{
+          id: 0,
+          ordenCompraId: item.ordenCompraId ?? 0,
+          nombre: item.archivo,
+          ruta: item.archivoRuta
+        }]
+      : [];
+    this.actualizarOrdenCompraArchivoFormControl();
   }
 
   private getOrdenCompraSeleccionada(): OrdenCompraRow | null {
@@ -1425,6 +2143,31 @@ export class OrdenCompraPageComponent implements OnInit {
     } catch (error) {
       console.warn('No se pudo cargar el logo para el PDF de orden de compra:', error);
       this.ordenCompraLogoBytes = null;
+      return undefined;
+    }
+  }
+
+  private async loadOrdenCompraHeaderImageBytes(): Promise<Uint8Array | undefined> {
+    if (this.ordenCompraHeaderImageBytes !== undefined) {
+      return this.ordenCompraHeaderImageBytes ?? undefined;
+    }
+
+    try {
+      const assetPath = this.ordenCompraTipoId === 2
+        ? 'assets/OrdenServicio.jpg'
+        : 'assets/OrdenCompra.jpg';
+      const response = await fetch(assetPath);
+
+      if (!response.ok) {
+        this.ordenCompraHeaderImageBytes = null;
+        return undefined;
+      }
+
+      this.ordenCompraHeaderImageBytes = new Uint8Array(await response.arrayBuffer());
+      return this.ordenCompraHeaderImageBytes;
+    } catch (error) {
+      console.warn('No se pudo cargar la imagen de encabezado para el PDF de orden de compra:', error);
+      this.ordenCompraHeaderImageBytes = null;
       return undefined;
     }
   }
@@ -1469,14 +2212,17 @@ export class OrdenCompraPageComponent implements OnInit {
     const subtotalReporte = detalle.length
       ? this.normalizeDecimal(detalle.reduce((total, item) => total + item.importe, 0))
       : ordenCompra.subtotal;
-    const igvReporte = this.normalizeDecimal(subtotalReporte * 0.18);
-    const totalReporte = this.normalizeDecimal(subtotalReporte + igvReporte);
+    const igvReporte = this.normalizeDecimalPrecision(ordenCompra.igv, 4);
+    const totalCalculadoReporte = this.normalizeDecimal(subtotalReporte + igvReporte);
+    const totalReporte = totalCalculadoReporte;
     const montoDetraccionReporte = this.normalizeDetraccionReporte(ordenCompra.montoDetraccion, totalReporte);
     const totalPagarReporte = this.normalizeDecimal(totalReporte - montoDetraccionReporte);
 
     return {
       ordenCompraId: ordenCompra.ordenCompraId ?? 0,
+      correlativo: this.formatOrdenCorrelativo(ordenCompra.ordenCompraId),
       tipoServicio: tipoServicio || ordenCompra.tipoServicio,
+      monedaAbreviacion: ordenCompra.monedaAbreviacion || 'S/.',
       fecha: fechaRegistro,
       proveedor: proveedor?.name || ordenCompra.proveedor,
       ruc: proveedor?.ruc || ordenCompra.proveedorRuc || '-',
@@ -1547,6 +2293,8 @@ export class OrdenCompraPageComponent implements OnInit {
         return 'text/plain';
       case 'csv':
         return 'text/csv';
+      case 'xml':
+        return 'application/xml';
       case 'gif':
         return 'image/gif';
       case 'doc':
@@ -1566,7 +2314,9 @@ export class OrdenCompraPageComponent implements OnInit {
     const ordenCompraId = Number(this.filtersForm.controls['ordenCompraId'].value);
     const proveedor = String(this.filtersForm.controls['proveedor'].value || '').trim();
     const estado = String(this.filtersForm.controls['estado'].value || '').trim();
-    const filtros: OrdenCompraFiltro = {};
+    const filtros: OrdenCompraFiltro = {
+      Ord_Com_Tip: this.ordenCompraTipoId
+    };
 
     if (Number.isInteger(ordenCompraId) && ordenCompraId > 0) {
       filtros.Ord_Com_Id = ordenCompraId;
@@ -1584,7 +2334,22 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   private getPedidoPendienteFiltros(): PedidosFiltro {
-    return { Flg_Est: 'A' };
+    return {
+      Flg_Est: 'A',
+      Ped_Tip_Com: this.ordenCompraTipoId
+    };
+  }
+
+  private getCorrelativoPrefix(tipoId: number = this.ordenCompraTipoId): string {
+    return tipoId === 2 ? 'OSP' : 'OCP';
+  }
+
+  private formatOrdenCorrelativo(ordenCompraId: number | null, tipoId: number = this.ordenCompraTipoId): string {
+    if (!ordenCompraId || ordenCompraId <= 0) {
+      return '-';
+    }
+
+    return `${this.getCorrelativoPrefix(tipoId)}${String(ordenCompraId).padStart(5, '0')}`;
   }
 
   private mapOrdenCompra(item: DataRecord, index: number): OrdenCompraRow | null {
@@ -1595,7 +2360,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const proveedorId = this.getNumberValue(item, ['Ord_Com_Prv', 'ord_Com_Prv', 'ordComPrv']) ?? 0;
     const formaPagoId = this.getNumberValue(item, ['Ord_Com_For_Pag', 'ord_Com_For_Pag', 'ordComForPag']) ?? 0;
     const estadoCodigo = this.getTextValue(item, ['Flg_Est', 'flg_Est', 'flgEst']);
-    const flgIgvAut = this.getTextValue(item, ['Flg_Igv_Aut', 'flg_Igv_Aut', 'flgIgvAut']);
+    const flgIgvAut = this.getTextValue(item, ['Flg_Igv_Aut', 'Flg_IGV_Aut', 'flg_Igv_Aut', 'flg_igv_aut', 'flgIgvAut']);
     const proveedorFallback = this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom', 'Proveedor', 'proveedor']);
     const formaPagoFallback = this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes', 'FormaPago', 'formaPago']);
 
@@ -1606,27 +2371,35 @@ export class OrdenCompraPageComponent implements OnInit {
     return {
       id: trackingId,
       ordenCompraId,
+      correlativo: this.formatOrdenCorrelativo(ordenCompraId),
       pedidoIdAtencion,
+      usuarioRegistro: this.getTextValue(item, ['Usr_Reg', 'usr_Reg', 'usrReg', 'UsuarioRegistro', 'usuarioRegistro']) || '-',
+      usuarioAprobacionPedido: this.getTextValue(item, ['Ped_Usr_Apr', 'ped_Usr_Apr', 'pedUsrApr', 'UsuarioAprobacion', 'usuarioAprobacion']) || '-',
+      flgEstCon: this.getNumberValue(item, ['Flg_Est_Con', 'flg_Est_Con', 'flgEstCon', 'FlgEstCon']) ?? 0,
+      conformidadRegistro: (this.getNumberValue(item, ['Flg_Est_Con', 'flg_Est_Con', 'flgEstCon', 'FlgEstCon']) ?? 0) >= 1,
+      conformidadAprobacion: (this.getNumberValue(item, ['Flg_Est_Con', 'flg_Est_Con', 'flgEstCon', 'FlgEstCon']) ?? 0) >= 2,
       proveedorId,
+      monedaId: this.getNumberValue(item, ['Mon_Id', 'mon_Id', 'monId', 'Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon']) ?? 0,
       proveedor: this.resolveProveedorNombre(proveedorId, proveedorFallback),
       proveedorRuc: this.getTextValue(item, ['Prv_Ruc', 'prv_Ruc', 'prvRuc']),
-      proveedorBancoId: this.getNumberValue(item, ['Prv_Ban', 'prv_Ban', 'prvBan', 'Ban_Id', 'ban_Id', 'banId']) ?? 0,
+      proveedorBancoId: this.getNumberValue(item, ['Prv_Ban_Id', 'prv_Ban_Id', 'prvBanId', 'Prv_Ban', 'prv_Ban', 'prvBan']) ?? 0,
       proveedorBancoDescripcion: this.getTextValue(item, ['Ban_Des', 'ban_Des', 'banDes', 'Banco', 'banco']),
       proveedorCuenta: this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']),
       proveedorCci: this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci']),
-      proveedorContacto: this.getTextValue(item, ['Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
+      proveedorContacto: this.getTextValue(item, ['Con_Nom', 'con_Nom', 'conNom', 'Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
       proveedorEmail: this.getTextValue(item, ['Prv_Email', 'prv_Email', 'prvEmail']),
       proveedorDireccion: this.getTextValue(item, ['Prv_Dir', 'prv_Dir', 'prvDir']),
       tipoServicio: this.getTextValue(item, ['Tip_Ser_Des', 'tip_Ser_Des', 'tipSerDes', 'Ped_Tip_Com_Des', 'ped_Tip_Com_Des']),
+      monedaAbreviacion: this.getTextValue(item, ['Mon_Abr', 'mon_Abr', 'monAbr', 'Mon_Des', 'mon_Des', 'monDes']) || 'S/.',
       formaPagoId,
       formaPago: this.resolveFormaPagoDescripcion(formaPagoId, formaPagoFallback),
       referenciaObra: this.getTextValue(item, ['Ord_Com_Ref_Obr', 'ord_Com_Ref_Obr', 'ordComRefObr']),
       referencia: this.getTextValue(item, ['Ord_Com_Ref', 'ord_Com_Ref', 'ordComRef']),
       observacion: this.getTextValue(item, ['Ord_Com_Obs', 'ord_Com_Obs', 'ordComObs']),
       subtotal: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Sub_Tot', 'ord_Com_Sub_Tot', 'ordComSubTot']),
-      igv: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Igv', 'ord_Com_Igv', 'ordComIgv']),
+      igv: this.getOrdenCompraIgvValue(item, ['Ord_Com_Igv', 'ord_Com_Igv', 'ordComIgv']),
       flgIgvAut,
-      igvPor: this.getNumberValue(item, ['Igv_Por', 'igv_Por', 'igvPor']),
+      igvPor: this.normalizePorcentajeIgv(this.getDecimalValue(item, ['Igv_Por', 'IGV_Por', 'igv_Por', 'igv_por', 'igvPor'])),
       total: this.getOrdenCompraMoneyValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']),
       detraccionId: this.getNumberValue(item, ['Ord_Com_Det_Id', 'ord_Com_Det_Id', 'ordComDetId']) ?? 0,
       detraccionDescripcion: this.getTextValue(item, ['Det_Des', 'det_Des', 'detDes', 'Ord_Com_Det_Des', 'ord_Com_Det_Des', 'ordComDetDes', 'Detraccion', 'detraccion']),
@@ -1676,6 +2449,20 @@ export class OrdenCompraPageComponent implements OnInit {
     return {
       code: this.getNumberValue(item, ['For_Pag_Id', 'for_Pag_Id', 'forPagId', 'id', 'Id']) ?? 0,
       description: this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes', 'description', 'Description'])
+    };
+  }
+
+  private mapMonedaOption(item: DataRecord): MonedaOption | null {
+    const id = this.getNumberValue(item, ['Mon_Id', 'mon_Id', 'monId', 'id', 'Id']) ?? 0;
+
+    if (id <= 0) {
+      return null;
+    }
+
+    return {
+      id,
+      descripcion: this.getTextValue(item, ['Mon_Des', 'mon_Des', 'monDes', 'descripcion', 'Descripcion']) || String(id),
+      abreviacion: this.getTextValue(item, ['Mon_Abr', 'mon_Abr', 'monAbr', 'abreviatura', 'Abreviatura']) || ''
     };
   }
 
@@ -1749,9 +2536,25 @@ export class OrdenCompraPageComponent implements OnInit {
       centroCostoCodigo,
       centroCostoDescripcion,
       cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']),
-      costoUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni']),
-      subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot']),
-      observacion: this.getTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs', 'Observacion', 'observacion']),
+      costoUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni'], 4),
+      subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot'], 4),
+      observacion: this.getTextValue(item, [
+        'Ped_Obs_Ped',
+        'ped_Obs_Ped',
+        'ped_obs_ped',
+        'pedObsPed',
+        'PedObsPed',
+        'Ped_Obs',
+        'ped_Obs',
+        'pedObs',
+        'Ped_Obs_Det',
+        'ped_Obs_Det',
+        'pedObsDet',
+        'Observacion',
+        'observacion',
+        'ObservacionPedido',
+        'observacionPedido'
+      ]),
       selected: false
     };
   }
@@ -1781,11 +2584,21 @@ export class OrdenCompraPageComponent implements OnInit {
     });
   }
 
-  private applyPedidoDataResponse(centrosCostoResponse: unknown, detalleResponse: unknown, pedidoResponse?: unknown): void {
+  private applyPedidoDataResponse(
+    centrosCostoResponse: unknown,
+    detalleResponse: unknown,
+    pedidoResponse?: unknown,
+    totalOrdenGuardado?: number
+  ): void {
     const centros = this.mapCentroCostoPedido(centrosCostoResponse);
     const seleccionarDetalles = this.debeSeleccionarDetallesAlCargar();
+    const pedidoMonedaId = this.resolvePedidoMonedaId(pedidoResponse);
     this.pedidoArchivoAdjunto = this.resolvePedidoArchivoAdjunto(pedidoResponse);
     this.form.controls['pedidoReferenciaGeneral'].setValue(this.resolvePedidoReferenciaGeneral(pedidoResponse), { emitEvent: false });
+
+    if (!this.isEditingOrdenCompra && pedidoMonedaId > 0) {
+      this.form.controls['monedaId'].setValue(pedidoMonedaId, { emitEvent: false });
+    }
 
     this.centrosCosto = centros.map((item) => ({
       ...item,
@@ -1809,6 +2622,7 @@ export class OrdenCompraPageComponent implements OnInit {
       this.detallePedidoErrorMessage = 'Hay detalles marcados para desasignacion. Los cambios se aplicaran al actualizar.';
     }
     this.syncTotalesCalculados();
+    this.restaurarTotalOrdenGuardado(totalOrdenGuardado);
     this.isLoadingPedidoCentrosCosto = false;
     this.isLoadingPedidoDetalle = false;
   }
@@ -1818,7 +2632,7 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.isEditingOrdenCompra || (Number.isInteger(ordenCompraId) && ordenCompraId > 0);
   }
 
-  private handlePedidoDataError(error: unknown): void {
+  private handlePedidoDataError(error: unknown, totalOrdenGuardado?: number): void {
     this.centrosCosto = [];
     this.pedidoDetalles = [];
     this.pedidoArchivoAdjunto = 'Sin archivo adjunto';
@@ -1827,8 +2641,20 @@ export class OrdenCompraPageComponent implements OnInit {
     this.centrosCostoErrorMessage = this.resolveErrorMessage(error, 'No se pudieron cargar los centros de costo del pedido.');
     this.detallePedidoErrorMessage = this.resolveErrorMessage(error, 'No se pudo cargar el detalle del pedido.');
     this.syncTotalesCalculados();
+    this.restaurarTotalOrdenGuardado(totalOrdenGuardado);
     this.isLoadingPedidoCentrosCosto = false;
     this.isLoadingPedidoDetalle = false;
+  }
+
+  private restaurarTotalOrdenGuardado(totalOrdenGuardado?: number): void {
+    if (totalOrdenGuardado === undefined || totalOrdenGuardado === null) {
+      return;
+    }
+
+    this.form.controls['total'].setValue(
+      this.normalizeDecimal(totalOrdenGuardado),
+      { emitEvent: false }
+    );
   }
 
   private resolvePedidoArchivoAdjunto(pedidoResponse: unknown): string {
@@ -1861,6 +2687,16 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.getTextValue(record, ['Ped_Ref_Gral', 'ped_Ref_Gral', 'pedRefGral']);
   }
 
+  private resolvePedidoMonedaId(pedidoResponse: unknown): number {
+    const record = this.extractRecords(pedidoResponse)[0];
+
+    if (!record) {
+      return 0;
+    }
+
+    return this.getNumberValue(record, ['Ped_Tip_Mon', 'ped_Tip_Mon', 'pedTipMon', 'Mon_Id', 'mon_Id', 'monId']) ?? 0;
+  }
+
   private resolveOrdenCompraIdParaAsignacion(response: unknown): Observable<number> {
     const ordenCompraIdActual = Number(this.form.controls['ordenCompraId'].value);
 
@@ -1888,10 +2724,172 @@ export class OrdenCompraPageComponent implements OnInit {
     return {
       Ord_Com_Id: ordenCompraId,
       Ped_Det_Id: item.id,
-      Ped_Cos_Uni: this.normalizeDecimal(item.costoUnitario),
+      Ped_Can: this.normalizeDecimal(item.cantidad),
+      Ped_Cos_Uni: this.normalizeDecimalPrecision(item.costoUnitario, 4),
       Ped_Obs: observacion || undefined,
       Usr_Mod: currentUser || undefined
     };
+  }
+
+  private openArchivoLocalEnChrome(archivo: File): void {
+    if (this.isTextPreviewFile(archivo.name, archivo.type)) {
+      const reader = new FileReader();
+      reader.onload = () => this.openTextoEnChrome(archivo.name, String(reader.result || ''));
+      reader.onerror = () => {
+        this.saveErrorMessage = 'No se pudo abrir el archivo.';
+      };
+      reader.readAsText(archivo);
+      return;
+    }
+
+    if (this.isOfficePreviewFile(archivo.name)) {
+      this.openArchivoOfficeEnChrome(archivo.name, URL.createObjectURL(archivo), archivo.type || this.getMimeTypeFromFileName(archivo.name));
+      return;
+    }
+
+    this.openArchivoEnChrome(archivo.name, URL.createObjectURL(archivo), archivo.type);
+  }
+
+  private openArrayBufferArchivoEnChrome(nombreArchivo: string, arrayBuffer: ArrayBuffer): void {
+    const mimeType = this.getMimeTypeFromFileName(nombreArchivo);
+
+    if (this.isTextPreviewFile(nombreArchivo, mimeType)) {
+      const contenido = new TextDecoder('utf-8').decode(arrayBuffer);
+      this.openTextoEnChrome(nombreArchivo, contenido);
+      return;
+    }
+
+    if (this.isOfficePreviewFile(nombreArchivo)) {
+      const blob = new Blob([arrayBuffer], { type: mimeType });
+      this.openArchivoOfficeEnChrome(nombreArchivo, URL.createObjectURL(blob), mimeType);
+      return;
+    }
+
+    const blob = new Blob([arrayBuffer], { type: mimeType });
+    this.openArchivoEnChrome(nombreArchivo, URL.createObjectURL(blob), mimeType);
+  }
+
+  private isTextPreviewFile(nombreArchivo: string, mimeType?: string): boolean {
+    const extension = nombreArchivo.split('.').pop()?.toLowerCase() || '';
+    return ['txt', 'sql', 'csv', 'log', 'xml'].includes(extension) ||
+      Boolean(mimeType?.startsWith('text/') || mimeType === 'application/xml' || mimeType === 'text/xml');
+  }
+
+  private isOfficePreviewFile(nombreArchivo: string): boolean {
+    const extension = nombreArchivo.split('.').pop()?.toLowerCase() || '';
+    return ['doc', 'docx', 'xls', 'xlsx'].includes(extension);
+  }
+
+  private openArchivoOfficeEnChrome(nombreArchivo: string, url: string, mimeType: string): void {
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    const nombreSeguro = this.escapeHtml(nombreArchivo);
+    ventana.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${nombreSeguro}</title>
+          <style>
+            html, body { margin: 0; width: 100%; height: 100%; background: #f5f5f5; font-family: Arial, sans-serif; }
+            header { padding: 14px 18px; background: #3f3d39; color: #fff; font-weight: 700; }
+            .viewer { width: 100%; height: calc(100% - 52px); border: 0; display: block; }
+            .fallback { padding: 24px; color: #555; }
+            .fallback a { color: #ff8f22; font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <header>${nombreSeguro}</header>
+          <object class="viewer" data="${url}" type="${mimeType}">
+            <div class="fallback">
+              Chrome no puede previsualizar este tipo de archivo directamente.
+              <a href="${url}" target="_blank" rel="noopener">Abrir archivo</a>
+            </div>
+          </object>
+        </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  private openArchivoEnChrome(nombreArchivo: string, url: string, mimeType?: string): void {
+    const extension = nombreArchivo.split('.').pop()?.toLowerCase() || '';
+    const puedePrevisualizar = ['pdf', 'png', 'jpg', 'jpeg', 'gif'].includes(extension) ||
+      Boolean(mimeType?.startsWith('image/') || mimeType === 'application/pdf');
+
+    if (!puedePrevisualizar) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    const nombreSeguro = this.escapeHtml(nombreArchivo);
+    ventana.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${nombreSeguro}</title>
+          <style>
+            html, body { margin: 0; width: 100%; height: 100%; background: #f5f5f5; }
+            .viewer { width: 100%; height: 100%; border: 0; display: block; }
+          </style>
+        </head>
+        <body>
+          <iframe class="viewer" src="${url}" title="${nombreSeguro}"></iframe>
+        </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  private openTextoEnChrome(nombreArchivo: string, contenido: string): void {
+    const ventana = window.open('', '_blank');
+    if (!ventana) {
+      const blob = new Blob([contenido], { type: 'text/plain' });
+      window.open(URL.createObjectURL(blob), '_blank');
+      return;
+    }
+
+    const nombreSeguro = this.escapeHtml(nombreArchivo);
+    const contenidoSeguro = this.escapeHtml(contenido);
+    ventana.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${nombreSeguro}</title>
+          <style>
+            body { margin: 0; background: #f7f7f7; color: #2f2f2f; font-family: Consolas, Monaco, monospace; }
+            header { padding: 14px 18px; background: #3f3d39; color: #fff; font: 600 14px Arial, sans-serif; }
+            pre { margin: 0; padding: 18px; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.45; }
+          </style>
+        </head>
+        <body>
+          <header>${nombreSeguro}</header>
+          <pre>${contenidoSeguro}</pre>
+        </body>
+      </html>
+    `);
+    ventana.document.close();
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   private buildActualizarDetallePedidoPayload(
@@ -1908,8 +2906,8 @@ export class OrdenCompraPageComponent implements OnInit {
       Ped_Uni_Med: Number.isInteger(unidadCodigo) && unidadCodigo > 0 ? unidadCodigo : 0,
       Ped_Cen_Cos_Asg: Number.isInteger(centroCostoCodigo) && centroCostoCodigo > 0 ? centroCostoCodigo : 0,
       Ped_Can: this.normalizeDecimal(item.cantidad),
-      Ped_Cos_Uni: this.normalizeDecimal(item.costoUnitario),
-      Ped_Cos_Tot: this.normalizeDecimal(item.subtotal),
+      Ped_Cos_Uni: this.normalizeDecimalPrecision(item.costoUnitario, 4),
+      Ped_Cos_Tot: this.normalizeDecimalPrecision(item.subtotal, 4),
       Usr_Mod: currentUser,
       Ped_Obs_Ped: String(item.observacion || '').trim() || undefined
     };
@@ -1935,10 +2933,6 @@ export class OrdenCompraPageComponent implements OnInit {
       estadoCodigo,
       estado: estadoCodigo ? this.mapPedidoEstadoDescripcion(estadoCodigo) : '-'
     };
-  }
-
-  private isDetalleYaAsignadoAOrden(item: OrdenCompraDetallePedidoRow, ordenCompraId: number): boolean {
-    return item.ordenCompraId === ordenCompraId;
   }
 
   private recargarDetallePedidoDespuesDeGuardar(): Observable<unknown> {
@@ -2032,7 +3026,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const total = this.parseMontoControlValue(this.form.controls['total'].value);
 
     return new Observable<number>((subscriber) => {
-      this.apiService.getListarOrdenCompraActivo({ Flg_Est: 'A' }).subscribe({
+      this.apiService.getListarOrdenCompraActivo({ Flg_Est: 'A', Ord_Com_Tip: this.ordenCompraTipoId }).subscribe({
         next: (response: unknown) => {
           const matches = this.extractRecords(response)
             .map((item, index) => this.mapOrdenCompra(item, index))
@@ -2072,22 +3066,47 @@ export class OrdenCompraPageComponent implements OnInit {
       this.form.controls['porcentajeIgv'].setValue(18, { emitEvent: false });
     }
 
+    const detraccionId = this.getDetraccionIdSeleccionada();
+    const montoDetraccion = this.aplicarRedondeoMontoDetraccion(this.montoDetraccionCalculado, detraccionId);
+    const total = this.normalizeDecimal(this.totalConIgvCalculado - montoDetraccion);
+
     this.form.patchValue({
       subtotal: this.subtotalCalculado,
       igv: this.igvCalculado,
-      montoDetraccion: this.montoDetraccionCalculado,
-      total: this.totalCalculado
+      montoDetraccion,
+      total
     }, { emitEvent: false });
   }
 
+  private aplicarRedondeoMontoDetraccion(monto: number, detraccionId: number): number {
+    const montoNormalizado = this.normalizeDecimal(monto);
+
+    if (!montoNormalizado || [11, 12, 13].includes(detraccionId)) {
+      return montoNormalizado;
+    }
+
+    const parteEntera = Math.floor(montoNormalizado);
+    const primerDecimal = Math.floor((montoNormalizado - parteEntera) * 10);
+
+    return primerDecimal >= 5 ? parteEntera + 1 : parteEntera;
+  }
+
+  private redondearIgvSegunTercerDecimal(igv: number): number {
+    const igvCuatroDecimales = this.normalizeDecimalPrecision(igv, 4);
+    const tercerDecimal = Math.floor(igvCuatroDecimales * 1000 + Number.EPSILON) % 10;
+
+    return tercerDecimal >= 5
+      ? this.normalizeDecimal(igvCuatroDecimales)
+      : igvCuatroDecimales;
+  }
+
   private getPorcentajeIgv(): number {
-    const porcentaje = this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value);
-    return porcentaje > 0 ? porcentaje : 0;
+    return this.normalizePorcentajeIgv(this.parseMontoControlValue(this.form.controls['porcentajeIgv'].value));
   }
 
   private resolvePorcentajeIgv(item: OrdenCompraRow): number {
     if (item.igvPor !== null && item.igvPor >= 0) {
-      return item.igvPor;
+      return this.normalizePorcentajeIgv(item.igvPor);
     }
 
     if (item.subtotal <= 0 || item.igv <= 0) {
@@ -2095,6 +3114,16 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return this.normalizeDecimal(item.igv * 100 / item.subtotal);
+  }
+
+  private normalizePorcentajeIgv(value: unknown): number {
+    let porcentaje = this.normalizeDecimal(value);
+
+    while (porcentaje > 100) {
+      porcentaje = this.normalizeDecimal(porcentaje / 100);
+    }
+
+    return porcentaje;
   }
 
   private isIgv18Porcentaje(item: OrdenCompraRow): boolean {
@@ -2122,7 +3151,7 @@ export class OrdenCompraPageComponent implements OnInit {
     };
   }
 
-  private parseMontoControlValue(value: unknown): number {
+  private parseMontoControlValue(value: unknown, precision: number = 2): number {
     const raw = String(value ?? '').trim();
 
     if (!raw) {
@@ -2132,10 +3161,10 @@ export class OrdenCompraPageComponent implements OnInit {
     const normalized = raw.replace(/,/g, '');
     const parsed = Number(normalized);
 
-    return this.normalizeDecimal(parsed);
+    return this.normalizeDecimalPrecision(parsed, precision);
   }
 
-  private sanitizeDecimalInput(value: string): string {
+  private sanitizeDecimalInput(value: string, maxDecimals: number = 2): string {
     const sanitized = String(value || '')
       .replace(/[^\d.]/g, '')
       .replace(/(\..*)\./g, '$1');
@@ -2145,7 +3174,7 @@ export class OrdenCompraPageComponent implements OnInit {
       return integerPart;
     }
 
-    return `${integerPart}.${decimalPart.slice(0, 2)}`;
+    return `${integerPart}.${decimalPart.slice(0, maxDecimals)}`;
   }
 
   private reconciliarDescripcionCentrosCosto(): void {
@@ -2171,7 +3200,8 @@ export class OrdenCompraPageComponent implements OnInit {
     this.ordenesCompra = this.ordenesCompra.map((item) => ({
       ...item,
       proveedor: this.resolveProveedorNombre(item.proveedorId, item.proveedor),
-      formaPago: this.resolveFormaPagoDescripcion(item.formaPagoId, item.formaPago)
+      formaPago: this.resolveFormaPagoDescripcion(item.formaPagoId, item.formaPago),
+      monedaAbreviacion: this.resolveMonedaAbreviacion(item.monedaId, item.monedaAbreviacion)
     }));
   }
 
@@ -2204,28 +3234,19 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.formasPago.find((item) => item.code === formaPagoId)?.description || fallback || (formaPagoId ? String(formaPagoId) : '-');
   }
 
-  private resolveDetraccionDescripcion(detraccionId: number): string {
-    return this.detracciones.find((item) => item.id === detraccionId)?.descripcion || '-';
-  }
+  private resolveMonedaAbreviacion(monedaId: number, fallback: string): string {
+    const moneda = this.monedas.find((item) => item.id === monedaId);
+    const monedaRegistrada = String(fallback || '').trim();
 
-  private resolveProveedorBancoIdFromProveedorResponse(response: unknown): number {
-    const proveedor = this.extractRecords(response)[0];
-
-    if (!proveedor) {
-      return 0;
+    if (monedaRegistrada) {
+      return monedaRegistrada;
     }
 
-    return this.getNumberValue(proveedor, [
-      'Ban_Id',
-      'ban_Id',
-      'banId',
-      'Prv_Ban_Id',
-      'prv_Ban_Id',
-      'prvBanId',
-      'Prv_Ban',
-      'prv_Ban',
-      'prvBan'
-    ]) ?? 0;
+    return moneda?.abreviacion || moneda?.descripcion || '-';
+  }
+
+  private resolveDetraccionDescripcion(detraccionId: number): string {
+    return this.detracciones.find((item) => item.id === detraccionId)?.descripcion || '-';
   }
 
   private resolveProveedorBancoPrincipal(response: unknown): OrdenCompraProveedorBancoReporte | null {
@@ -2302,6 +3323,14 @@ export class OrdenCompraPageComponent implements OnInit {
     return false;
   }
 
+  private getUsuarioSesionNormalizado(): string {
+    return this.normalizeUsuarioConformidad(this.authService.getCurrentUser());
+  }
+
+  private normalizeUsuarioConformidad(value: string | null | undefined): string {
+    return String(value || '').trim().toLowerCase();
+  }
+
   private mapEstadoDescripcion(value: string): string {
     return this.estadoOptions.find((item) => item.codigo === value)?.descripcion || value || '-';
   }
@@ -2372,7 +3401,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private getTextValue(item: DataRecord, keys: string[]): string {
     for (const key of keys) {
-      const value = item[key];
+      const value = this.findDataValue(item, key);
 
       if (value !== null && value !== undefined && String(value).trim()) {
         return String(value).trim();
@@ -2384,7 +3413,7 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private getNumberValue(item: DataRecord, keys: string[]): number | null {
     for (const key of keys) {
-      const value = Number(item[key]);
+      const value = Number(this.findDataValue(item, key));
 
       if (Number.isFinite(value) && value > 0) {
         return value;
@@ -2394,20 +3423,39 @@ export class OrdenCompraPageComponent implements OnInit {
     return null;
   }
 
-  private getDecimalValue(item: DataRecord, keys: string[]): number {
+  private getDecimalValue(item: DataRecord, keys: string[], precision: number = 2): number {
     for (const key of keys) {
-      const value = Number(item[key]);
+      const value = Number(this.findDataValue(item, key));
 
       if (Number.isFinite(value)) {
-        return this.normalizeDecimal(value);
+        return this.normalizeDecimalPrecision(value, precision);
       }
     }
 
     return 0;
   }
 
+  private findDataValue(item: DataRecord, key: string): unknown {
+    if (Object.prototype.hasOwnProperty.call(item, key)) {
+      return item[key];
+    }
+
+    const normalizedKey = this.normalizeDataKey(key);
+    const matchingKey = Object.keys(item).find((itemKey) => this.normalizeDataKey(itemKey) === normalizedKey);
+
+    return matchingKey ? item[matchingKey] : undefined;
+  }
+
+  private normalizeDataKey(key: string): string {
+    return String(key || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  }
+
   private getOrdenCompraMoneyValue(item: DataRecord, keys: string[]): number {
     return this.normalizeOrdenCompraMoneyValue(this.getDecimalValue(item, keys));
+  }
+
+  private getOrdenCompraIgvValue(item: DataRecord, keys: string[]): number {
+    return this.normalizeDecimalPrecision(this.getDecimalValue(item, keys, 4), 4);
   }
 
   private isDataRecord(value: unknown): value is DataRecord {
@@ -2415,13 +3463,18 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   private normalizeDecimal(value: unknown): number {
+    return this.normalizeDecimalPrecision(value, 2);
+  }
+
+  private normalizeDecimalPrecision(value: unknown, precision: number): number {
     const decimal = Number(value);
 
     if (!Number.isFinite(decimal) || decimal < 0) {
       return 0;
     }
 
-    return Math.round(decimal * 100) / 100;
+    const factor = 10 ** Math.max(0, precision);
+    return Math.round(decimal * factor) / factor;
   }
 
   private normalizeOrdenCompraMoneyValue(value: unknown): number {

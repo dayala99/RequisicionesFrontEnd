@@ -10,6 +10,7 @@ import { MAT_DIALOG_SCROLL_STRATEGY, MatDialogModule } from '@angular/material/d
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 //Import API
 import { HttpClientModule } from '@angular/common/http';
 
@@ -43,6 +44,7 @@ import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ItemEditDialogComponent } from './pages/item-page/item-edit-dialog.component';
 import { ItemPageComponent } from './pages/item-page/item-page.component';
 import { ItemRegisterDialogComponent } from './pages/item-page/item-register-dialog.component';
+import { ItemTreePageComponent } from './pages/item-tree-page/item-tree-page.component';
 import { ItemDetalleMaterialEditDialogComponent } from './pages/item-detalle-material-page/item-detalle-material-edit-dialog.component';
 import { ItemDetalleMaterialPageComponent } from './pages/item-detalle-material-page/item-detalle-material-page.component';
 import { ItemDetalleMaterialRegisterDialogComponent } from './pages/item-detalle-material-page/item-detalle-material-register-dialog.component';
@@ -57,6 +59,7 @@ import { ProviderPageComponent } from './pages/provider-page/provider-page.compo
 import { ProviderBanksDialogComponent } from './pages/provider-page/provider-banks-dialog.component';
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
+import { StockPageComponent } from './pages/stock-page/stock-page.component';
 import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
 import { ApprovalUserSelectorDialogComponent } from './pages/requisiciones-page/approval-user-selector-dialog.component';
 import { CentroCostoSelectorDialogComponent } from './pages/requisiciones-page/centro-costo-selector-dialog.component';
@@ -64,8 +67,10 @@ import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page
 import { PedidoApprovalDialogComponent } from './pages/requisiciones-page/pedido-approval-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pages/requisiciones-page/pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent } from './pages/requisiciones-page/pedido-detalle-dialog.component';
+import { PedidoDetalleImageSourceDialogComponent } from './pages/requisiciones-page/pedido-detalle-image-source-dialog.component';
 import { PedidoDetalleItemSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-item-selector-dialog.component';
 import { PedidoDetalleUnidadSelectorDialogComponent } from './pages/requisiciones-page/pedido-detalle-unidad-selector-dialog.component';
+import { PedidoArchivosDialogComponent } from './pages/requisiciones-page/pedido-archivos-dialog.component';
 import { PedidoRechazoDialogComponent } from './pages/requisiciones-page/pedido-rechazo-dialog.component';
 import { RequisicionesPageComponent } from './pages/requisiciones-page/requisiciones-page.component';
 import { SubGrupoItemEditDialogComponent } from './pages/sub-grupo-item-page/sub-grupo-item-edit-dialog.component';
@@ -99,6 +104,7 @@ import { ElegirEdicionCentroMonitoreoDialogComponent } from './pages/inspeccione
 import { CentroMonitoreoHsePuntajeDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-puntaje-dialog.component';
 import { CentroMonitoreoHseMotivoDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-motivo-dialog.component';
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
+<<<<<<< HEAD
 import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
 import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
 import { InspeccionStopReportComponent } from './pages/inspecciones-page/inspeccion-stop-report/inspeccion-stop-report.component';
@@ -109,6 +115,11 @@ import { CapturaFotoDialogComponent } from './pages/inspecciones-page/captura-fo
 import { CapturaAudioDialogComponent } from './pages/inspecciones-page/captura-audio-dialog.component';
 import { CentroMonitoreoHseComponent } from './pages/inspecciones-page/centro-monitoreo-hse/centro-monitoreo-hse.component';
 import { CentroMonitoreoHseNotaDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-nota-dialog.component';
+=======
+import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
+import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
+import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -162,6 +173,7 @@ const APP_DATE_FORMATS = {
     ItemPageComponent,
     ItemRegisterDialogComponent,
     ItemEditDialogComponent,
+    ItemTreePageComponent,
     ItemDetalleMaterialPageComponent,
     ItemDetalleMaterialRegisterDialogComponent,
     ItemDetalleMaterialEditDialogComponent,
@@ -170,6 +182,7 @@ const APP_DATE_FORMATS = {
     ProviderBanksDialogComponent,
     ProviderEditDialogComponent,
     ProviderRegisterDialogComponent,
+    StockPageComponent,
     ProviderFormComponent,
     ProviderSelectorDialogComponent,
     PaymentSelectorDialogComponent,
@@ -179,8 +192,10 @@ const APP_DATE_FORMATS = {
     CentroCostoSelectorDialogComponent,
     PedidoDetalleDeleteDialogComponent,
     PedidoDetalleDialogComponent,
+    PedidoDetalleImageSourceDialogComponent,
     PedidoDetalleItemSelectorDialogComponent,
     PedidoDetalleUnidadSelectorDialogComponent,
+    PedidoArchivosDialogComponent,
     PedidoRechazoDialogComponent,
     RequisicionesPageComponent,
     PedidosBPageComponent,
@@ -222,6 +237,9 @@ const APP_DATE_FORMATS = {
     CentroMonitoreoHsePuntajeDialogComponent,
     CentroMonitoreoHseMotivoDialogComponent,
     GridPaginationComponent,
+    ReportesPageComponent,
+    KardexGeneralReportePageComponent,
+    AsignacionPageComponent,
   ],
   imports: [
     BrowserModule,
@@ -236,6 +254,7 @@ const APP_DATE_FORMATS = {
     MatNativeDateModule,
     MatOptionModule,
     MatSelectModule,
+    MatSnackBarModule,
     AppRoutingModule,
     HttpClientModule
   ],

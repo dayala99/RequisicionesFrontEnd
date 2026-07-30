@@ -13,12 +13,14 @@ import { FormaPagoPageComponent } from './pages/forma-pago-page/forma-pago-page.
 import { GrupoItemPageComponent } from './pages/grupo-item-page/grupo-item-page.component';
 import { HomePageComponent } from './pages/home-page/home-page.component';
 import { ItemPageComponent } from './pages/item-page/item-page.component';
+import { ItemTreePageComponent } from './pages/item-tree-page/item-tree-page.component';
 import { ItemDetalleMaterialPageComponent } from './pages/item-detalle-material-page/item-detalle-material-page.component';
 import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
 import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra-page.component';
 import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page.component';
 import { PerfilPageComponent } from './pages/perfil-page/perfil-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
+import { StockPageComponent } from './pages/stock-page/stock-page.component';
 import { SubGrupoItemPageComponent } from './pages/sub-grupo-item-page/sub-grupo-item-page.component';
 import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servicio-page.component';
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
@@ -27,6 +29,7 @@ import { InspeccionesPageComponent } from './pages/inspecciones-page/inspeccione
 import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
+<<<<<<< HEAD
 import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
 import { ClimaPageComponent } from './pages/inspecciones/clima/clima-page.component';
 import { TareaPageComponent } from './pages/inspecciones/tarea/tarea-page.component';
@@ -36,6 +39,11 @@ import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
 import { PreguntasHsePageComponent } from './pages/inspecciones/preguntas-hse/preguntas-hse-page.component';
 import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
+=======
+import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
+import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
+import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 
 const routes: Routes = [
   {
@@ -98,6 +106,10 @@ const routes: Routes = [
         component: ItemPageComponent
       },
       {
+        path: 'item-arbol',
+        component: ItemTreePageComponent
+      },
+      {
         path: 'item-detalle-material',
         component: ItemDetalleMaterialPageComponent
       },
@@ -120,19 +132,42 @@ const routes: Routes = [
       },
       {
         path: 'orden-compra',
-        component: OrdenCompraPageComponent
+        component: OrdenCompraPageComponent,
+        data: { ordComTip: 1 }
+      },
+      {
+        path: 'orden-servicio',
+        component: OrdenCompraPageComponent,
+        data: { ordComTip: 2 }
       },
       {
         path: 'almacen',
         component: AlmacenPageComponent
       },
       {
+        path: 'stock',
+        component: StockPageComponent
+      },
+      {
         path: 'inspecciones',
         component: InspeccionesPageComponent
       },
       {
+<<<<<<< HEAD
         path: 'tipo-reporte',
         component: TipoReportePageComponent
+=======
+        path: 'asignacion',
+        component: AsignacionPageComponent
+      },
+      {
+        path: 'reportes',
+        component: ReportesPageComponent
+      },
+      {
+        path: 'reportes/kardex-general',
+        component: KardexGeneralReportePageComponent
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
       },
       {
         path: 'jefe',

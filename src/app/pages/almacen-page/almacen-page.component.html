@@ -21,7 +21,16 @@
           </mat-select>
         </mat-form-field>
 
-        <div *ngIf="isListadoIngresado" class="filters-panel__filters">
+        <label *ngIf="isListadoIngresado || isListadoSalida" class="field field--search field--general-search">
+          <span>Buscar en la grilla</span>
+          <input
+            type="text"
+            [value]="globalSearch"
+            placeholder="Escribe para filtrar..."
+            (input)="onGlobalSearchChange(($any($event.target).value || '').toString())">
+        </label>
+
+        <div *ngIf="isListadoIngresado || isListadoSalida" class="filters-panel__filters">
           <label class="field">
             <span>Nro. Movimiento</span>
             <input type="number" formControlName="movimientoId" min="0" step="1">
@@ -45,15 +54,6 @@
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="field field--mat">
-            <mat-label>Estado de Aprobacion</mat-label>
-            <mat-select formControlName="estadoAprobacion">
-              <mat-option *ngFor="let option of estadoAprobacionOptions" [value]="option.codigo">
-                {{ option.descripcion }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
           <div class="filters-panel__actions">
             <button type="submit" class="button button--primary" [disabled]="isLoadingAlmacen">
               {{ isLoadingAlmacen ? 'Buscando...' : 'Buscar' }}
@@ -68,6 +68,13 @@
       <div class="list-toolbar">
         <div class="list-toolbar__actions">
           <button
+            *ngIf="isListadoSalida"
+            type="button"
+            class="button button--primary"
+            (click)="abrirSalidaManual()">
+            Generar Consumo
+          </button>
+          <button
             *ngFor="let action of actionButtons"
             type="button"
             class="button button--primary"
@@ -75,56 +82,75 @@
             {{ action }}
           </button>
         </div>
-
-        <label *ngIf="isListadoIngresado" class="field field--search">
-          <span>Buscar en la grilla</span>
-          <input
-            type="text"
-            [value]="globalSearch"
-            placeholder="Escribe para filtrar..."
-            (input)="onGlobalSearchChange(($any($event.target).value || '').toString())">
-        </label>
       </div>
 
       <p *ngIf="errorMessage" class="editor-feedback editor-feedback--error">{{ errorMessage }}</p>
 
-      <div *ngIf="isListadoIngresado" class="table-shell">
+      <div *ngIf="isListadoIngresado || isListadoSalida" class="table-shell">
         <table class="almacen-table">
           <thead>
             <tr>
+              <th *ngIf="isListadoSalida">Acciones</th>
               <th>Nro. Movimiento</th>
               <th>Tipo de Ingreso</th>
               <th>Centro de Costo</th>
               <th>Almacen</th>
               <th>Fecha Registro</th>
               <th>Registrado Por</th>
-              <th>Estado Aprobacion</th>
-              <th>Acciones</th>
+              <th *ngIf="isListadoIngresado">Estado Aprobacion</th>
+              <th *ngIf="isListadoSalida">Estado Consumo</th>
+              <th>{{ isListadoSalida ? 'Editar' : 'Acciones' }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr *ngIf="isLoadingAlmacen">
-              <td colspan="8" class="empty-row">Cargando ingresos de almacen...</td>
+              <td [attr.colspan]="isListadoSalida ? 9 : 8" class="empty-row">Cargando ingresos de almacen...</td>
             </tr>
 
             <tr *ngIf="!isLoadingAlmacen && !errorMessage && !filteredAlmacenes.length">
-              <td colspan="8" class="empty-row">No se encontraron movimientos de almacen.</td>
+              <td [attr.colspan]="isListadoSalida ? 9 : 8" class="empty-row">No se encontraron movimientos de almacen.</td>
             </tr>
 
             <tr *ngFor="let item of paginatedAlmacenes; trackBy: trackByAlmacen" class="almacen-table__row">
+              <td *ngIf="isListadoSalida">
+                <div class="table-action-group">
+                  <button
+                    type="button"
+                    class="button button--primary button--table-action"
+                    [disabled]="!esEstadoConsumoPendiente(item)"
+                    (click)="aprobarConsumoSalida(item)">
+                    Despachar
+                  </button>
+                  <button
+                    type="button"
+                    class="button button--secondary button--table-action"
+                    [disabled]="!esEstadoConsumoPendiente(item)"
+                    (click)="rechazarConsumoSalida(item)">
+                    Rechazar
+                  </button>
+                </div>
+              </td>
               <td>{{ item.movimientoId }}</td>
               <td>{{ item.tipoIngreso }}</td>
               <td>{{ item.centroCosto }}</td>
               <td>{{ item.almacen }}</td>
               <td>{{ item.fechaRegistro }}</td>
               <td>{{ item.registradoPor }}</td>
-              <td>
+              <td *ngIf="isListadoIngresado">
                 <span class="status-badge" [attr.data-state]="item.estadoAprobacion.toLowerCase()">{{ item.estadoAprobacion }}</span>
               </td>
+              <td *ngIf="isListadoSalida">
+                <span class="status-badge" [attr.data-state]="item.estadoConsumo.toLowerCase()">{{ item.estadoConsumo }}</span>
+              </td>
               <td>
-                <button type="button" class="button button--secondary button--table-action" (click)="editarMovimiento(item)">
-                  Editar
+                <button
+                  type="button"
+                  class="table-action"
+                  aria-label="Editar movimiento"
+                  [disabled]="!puedeEditarMovimiento(item)"
+                  (click)="editarMovimiento(item)">
+                  &#9998;
                 </button>
               </td>
             </tr>
@@ -141,8 +167,6 @@
                 <th>Tipo</th>
                 <th>Proveedor</th>
                 <th>Forma de Pago</th>
-                <th>Ref. Obra</th>
-              <th>Referencia</th>
               <th>Total</th>
               <th>Estado</th>
             </tr>
@@ -150,11 +174,11 @@
 
           <tbody>
             <tr *ngIf="isLoadingAlmacen">
-              <td colspan="8" class="empty-row">Cargando ordenes de compra pendientes...</td>
+              <td colspan="7" class="empty-row">Cargando ordenes de compra pendientes...</td>
             </tr>
 
             <tr *ngIf="!isLoadingAlmacen && !errorMessage && !ordenesCompraPendientesAlmacen.length">
-              <td colspan="8" class="empty-row">No se encontraron ordenes de compra pendientes para almacen.</td>
+              <td colspan="7" class="empty-row">No se encontraron ordenes de compra pendientes para almacen.</td>
             </tr>
 
             <tr *ngFor="let item of paginatedOrdenesCompraPendientesAlmacen; trackBy: trackByOrdenCompraPendienteAlmacen" class="almacen-table__row">
@@ -167,8 +191,6 @@
               <td>{{ item.tipo }}</td>
               <td>{{ item.proveedor }}</td>
               <td>{{ item.formaPago }}</td>
-              <td>{{ item.refObra }}</td>
-              <td>{{ item.referencia }}</td>
               <td>{{ item.total | number:'1.2-2' }}</td>
               <td>
                 <span class="status-badge" [attr.data-state]="item.estado.toLowerCase()">{{ item.estado }}</span>
@@ -179,7 +201,7 @@
       </div>
 
       <app-grid-pagination
-        *ngIf="isListadoIngresado && filteredAlmacenes.length"
+        *ngIf="(isListadoIngresado || isListadoSalida) && filteredAlmacenes.length"
         [totalItems]="filteredAlmacenes.length"
         [currentPage]="currentPage"
         [pageSize]="pageSize"
@@ -336,7 +358,7 @@
           <p class="almacen-card__eyebrow">{{ editorEyebrow }}</p>
           <h3>{{ editorTitle }}</h3>
           <p class="almacen-card__description">
-            Completa la informacion del ingreso a almacen y selecciona materiales con sus centros de costo asociados.
+            {{ editorDescription }}
           </p>
         </div>
       </header>
@@ -393,10 +415,10 @@
       <section class="editor-section">
         <div class="section-copy">
           <h3>Materiales utilizados</h3>
-          <p>Selecciona los materiales, define la unidad y registra los centros de costo asociados al ingreso.</p>
+          <p>{{ materialsSectionDescription }}</p>
         </div>
 
-        <form class="editor-grid editor-grid--materials" [formGroup]="ingresoDirectoForm">
+        <form *ngIf="!isSalidaMode" class="editor-grid editor-grid--materials" [formGroup]="ingresoDirectoForm">
           <mat-form-field appearance="outline" class="field field--mat">
             <mat-label>Material</mat-label>
             <mat-select
@@ -443,7 +465,7 @@
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="field field--mat field--full">
+          <mat-form-field *ngIf="!isSalidaMode" appearance="outline" class="field field--mat field--full">
             <mat-label>Proveedor</mat-label>
             <mat-select formControlName="proveedorId" (openedChange)="onProveedorSelectOpened($event)">
               <mat-option>
@@ -466,7 +488,7 @@
             <input type="number" formControlName="cantidad" min="0" step="0.001">
           </label>
 
-          <label class="field">
+          <label *ngIf="!isSalidaMode" class="field">
             <span>Numero de Documento</span>
             <input type="text" formControlName="documentoNumero">
           </label>
@@ -478,12 +500,113 @@
             <mat-datepicker #fechaPicker></mat-datepicker>
           </mat-form-field>
         </form>
+
+        <div *ngIf="isSalidaMode" class="salida-materials-list">
+          <form
+            *ngFor="let row of salidaMaterialRows; let i = index"
+            class="editor-grid editor-grid--materials salida-material-row"
+            [formGroup]="row">
+            <mat-form-field appearance="outline" class="field field--mat">
+              <mat-label>Material</mat-label>
+              <mat-select
+                formControlName="materialId"
+                [disabled]="!itemOptions.length || isLoadingCatalogos"
+                (selectionChange)="onSalidaMaterialChange(i, $event.value)"
+                (openedChange)="onMaterialSelectOpened($event)">
+                <mat-option>
+                  <input
+                    type="text"
+                    class="mat-select-search"
+                    placeholder="Buscar material..."
+                    [formControl]="materialSearchControl"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="$event.stopPropagation()">
+                </mat-option>
+                <mat-option [value]="0">Seleccionar material</mat-option>
+                <mat-option *ngFor="let option of filteredMaterialOptions" [value]="option.id">
+                  {{ option.description }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="field field--mat">
+              <mat-label>Unidad</mat-label>
+              <mat-select
+                formControlName="unidadId"
+                [disabled]="!unidadOptions.length || isLoadingCatalogos"
+                (selectionChange)="onSalidaUnidadChange(i, $event.value)"
+                (openedChange)="onUnidadSelectOpened($event)">
+                <mat-option>
+                  <input
+                    type="text"
+                    class="mat-select-search"
+                    placeholder="Buscar unidad..."
+                    [formControl]="unidadSearchControl"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="$event.stopPropagation()">
+                </mat-option>
+                <mat-option [value]="0">Seleccionar unidad</mat-option>
+                <mat-option *ngFor="let option of filteredUnidadOptions" [value]="option.id">
+                  {{ option.description }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <label class="field salida-serie-field">
+              <span>Serie</span>
+              <input type="text" formControlName="serie" maxlength="100" placeholder="Ingresar serie">
+            </label>
+
+            <div class="salida-stock-grid">
+              <label class="field">
+                <span>Disponible</span>
+                <input type="number" formControlName="stockDisponible" class="input--readonly" readonly>
+              </label>
+
+              <label class="field">
+                <span>Reservado</span>
+                <input type="number" formControlName="stockReservado" class="input--readonly" readonly>
+              </label>
+
+              <label class="field">
+                <span>Stock Total</span>
+                <input type="number" formControlName="stockTotal" class="input--readonly" readonly>
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Cantidad</span>
+              <input type="number" formControlName="cantidad" min="0" step="0.001">
+            </label>
+
+            <mat-form-field appearance="outline" class="field field--mat field--date-picker" (click)="salidaFechaPicker.open()">
+              <mat-label>Fecha</mat-label>
+              <input matInput [matDatepicker]="salidaFechaPicker" formControlName="fecha" readonly>
+              <mat-datepicker-toggle matSuffix [for]="salidaFechaPicker"></mat-datepicker-toggle>
+              <mat-datepicker #salidaFechaPicker></mat-datepicker>
+            </mat-form-field>
+
+            <div class="salida-material-row__actions">
+              <button
+                type="button"
+                class="button button--icon-only button--danger"
+                [disabled]="salidaMaterialRows.length <= 1"
+                (click)="quitarMaterialSalida(i)">
+                -
+              </button>
+            </div>
+          </form>
+
+          <button type="button" class="button button--add-material" (click)="agregarMaterialSalida()">
+            +
+          </button>
+        </div>
       </section>
 
       <div class="editor-actions">
         <p *ngIf="saveErrorMessage" class="editor-feedback editor-feedback--error">{{ saveErrorMessage }}</p>
         <button type="button" class="button button--primary" [disabled]="isSavingIngreso || isLoadingCatalogos || isLoadingEditor" (click)="guardarIngresoDirecto()">
-          Guardar
+          {{ editorSaveButtonText }}
         </button>
         <button type="button" class="button button--secondary" [disabled]="isLoadingEditor" (click)="cancelarIngresoDirecto()">
           Cancelar

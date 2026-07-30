@@ -6,6 +6,15 @@ export interface PedidoReporteDetallePdf {
   cantidad: number;
   comentario?: string;
   centroCosto?: string;
+  requisitos?: string;
+  imagen?: string;
+  imagenData?: PedidoReporteEmbeddedImage;
+}
+
+export interface PedidoReporteEmbeddedImage {
+  bytes: Uint8Array;
+  width: number;
+  height: number;
 }
 
 export interface PedidoReportePdfData {
@@ -33,6 +42,7 @@ export interface PedidoReportePdfData {
 
 export interface PedidoReportePdfOptions {
   logoBytes?: Uint8Array;
+  headerImageBytes?: Uint8Array;
 }
 
 const PAGE_WIDTH = 595.28;
@@ -41,19 +51,41 @@ const PAGE_LEFT = 28;
 const PAGE_RIGHT = PAGE_WIDTH - 28;
 const PAGE_TOP = 28;
 const ROW_HEIGHT = 24;
+const HEADER_IMAGE_WIDTH = 109;
+const HEADER_IMAGE_HEIGHT = 54;
 
 export function createPedidoReportPdf(report: PedidoReportePdfData, options: PedidoReportePdfOptions = {}): Blob {
-  const pageContents = [buildPageContent(report, options.logoBytes)];
-  return new Blob([buildPdfDocument(pageContents, options.logoBytes)], { type: 'application/pdf' });
+  const detailPages = paginatePedidoDetalle(report.detalle);
+  let itemStartIndex = 0;
+  let detailImageStartIndex = 0;
+  const pageContents = detailPages.map((detallePagina) => {
+    const pageContent = buildPageContent(
+      { ...report, detalle: detallePagina },
+      options.logoBytes,
+      options.headerImageBytes,
+      itemStartIndex,
+      detailImageStartIndex
+    );
+    itemStartIndex += detallePagina.length;
+    detailImageStartIndex += pageContent.detailImages.length;
+    return pageContent;
+  });
+  return new Blob([buildPdfDocument(pageContents, options.logoBytes, options.headerImageBytes)], { type: 'application/pdf' });
 }
 
-function buildPageContent(report: PedidoReportePdfData, logoBytes?: Uint8Array): string {
+function buildPageContent(
+  report: PedidoReportePdfData,
+  logoBytes?: Uint8Array,
+  headerImageBytes?: Uint8Array,
+  itemStartIndex = 0,
+  detailImageStartIndex = 0
+): { content: string; detailImages: PedidoReporteEmbeddedImage[] } {
   const commands: string[] = ['0.65 w', '0 0 0 RG'];
   const addText = createTextAdder(commands);
-  const addLabelValue = createLabelValueAdder(addText);
   const addLine = createLineAdder(commands);
   const addRect = createRectAdder(commands);
   const addImage = createImageAdder(commands);
+  const addHeaderImage = createImageAdder(commands, 'Im2');
 
   addRect(PAGE_LEFT, PAGE_TOP, PAGE_RIGHT - PAGE_LEFT, 74);
 
@@ -63,10 +95,14 @@ function buildPageContent(report: PedidoReportePdfData, logoBytes?: Uint8Array):
     addText(PAGE_LEFT + 18, PAGE_TOP + 22, 'ARCE', 24, true);
     addText(PAGE_LEFT + 18, PAGE_TOP + 42, 'MONTAJES E INGENIERIA ARCE PERU S.A.C.', 8, true);
   }
-  const headerRightX = PAGE_RIGHT - 12;
-  addText(headerRightX, PAGE_TOP + 16, 'Calle 3, Nro. 177 - Urb La Grimanesa - CALLAO', 8, false, 'right');
-  addText(headerRightX, PAGE_TOP + 30, 'Telef: 572-3220 ANEXO 11 - 12', 8, false, 'right');
-  addText(headerRightX, PAGE_TOP + 44, 'RUC: 20550259221', 8, false, 'right');
+  if (headerImageBytes) {
+    addHeaderImage(PAGE_RIGHT - HEADER_IMAGE_WIDTH - 12, PAGE_TOP + 10, HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT);
+  } else {
+    const headerRightX = PAGE_RIGHT - 12;
+    addText(headerRightX, PAGE_TOP + 16, 'Calle 3, Nro. 177 - Urb La Grimanesa - CALLAO', 8, false, 'right');
+    addText(headerRightX, PAGE_TOP + 30, 'Telef: 572-3220 ANEXO 11 - 12', 8, false, 'right');
+    addText(headerRightX, PAGE_TOP + 44, 'RUC: 20550259221', 8, false, 'right');
+  }
 
   addRect(PAGE_RIGHT - 175, 116, 155, 48);
   addText(PAGE_RIGHT - 97.5, 135, 'PEDIDO INTERNO', 10, true, 'center');
@@ -82,9 +118,12 @@ function buildPageContent(report: PedidoReportePdfData, logoBytes?: Uint8Array):
   addWrappedFixedLabelValue(addText, 310, 402, 228, 'LUGAR ENTREGA:', report.direccionEntrega || report.lugarEntrega, 8, 130);
 
   const tableTop = 292;
-  const tableBottom = drawDetailTable(addText, addLine, addRect, tableTop, report.detalle);
+  const detailImages = drawDetailTable(addText, addLine, addRect, tableTop, report.detalle, itemStartIndex, detailImageStartIndex, commands);
 
-  return commands.join('\n');
+  return {
+    content: commands.join('\n'),
+    detailImages
+  };
 }
 
 interface FieldDrawConfig {
@@ -149,16 +188,21 @@ function drawDetailTable(
   addLine: ReturnType<typeof createLineAdder>,
   addRect: ReturnType<typeof createRectAdder>,
   top: number,
-  rows: PedidoReporteDetallePdf[]
-): number {
-  const columns = [PAGE_LEFT, 60, 105, 145, 400, PAGE_RIGHT];
-  const headers = ['ITEM', 'CANT.', 'UND.', 'DESCRIPCION DETALLADA', 'CENTRO DE COSTO'];
+  rows: PedidoReporteDetallePdf[],
+  itemStartIndex = 0,
+  detailImageStartIndex = 0,
+  commands: string[]
+): PedidoReporteEmbeddedImage[] {
+  const columns = [PAGE_LEFT, 60, 105, 145, 255, 340, 415, 490, PAGE_RIGHT];
+  const headers = ['ITEM', 'CANT.', 'UND.', 'DESCRIPCION', 'C. COSTO', 'COMENT.', 'REQUIS.', 'IMAGEN'];
   const detailRows = rows.length ? rows : [{
     descripcion: 'SIN ITEMS REGISTRADOS',
     unidad: '-',
     cantidad: 0,
     comentario: '',
-    centroCosto: '-'
+    centroCosto: '-',
+    requisitos: '',
+    imagen: ''
   }];
 
   addRect(PAGE_LEFT, top, PAGE_RIGHT - PAGE_LEFT, 24);
@@ -168,19 +212,148 @@ function drawDetailTable(
   });
 
   let rowY = top + 24;
+  let detailImageIndex = detailImageStartIndex;
+  const detailImages: PedidoReporteEmbeddedImage[] = [];
 
-  detailRows.slice(0, 8).forEach((row, index) => {
-    addRect(PAGE_LEFT, rowY, PAGE_RIGHT - PAGE_LEFT, ROW_HEIGHT);
-    columns.slice(1, -1).forEach((x) => addLine(x, rowY, x, rowY + ROW_HEIGHT));
-    addText((columns[0] + columns[1]) / 2, rowY + 15, String(index + 1), 7, false, 'center');
-    addText(columns[2] - 6, rowY + 15, formatAmount(row.cantidad, 2), 7, false, 'right');
-    addText((columns[2] + columns[3]) / 2, rowY + 15, row.unidad, 7, false, 'center', columns[3] - columns[2] - 6);
-    addText(columns[3] + 4, rowY + 15, row.descripcion, 7, false, 'left', columns[4] - columns[3] - 8);
-    addText(columns[4] + 4, rowY + 15, row.centroCosto || '-', 7, false, 'left', columns[5] - columns[4] - 8);
-    rowY += ROW_HEIGHT;
+  detailRows.forEach((row, index) => {
+    const {
+      descriptionLines,
+      centroCostoLines,
+      comentarioLines,
+      requisitoLines,
+      imagenLines,
+      descriptionTextWidth,
+      centroCostoWidth,
+      comentarioWidth,
+      requisitoWidth,
+      imagenWidth,
+      imageBoxHeight,
+      lineHeight,
+      rowHeight
+    } = buildPedidoDetailRowMetrics(row);
+    const rowMiddleY = rowY + rowHeight / 2 + 3;
+
+    addRect(PAGE_LEFT, rowY, PAGE_RIGHT - PAGE_LEFT, rowHeight);
+    columns.slice(1, -1).forEach((x) => addLine(x, rowY, x, rowY + rowHeight));
+    addText((columns[0] + columns[1]) / 2, rowMiddleY, String(itemStartIndex + index + 1), 7, false, 'center');
+    addText(columns[2] - 6, rowMiddleY, formatAmount(row.cantidad, 2), 7, false, 'right');
+    addText((columns[2] + columns[3]) / 2, rowMiddleY, row.unidad, 7, false, 'center', columns[3] - columns[2] - 6);
+
+    descriptionLines.forEach((line, lineIndex) => {
+      addText(columns[3] + 4, rowY + 13 + lineIndex * lineHeight, line, 7, false, 'left', descriptionTextWidth);
+    });
+    centroCostoLines.forEach((line, lineIndex) => {
+      addText(columns[4] + 4, rowY + 13 + lineIndex * lineHeight, line, 7, false, 'left', centroCostoWidth);
+    });
+    comentarioLines.forEach((line, lineIndex) => {
+      addText(columns[5] + 4, rowY + 13 + lineIndex * lineHeight, line, 7, false, 'left', comentarioWidth);
+    });
+    requisitoLines.forEach((line, lineIndex) => {
+      addText(columns[6] + 4, rowY + 13 + lineIndex * lineHeight, line, 7, false, 'left', requisitoWidth);
+    });
+    if (row.imagenData) {
+      detailImageIndex += 1;
+      detailImages.push(row.imagenData);
+      const imageName = `DetIm${detailImageIndex}`;
+      const addDetailImage = createImageAdder(commands, imageName);
+      const fit = getImageFitSize(row.imagenData.width, row.imagenData.height, imagenWidth, imageBoxHeight);
+      const imageX = columns[7] + 4 + (imagenWidth - fit.width) / 2;
+      const imageY = rowY + (rowHeight - fit.height) / 2;
+      addDetailImage(imageX, imageY, fit.width, fit.height);
+    } else {
+      imagenLines.forEach((line, lineIndex) => {
+        addText(columns[7] + 4, rowY + 13 + lineIndex * lineHeight, line, 7, false, 'left', imagenWidth);
+      });
+    }
+
+    rowY += rowHeight;
   });
 
-  return rowY;
+  return detailImages;
+}
+
+function paginatePedidoDetalle(rows: PedidoReporteDetallePdf[]): PedidoReporteDetallePdf[][] {
+  const normalizedRows = rows.length
+    ? rows
+    : [{
+        descripcion: 'SIN ITEMS REGISTRADOS',
+        unidad: '-',
+        cantidad: 0,
+        comentario: '',
+        centroCosto: '-',
+        requisitos: '',
+        imagen: ''
+      }];
+
+  const pages: PedidoReporteDetallePdf[][] = [];
+  const currentPage: PedidoReporteDetallePdf[] = [];
+  const tableTop = 292;
+  const tableHeaderHeight = 24;
+  const pageBottomLimit = PAGE_HEIGHT - 46;
+  let consumedHeight = tableTop + tableHeaderHeight;
+
+  normalizedRows.forEach((row) => {
+    const { rowHeight } = buildPedidoDetailRowMetrics(row);
+
+    if (currentPage.length > 0 && consumedHeight + rowHeight > pageBottomLimit) {
+      pages.push([...currentPage]);
+      currentPage.length = 0;
+      consumedHeight = tableTop + tableHeaderHeight;
+    }
+
+    currentPage.push(row);
+    consumedHeight += rowHeight;
+  });
+
+  if (currentPage.length > 0) {
+    pages.push([...currentPage]);
+  }
+
+  return pages.length ? pages : [[]];
+}
+
+function buildPedidoDetailRowMetrics(row: PedidoReporteDetallePdf) {
+  const columns = [PAGE_LEFT, 60, 105, 145, 255, 340, 415, 490, PAGE_RIGHT];
+  const descriptionWidth = columns[4] - columns[3] - 8;
+  const centroCostoWidth = columns[5] - columns[4] - 8;
+  const comentarioWidth = columns[6] - columns[5] - 8;
+  const requisitoWidth = columns[7] - columns[6] - 8;
+  const imagenWidth = columns[8] - columns[7] - 8;
+  const descriptionTextWidth = Math.max(40, descriptionWidth * 0.78);
+  const descriptionLines = wrapTextToWidth(row.descripcion, 7, descriptionTextWidth);
+  const centroCostoLines = wrapTextToWidth(row.centroCosto || '-', 7, centroCostoWidth);
+  const comentarioLines = wrapTextToWidth(row.comentario || '-', 7, comentarioWidth);
+  const requisitoLines = wrapTextToWidth(row.requisitos || '-', 7, requisitoWidth);
+  const imagenLines = row.imagenData ? [] : wrapTextToWidth(row.imagen || '-', 7, imagenWidth);
+  const lineHeight = 9;
+  const imageBoxHeight = row.imagenData ? 44 : ROW_HEIGHT;
+  const rowHeight = Math.max(
+    ROW_HEIGHT,
+    imageBoxHeight + 8,
+    12 + Math.max(
+      descriptionLines.length,
+      centroCostoLines.length,
+      comentarioLines.length,
+      requisitoLines.length,
+      imagenLines.length
+    ) * lineHeight
+  );
+
+  return {
+    descriptionLines,
+    centroCostoLines,
+    comentarioLines,
+    requisitoLines,
+    imagenLines,
+    descriptionTextWidth,
+    centroCostoWidth,
+    comentarioWidth,
+    requisitoWidth,
+    imagenWidth,
+    imageBoxHeight,
+    lineHeight,
+    rowHeight
+  };
 }
 
 function createLabelValueAdder(addText: TextAdder) {
@@ -255,9 +428,9 @@ function createRectAdder(commands: string[]) {
   };
 }
 
-function createImageAdder(commands: string[]) {
+function createImageAdder(commands: string[], imageName = 'Im1') {
   return (x: number, y: number, width: number, height: number) => {
-    commands.push(`q ${width.toFixed(2)} 0 0 ${height.toFixed(2)} ${x.toFixed(2)} ${toPdfY(y + height).toFixed(2)} cm /Im1 Do Q`);
+    commands.push(`q ${width.toFixed(2)} 0 0 ${height.toFixed(2)} ${x.toFixed(2)} ${toPdfY(y + height).toFixed(2)} cm /${imageName} Do Q`);
   };
 }
 
@@ -265,7 +438,11 @@ type PdfObject =
   | { kind: 'text'; body: string }
   | { kind: 'binary'; header: string; bytes: Uint8Array; footer: string };
 
-function buildPdfDocument(pageContents: string[], logoBytes?: Uint8Array): Uint8Array {
+function buildPdfDocument(
+  pageContents: Array<{ content: string; detailImages: PedidoReporteEmbeddedImage[] }>,
+  logoBytes?: Uint8Array,
+  headerImageBytes?: Uint8Array
+): Uint8Array {
   const objects: PdfObject[] = [];
   const addObject = (body: string): number => {
     objects.push({ kind: 'text', body });
@@ -278,22 +455,55 @@ function buildPdfDocument(pageContents: string[], logoBytes?: Uint8Array): Uint8
 
   const fontRegularId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   const fontBoldId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-  const imageId = logoBytes
-    ? addBinaryObject(
-        `<< /Type /XObject /Subtype /Image /Width 1591 /Height 672 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBytes.length} >>\nstream\n`,
-        logoBytes,
+  const globalImageIds: Array<number | null> = [
+    logoBytes
+      ? addBinaryObject(
+          `<< /Type /XObject /Subtype /Image /Width 1591 /Height 672 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBytes.length} >>\nstream\n`,
+          logoBytes,
+          '\nendstream'
+        )
+      : null,
+    headerImageBytes
+      ? addBinaryObject(
+          `<< /Type /XObject /Subtype /Image /Width 169 /Height 84 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${headerImageBytes.length} >>\nstream\n`,
+          headerImageBytes,
+          '\nendstream'
+        )
+      : null
+  ];
+  const detailImageIds = pageContents
+    .flatMap((page) => page.detailImages)
+    .map((image) =>
+      addBinaryObject(
+        `<< /Type /XObject /Subtype /Image /Width ${Math.max(1, Math.round(image.width))} /Height ${Math.max(1, Math.round(image.height))} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.bytes.length} >>\nstream\n`,
+        image.bytes,
         '\nendstream'
       )
-    : null;
+    );
   const pagesObjectId = addObject('');
   const pageIds: number[] = [];
-  const resources = imageId
-    ? `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> /XObject << /Im1 ${imageId} 0 R >> >>`
-    : `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >>`;
+  let detailImageResourceIndex = 0;
 
-  pageContents.forEach((content) => {
-    const stream = `${content}\n`;
+  pageContents.forEach((page) => {
+    const stream = `${page.content}\n`;
     const contentId = addObject(`<< /Length ${byteLength(stream)} >>\nstream\n${stream}endstream`);
+    const xObjectEntries: string[] = [];
+
+    globalImageIds.forEach((imageId, index) => {
+      if (imageId) {
+        xObjectEntries.push(`/Im${index + 1} ${imageId} 0 R`);
+      }
+    });
+
+    page.detailImages.forEach(() => {
+      detailImageResourceIndex += 1;
+      const imageId = detailImageIds[detailImageResourceIndex - 1];
+      xObjectEntries.push(`/DetIm${detailImageResourceIndex} ${imageId} 0 R`);
+    });
+
+    const resources = xObjectEntries.length
+      ? `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> /XObject << ${xObjectEntries.join(' ')} >> >>`
+      : `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >>`;
     const pageId = addObject(
       `<< /Type /Page /Parent ${pagesObjectId} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] ${resources} /Contents ${contentId} 0 R >>`
     );
@@ -356,6 +566,19 @@ function buildPdfDocument(pageContents: string[], logoBytes?: Uint8Array): Uint8
   return output;
 }
 
+function getImageFitSize(sourceWidth: number, sourceHeight: number, maxWidth: number, maxHeight: number) {
+  const safeWidth = Math.max(1, sourceWidth || 1);
+  const safeHeight = Math.max(1, sourceHeight || 1);
+  const widthRatio = maxWidth / safeWidth;
+  const heightRatio = maxHeight / safeHeight;
+  const scale = Math.min(widthRatio, heightRatio, 1);
+
+  return {
+    width: safeWidth * scale,
+    height: safeHeight * scale
+  };
+}
+
 function toPdfY(yFromTop: number): number {
   return PAGE_HEIGHT - yFromTop;
 }
@@ -384,6 +607,18 @@ function wrapTextToWidth(text: string, fontSize: number, maxWidth: number): stri
   let currentLine = '';
 
   words.forEach((word) => {
+    if (approximateTextWidth(word, fontSize) > maxWidth) {
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+
+      const wordParts = splitTextToWidth(word, fontSize, maxWidth);
+      lines.push(...wordParts.slice(0, -1));
+      currentLine = wordParts[wordParts.length - 1] || '';
+      return;
+    }
+
     const nextLine = currentLine ? `${currentLine} ${word}` : word;
 
     if (approximateTextWidth(nextLine, fontSize) <= maxWidth) {
@@ -403,6 +638,29 @@ function wrapTextToWidth(text: string, fontSize: number, maxWidth: number): stri
   }
 
   return lines.length ? lines : ['-'];
+}
+
+function splitTextToWidth(text: string, fontSize: number, maxWidth: number): string[] {
+  const parts: string[] = [];
+  let currentPart = '';
+
+  Array.from(text).forEach((character) => {
+    const nextPart = `${currentPart}${character}`;
+
+    if (currentPart && approximateTextWidth(nextPart, fontSize) > maxWidth) {
+      parts.push(currentPart);
+      currentPart = character;
+      return;
+    }
+
+    currentPart = nextPart;
+  });
+
+  if (currentPart) {
+    parts.push(currentPart);
+  }
+
+  return parts.length ? parts : ['-'];
 }
 
 function escapePdfText(text: string): string {

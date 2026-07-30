@@ -1,14 +1,20 @@
-import { Component } from '@angular/core';
+﻿import { Component } from '@angular/core';
 import { FormBuilder, FormControl } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { from, of } from 'rxjs';
 import { catchError, concatMap, switchMap, toArray } from 'rxjs/operators';
 
-import { ActualizarDetallePedidoRequest, ActualizarPedidoRequest, ApiService, EliminarDetallePedidoRequest, EnviarCorreoPedidoGeneradoProductoRequest, EnviarCorreoPedidoGeneradoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
+import { ActualizarDetallePedidoRequest, ActualizarPedidoRequest, ApiService, EliminarDetallePedidoRequest, EnviarCorreoPedidoGeneradoProductoRequest, EnviarCorreoPedidoGeneradoRequest, RegistrarArchivoAdjuntoPedidoRequest, RegistrarDetallePedidoRequest, RegistrarPedidoRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
+import { ConfirmacionAccionDialogComponent, ConfirmacionDialogData } from '../inspecciones-page/confirmacion-accion-dialog.component';
 import { ApprovalUserOption } from './approval-user-selector-dialog.component';
 import { PedidoDetalleDialogComponent, PedidoDetalleDialogData } from './pedido-detalle-dialog.component';
+import {
+  PedidoDetalleImageSourceDialogComponent,
+  PedidoDetalleImageSourceDialogResult
+} from './pedido-detalle-image-source-dialog.component';
 import { PedidoDetalleDialogValue } from './pedido-detalle-dialog.models';
+import { PedidoRechazoDialogComponent, PedidoRechazoDialogData, PedidoRechazoDialogResult } from './pedido-rechazo-dialog.component';
 import { RequisicionesPageComponent } from './requisiciones-page.component';
 
 type DataRecord = Record<string, unknown>;
@@ -32,8 +38,18 @@ interface PedidoBDetalleTemporal {
   unitPrice: number;
   subtotal: number;
   observaciones: string;
+  comentarios: string;
+  requisitos: string;
+  imageFile: File | null;
+  imagePreviewUrl: string;
+  storedImageName: string;
   markedForDelete?: boolean;
 }
+
+type PedidoBListadoRow = {
+  requisicion: number;
+  usrAprobacion?: string | null;
+};
 
 @Component({
   selector: 'app-pedidos-b-page',
@@ -45,7 +61,9 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
   direccionesEntrega: DireccionEntregaOption[] = [];
   pedidoBDetalles: PedidoBDetalleTemporal[] = [];
   isLoadingDireccionesEntrega = false;
+  isPreviewPedido = false;
   private nextPedidoBDetalleId = 1;
+  private detalleImagenPendienteId: number | null = null;
 
   constructor(
     formBuilder: FormBuilder,
@@ -56,6 +74,9 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     super(formBuilder, pedidosBDialog, pedidosBApiService, pedidosBAuthService);
     if (!this.detalleForm.contains('proveedorReferencia')) {
       this.detalleForm.addControl('proveedorReferencia', new FormControl(''));
+    }
+    if (!this.detalleForm.contains('aclaraciones')) {
+      this.detalleForm.addControl('aclaraciones', new FormControl(''));
     }
   }
 
@@ -119,6 +140,73 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     }
   }
 
+  abrirReportePedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    this.seleccionarPedido(item as never);
+    this.verReportePedido(item as never);
+  }
+
+  modificarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    this.seleccionarPedido(item as never);
+    this.modificarPedidoSeleccionado();
+  }
+
+  previsualizarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    this.seleccionarPedido(item as never);
+    this.abrirPrevisualizacionPedidoSeleccionado();
+  }
+
+  aprobarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    this.seleccionarPedido(item as never);
+    this.confirmarAccionPedidoB({
+      titulo: 'Aprobar pedido',
+      mensaje: `¿Deseas aprobar el pedido ${this.detallePedidoSeleccionado?.codigo || item.requisicion}?`,
+      textoConfirmar: 'Aprobar',
+      textoCancelar: 'Cancelar'
+    }, () => this.ejecutarAccion('Aprobar'));
+  }
+
+  rechazarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    this.seleccionarPedido(item as never);
+    this.ejecutarAccion('Rechazar');
+  }
+
+  eliminarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    this.seleccionarPedido(item as never);
+    this.confirmarAccionPedidoB({
+      titulo: 'Eliminar pedido',
+      mensaje: `¿Deseas eliminar el pedido ${this.detallePedidoSeleccionado?.codigo || item.requisicion}?`,
+      textoConfirmar: 'Eliminar',
+      textoCancelar: 'Cancelar',
+      tipo: 'peligro'
+    }, () => this.ejecutarAccion('Eliminar'));
+  }
+
+  isActionRowBusy(item: PedidoBListadoRow): boolean {
+    return this.isLoadingPedidoDetalle || this.isUpdatingPedidoEstado || this.isLoadingReportePedidoId === item.requisicion;
+  }
+
+  canApprovePedidoFila(item: PedidoBListadoRow): boolean {
+    const usuarioAprobacion = this.normalizePedidoBUsuario(String(item.usrAprobacion ?? ''));
+    const usuarioActual = this.normalizePedidoBUsuario(this.pedidosBAuthService.getCurrentUser());
+
+    return !!usuarioAprobacion && usuarioAprobacion === usuarioActual;
+  }
+
+  isPedidoAprobadoFila(item: { estado?: unknown }): boolean {
+    const estado = String(item.estado ?? '').trim().toLowerCase();
+    return estado === 'aprobado';
+  }
+
+  canAdministrarPedidoAprobado(): boolean {
+    return this.normalizePedidoBUsuario(this.pedidosBAuthService.getCurrentUser()) === 'dayala';
+  }
+
   override modificarPedidoSeleccionado(): void {
     const pedidoId = this.selectedPedidoId;
 
@@ -126,13 +214,56 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       return;
     }
 
+    this.isPreviewPedido = false;
     this.pedidoBDetalles = [];
     this.nextPedidoBDetalleId = 1;
     super.modificarPedidoSeleccionado();
+    this.cargarCabeceraPedidoB(pedidoId);
     this.cargarDetallePedidoB(pedidoId);
   }
 
+  override iniciarNuevoPedido(): void {
+    this.isPreviewPedido = false;
+    super.iniciarNuevoPedido();
+  }
+
+  cerrarVistaPreviaPedido(): void {
+    this.isPreviewPedido = false;
+    this.cerrarEditorPedido();
+  }
+
   abrirModalDetallePedidoB(): void {
+    if (this.isPreviewPedido) {
+      return;
+    }
+
+    const primerDetalleRegistrado = this.pedidoBDetalles.find((detalle) => !detalle.markedForDelete);
+
+    if (primerDetalleRegistrado) {
+      const dialogRef = this.pedidosBDialog.open(ConfirmacionAccionDialogComponent, {
+        width: 'min(28rem, 92vw)',
+        disableClose: true,
+        panelClass: 'animated-dialog-pane',
+        backdropClass: 'animated-dialog-backdrop',
+        autoFocus: false,
+        data: {
+          titulo: 'Agregar producto',
+          mensaje: `Se seleccionara por defecto el centro de costo "${primerDetalleRegistrado.centroCostoDescripcion}". ¿Deseas usarlo?`,
+          textoConfirmar: 'Si',
+          textoCancelar: 'No'
+        } as ConfirmacionDialogData
+      });
+
+      dialogRef.afterClosed().subscribe((usarCentroCosto: boolean) => {
+        this.openPedidoBDetalleDialog(usarCentroCosto ? primerDetalleRegistrado : undefined);
+      });
+      return;
+    }
+
+    this.openPedidoBDetalleDialog();
+  }
+
+  private openPedidoBDetalleDialog(detalleBase?: Pick<PedidoBDetalleTemporal, 'centroCostoId' | 'centroCostoDescripcion'>): void {
     const dialogData: PedidoDetalleDialogData = {
       pedidoCodigo: 'Auto',
       itemNumber: String(this.pedidoBDetalles.length + 1),
@@ -148,8 +279,8 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
         itemDescription: '',
         unitCode: '',
         unitDescription: '',
-        centroCostoId: 0,
-        centroCostoDescripcion: '',
+        centroCostoId: Number(detalleBase?.centroCostoId ?? 0),
+        centroCostoDescripcion: String(detalleBase?.centroCostoDescripcion ?? '').trim(),
         centroCostoCantidadRequerida: 0,
         quantity: 0,
         unitPrice: 0
@@ -184,14 +315,19 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
           quantity: result.quantity,
           unitPrice: result.unitPrice,
           subtotal: this.normalizePedidoBCosto(result.subtotal ?? result.quantity * result.unitPrice),
-          observaciones: ''
+          observaciones: '',
+          comentarios: '',
+          requisitos: '',
+          imageFile: null,
+          imagePreviewUrl: '',
+          storedImageName: ''
         }
       ];
     });
   }
 
   editarDetallePedidoB(detalle: PedidoBDetalleTemporal, index: number): void {
-    if (detalle.markedForDelete) {
+    if (this.isPreviewPedido || detalle.markedForDelete) {
       return;
     }
 
@@ -246,11 +382,113 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
               quantity: result.quantity,
               unitPrice: result.unitPrice,
               subtotal: this.normalizePedidoBCosto(result.subtotal ?? result.quantity * result.unitPrice),
+              imageFile: current.imageFile,
+              imagePreviewUrl: current.imagePreviewUrl,
+              storedImageName: current.storedImageName,
               markedForDelete: false
             }
           : current
       );
     });
+  }
+
+  abrirDialogoImagenDetallePedidoB(
+    detalle: PedidoBDetalleTemporal,
+    cameraInput: HTMLInputElement,
+    fileInput: HTMLInputElement
+  ): void {
+    if (this.isPreviewPedido || detalle.markedForDelete) {
+      return;
+    }
+
+    const dialogRef = this.pedidosBDialog.open(PedidoDetalleImageSourceDialogComponent, {
+      width: 'min(28rem, 92vw)',
+      disableClose: true,
+      panelClass: 'animated-dialog-pane',
+      backdropClass: 'animated-dialog-backdrop',
+      autoFocus: false,
+      data: {
+        titulo: 'Agregar imagen',
+        mensaje: `Selecciona si deseas usar la camara o elegir un archivo para ${detalle.itemDescription}.`,
+        imageUrl: this.resolveDetalleImagenPreviewUrl(detalle),
+        imageAlt: `Imagen de ${detalle.itemDescription}`
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result?: PedidoDetalleImageSourceDialogResult) => {
+      if (!result || result === 'cancel') {
+        this.detalleImagenPendienteId = null;
+        return;
+      }
+
+      this.detalleImagenPendienteId = detalle.id;
+
+      if (result === 'camera') {
+        cameraInput.click();
+        return;
+      }
+
+      fileInput.click();
+    });
+  }
+
+  onDetalleImagenSeleccionada(event: Event, source: 'camera' | 'file'): void {
+    const input = event.target as HTMLInputElement | null;
+    const files = Array.from(input?.files ?? []);
+    const detalleId = this.detalleImagenPendienteId;
+
+    this.detalleImagenPendienteId = null;
+
+    if (!input) {
+      return;
+    }
+
+    if (!detalleId || !files.length) {
+      input.value = '';
+      return;
+    }
+
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+
+    if (!imageFiles.length) {
+      input.value = '';
+      return;
+    }
+
+    const imageFile = imageFiles[0];
+
+    this.readDetalleImagenPreview(imageFile)
+      .then((imagePreviewUrl) => {
+        this.pedidoBDetalles = this.pedidoBDetalles.map((detalle) =>
+          detalle.id === detalleId
+            ? {
+                ...detalle,
+                imageFile,
+                imagePreviewUrl
+              }
+            : detalle
+        );
+
+        console.log('[Pedidos B][Detalle imagen] imagen agregada', {
+          detalleId,
+          source,
+          file: {
+            name: imageFile.name,
+            size: imageFile.size,
+            type: imageFile.type
+          }
+        });
+      })
+      .catch((error: unknown) => {
+        console.warn('[Pedidos B][Detalle imagen] no se pudo generar la vista previa', error);
+      })
+      .finally(() => {
+        input.value = '';
+      });
+  }
+
+  getDetalleImagenTooltip(detalle: PedidoBDetalleTemporal): string {
+    return this.hasDetalleImagen(detalle) ? 'Imagen agregada' : 'Agregar imagen';
   }
 
   onPedidoBObservacionInput(detalleId: number, event: Event): void {
@@ -264,7 +502,59 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     );
   }
 
+  abrirEditorTextoDetallePedidoB(detalle: PedidoBDetalleTemporal, campo: 'observaciones' | 'comentarios' | 'requisitos'): void {
+    if (this.isPreviewPedido || detalle.markedForDelete) {
+      return;
+    }
+
+    const labelMap: Record<'observaciones' | 'comentarios' | 'requisitos', string> = {
+      observaciones: 'Observaciones',
+      comentarios: 'Comentarios',
+      requisitos: 'Requisitos'
+    };
+
+    const errorMap: Record<'observaciones' | 'comentarios' | 'requisitos', string> = {
+      observaciones: 'Ingresa una observacion valida.',
+      comentarios: 'Ingresa un comentario valido.',
+      requisitos: 'Ingresa un requisito valido.'
+    };
+
+    const dialogData: PedidoRechazoDialogData = {
+      titulo: `Editar ${labelMap[campo].toLowerCase()}`,
+      etiquetaMotivo: labelMap[campo],
+      textoError: errorMap[campo],
+      textoConfirmar: 'Guardar',
+      valorInicial: detalle[campo],
+      requerido: false
+    };
+
+    const dialogRef = this.pedidosBDialog.open(PedidoRechazoDialogComponent, {
+      width: 'min(32rem, 92vw)',
+      disableClose: true,
+      panelClass: 'animated-dialog-pane',
+      backdropClass: 'animated-dialog-backdrop',
+      autoFocus: false,
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().subscribe((result?: PedidoRechazoDialogResult) => {
+      if (!result) {
+        return;
+      }
+
+      this.pedidoBDetalles = this.pedidoBDetalles.map((current) =>
+        current.id === detalle.id
+          ? { ...current, [campo]: result.motivo }
+          : current
+      );
+    });
+  }
+
   toggleEliminarDetallePedidoB(detalleId: number): void {
+    if (this.isPreviewPedido) {
+      return;
+    }
+
     const detalle = this.pedidoBDetalles.find((item) => item.id === detalleId);
 
     if (!detalle) {
@@ -296,8 +586,8 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
   formatPedidoBCosto(value: number): string {
     return new Intl.NumberFormat('es-PE', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4
     }).format(value);
   }
 
@@ -314,6 +604,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
     this.isSavingPedido = true;
     this.saveErrorMessage = '';
+    const isUpdatingPedido = this.isEditingPedido && this.selectedPedidoId !== null;
 
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => {
@@ -322,20 +613,29 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       }
     });
 
-    if (this.archivoFile) {
-      formData.append('archivo', this.archivoFile, this.archivoFile.name);
-    } else {
-      formData.append('archivo', new File([], 'sin-archivo-adjunto.txt'), 'sin-archivo-adjunto.txt');
-    }
+    formData.append('archivo', new File([], 'sin-archivo-adjunto.txt'), 'sin-archivo-adjunto.txt');
 
-    const saveRequest = this.isEditingPedido && this.selectedPedidoId !== null
-      ? this.actualizarPedidoB(this.selectedPedidoId, payload)
+    console.log('[Pedidos B][Guardar] Inicio', {
+      modo: isUpdatingPedido ? 'actualizacion' : 'registro',
+      pedidoId: this.selectedPedidoId,
+      cabecera: payload,
+      archivosLocales: this.archivoFiles.map((archivo) => ({
+        name: archivo.name,
+        size: archivo.size,
+        type: archivo.type
+      })),
+      archivosGuardados: this.archivosAdjuntosGuardados,
+      detalles: this.pedidoBDetalles
+    });
+
+    const saveRequest = isUpdatingPedido
+      ? this.actualizarPedidoB(this.selectedPedidoId!, payload)
       : this.registrarPedidoB(formData);
 
     saveRequest.pipe(
       switchMap((response: unknown) => {
         this.assertPedidoBSuccessfulResponse(response, 'No se pudo guardar la cabecera del pedido.');
-        const pedId = this.isEditingPedido && this.selectedPedidoId !== null
+        const pedId = isUpdatingPedido
           ? this.selectedPedidoId
           : this.extractPedidoBPedId(response);
 
@@ -343,8 +643,37 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
           throw new Error('No se recibio el codigo del pedido registrado.');
         }
 
-        return this.sincronizarDetallePedidoB(pedId).pipe(
-          switchMap(() => this.enviarCorreoPedidoGeneradoB(pedId, payload))
+        console.log('[Pedidos B][Guardar] Cabecera OK', {
+          modo: isUpdatingPedido ? 'actualizacion' : 'registro',
+          pedId,
+          response
+        });
+
+        return this.sincronizarArchivosAdjuntosPedidoB(pedId).pipe(
+          switchMap((adjuntosResponse) => {
+            console.log('[Pedidos B][Guardar] Adjuntos OK', {
+              pedId,
+              response: adjuntosResponse
+            });
+            return this.sincronizarDetallePedidoB(pedId);
+          }),
+          switchMap((detalleResponse) => {
+            console.log('[Pedidos B][Guardar] Detalle OK', {
+              pedId,
+              response: detalleResponse
+            });
+            if (isUpdatingPedido) {
+              return of(detalleResponse);
+            }
+            return this.enviarCorreoPedidoGeneradoB(pedId, payload);
+          }),
+          switchMap((correoResponse) => {
+            console.log('[Pedidos B][Guardar] Correo OK', {
+              pedId,
+              response: correoResponse
+            });
+            return of(correoResponse);
+          })
         );
       })
     ).subscribe({
@@ -357,7 +686,12 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       },
       error: (error: unknown) => {
         console.error('Error guardando pedido B:', error);
-        this.saveErrorMessage = this.resolvePedidoBErrorMessage(error, 'No se pudo registrar el pedido. Intenta nuevamente.');
+        this.saveErrorMessage = this.resolvePedidoBErrorMessage(
+          error,
+          isUpdatingPedido
+            ? 'No se pudo actualizar el pedido. Intenta nuevamente.'
+            : 'No se pudo registrar el pedido. Intenta nuevamente.'
+        );
         this.isSavingPedido = false;
       }
     });
@@ -401,6 +735,26 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     });
   }
 
+  private cargarCabeceraPedidoB(pedidoId: number): void {
+    this.pedidosBApiService.getListarPedidoModificar(pedidoId).subscribe({
+      next: (response: unknown) => {
+        const [item] = this.extractPedidoBRecords(response, ['Ped_Id', 'ped_Id', 'pedId']);
+
+        if (!item) {
+          return;
+        }
+
+        this.detalleForm.controls['aclaraciones']?.setValue(
+          this.getDireccionEntregaTextValue(item, ['Ped_Acl', 'ped_Acl', 'pedAcl']),
+          { emitEvent: false }
+        );
+      },
+      error: (error: unknown) => {
+        console.warn('No se pudo cargar la cabecera extendida del pedido B:', error);
+      }
+    });
+  }
+
   private mapDetallePedidoB(item: DataRecord, index: number): PedidoBDetalleTemporal | null {
     const persistedId = this.getDireccionEntregaNumberValue(item, ['Ped_Det_Id', 'ped_Det_Id', 'pedDetId']);
     const itemCode = this.getDireccionEntregaTextValue(item, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm', 'Itm_Cod', 'itm_Cod', 'itmCod']);
@@ -426,7 +780,12 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       quantity,
       unitPrice,
       subtotal: this.normalizePedidoBCosto(subtotal ?? quantity * unitPrice),
-      observaciones: this.getDireccionEntregaTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs'])
+      observaciones: this.getDireccionEntregaTextValue(item, ['Ped_Obs_Ped', 'ped_Obs_Ped', 'pedObsPed', 'Ped_Obs', 'ped_Obs', 'pedObs']),
+      comentarios: this.getDireccionEntregaTextValue(item, ['Ped_Com', 'ped_Com', 'pedCom']),
+      requisitos: this.getDireccionEntregaTextValue(item, ['Ped_Req', 'ped_Req', 'pedReq']),
+      imageFile: null,
+      imagePreviewUrl: '',
+      storedImageName: this.getDireccionEntregaTextValue(item, ['Ped_Det_Img', 'ped_Det_Img', 'pedDetImg'])
     };
   }
 
@@ -486,6 +845,10 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     }
 
     return '';
+  }
+
+  private normalizePedidoBUsuario(value: string): string {
+    return value.trim().toLowerCase();
   }
 
   private getDireccionEntregaNumberValue(item: DataRecord, keys: string[]): number | null {
@@ -631,6 +994,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     const fechaEntrega = this.normalizePedidoBFechaEntrega(this.detalleForm.controls['fechaEntrega'].value);
     const referenciaGeneral = String(this.detalleForm.controls['referenciaGeneral'].value || '').trim();
     const proveedorReferencia = String(this.detalleForm.controls['proveedorReferencia'].value || '').trim();
+    const aclaraciones = String(this.detalleForm.controls['aclaraciones']?.value || '').trim();
     const usuarioRegistro = this.pedidosBAuthService.getCurrentUser().trim();
     const attachmentName = this.archivoAdjunto !== 'Sin archivo adjunto' ? this.archivoAdjunto : '';
     const detallesActivos = this.pedidoBDetalles.filter((detalle) => !detalle.markedForDelete);
@@ -692,6 +1056,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Ped_Lug_Ent: lugarEntrega,
       Ped_Ref: referencia,
       Ped_Ref_Gral: referenciaGeneral,
+      Ped_Acl: aclaraciones,
       Ped_Tip_Com: tipoServicio,
       Ped_Tip_Mon: moneda,
       Ped_Fec_Ent: fechaEntrega,
@@ -782,6 +1147,23 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       }));
   }
 
+  private confirmarAccionPedidoB(data: ConfirmacionDialogData, onConfirm: () => void): void {
+    const dialogRef = this.pedidosBDialog.open(ConfirmacionAccionDialogComponent, {
+      width: 'min(28rem, 92vw)',
+      disableClose: true,
+      panelClass: 'animated-dialog-pane',
+      backdropClass: 'animated-dialog-backdrop',
+      autoFocus: false,
+      data
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        onConfirm();
+      }
+    });
+  }
+
   private actualizarPedidoB(pedId: number, payload: RegistrarPedidoRequest) {
     const updatePayload: ActualizarPedidoRequest = {
       Ped_Id: pedId,
@@ -789,6 +1171,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Ped_Lug_Ent: payload.Ped_Lug_Ent,
       Ped_Ref: payload.Ped_Ref,
       Ped_Ref_Gral: payload.Ped_Ref_Gral,
+      Ped_Acl: payload.Ped_Acl,
       Ped_Tip_Com: payload.Ped_Tip_Com,
       Ped_Tip_Mon: payload.Ped_Tip_Mon,
       Ped_Fec_Ent: payload.Ped_Fec_Ent,
@@ -803,13 +1186,11 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
     console.log('Pedidos B - actualizar pedido payload', {
       cabecera: updatePayload,
-      archivo: this.archivoFile
-        ? {
-            name: this.archivoFile.name,
-            size: this.archivoFile.size,
-            type: this.archivoFile.type
-          }
-        : null,
+      archivos: this.archivoFiles.map((archivo) => ({
+        name: archivo.name,
+        size: archivo.size,
+        type: archivo.type
+      })),
       detallesExistentes: this.pedidoBDetalles
         .filter((detalle) => detalle.persistedId && !detalle.markedForDelete)
         .map((detalle) => this.buildPedidoBDetalleActualizarPayload(detalle)),
@@ -821,7 +1202,45 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
         .map((detalle) => ({ Ped_Det_Id: Number(detalle.persistedId) }))
     });
 
-    return this.pedidosBApiService.patchActualizarPedido(updatePayload, this.archivoFile);
+    return this.pedidosBApiService.patchActualizarPedido(updatePayload, null);
+  }
+
+  private sincronizarArchivosAdjuntosPedidoB(pedId: number) {
+    console.log('[Pedidos B][Adjuntos] Estado previo a sincronizar', {
+      pedId,
+      archivosLocales: this.archivoFiles.map((archivo) => ({
+        name: archivo.name,
+        size: archivo.size,
+        type: archivo.type
+      })),
+      archivosGuardados: this.archivosAdjuntosGuardados
+    });
+
+    if (!this.archivoFiles.length) {
+      console.log('[Pedidos B][Adjuntos] No hay archivos locales nuevos por registrar.');
+      return of([]);
+    }
+
+    return from(this.archivoFiles).pipe(
+      concatMap((archivo) => {
+        const payload: RegistrarArchivoAdjuntoPedidoRequest = {
+          Ped_Cab_Arc_Id: 0,
+          Ped_Cab_Id: pedId,
+          Ped_Cab_Arc_Rut: '',
+          Ped_Cab_Arc_Nom: archivo.name
+        };
+
+        console.log('[Pedidos B][Adjuntos] Registrando archivo nuevo', payload);
+
+        return this.pedidosBApiService.postRegistrarArchivoAdjuntoPedido(payload, archivo).pipe(
+          switchMap((response: unknown) => {
+            this.assertPedidoBSuccessfulResponse(response, `No se pudo registrar el archivo ${archivo.name}.`);
+            return of(response);
+          })
+        );
+      }),
+      toArray()
+    );
   }
 
   private sincronizarDetallePedidoB(pedId: number) {
@@ -830,8 +1249,8 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     return from(detallesActivos).pipe(
       concatMap((detalle) => {
         const request = detalle.persistedId
-          ? this.pedidosBApiService.patchActualizarDetallePedido(this.buildPedidoBDetalleActualizarPayload(detalle))
-          : this.pedidosBApiService.postRegistrarDetallePedido(this.buildPedidoBDetallePayload(pedId, detalle));
+          ? this.pedidosBApiService.patchActualizarDetallePedido(this.buildPedidoBDetalleActualizarPayload(detalle), detalle.imageFile)
+          : this.pedidosBApiService.postRegistrarDetallePedido(this.buildPedidoBDetallePayload(pedId, detalle), detalle.imageFile);
 
         return request.pipe(
           switchMap((response: unknown) => {
@@ -877,7 +1296,10 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Ped_Cos_Uni: this.normalizePedidoBCosto(detalle.unitPrice),
       Ped_Cos_Tot: this.normalizePedidoBCosto(detalle.quantity * detalle.unitPrice),
       Usr_Reg: this.pedidosBAuthService.getCurrentUser().trim(),
-      Ped_Obs_Ped: detalle.observaciones.trim()
+      Ped_Obs_Ped: detalle.observaciones.trim(),
+      Ped_Com: detalle.comentarios.trim(),
+      Ped_Req: detalle.requisitos.trim(),
+      Ped_Det_Img: detalle.storedImageName.trim()
     };
   }
 
@@ -891,8 +1313,49 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       Ped_Cos_Uni: this.normalizePedidoBCosto(detalle.unitPrice),
       Ped_Cos_Tot: this.normalizePedidoBCosto(detalle.quantity * detalle.unitPrice),
       Usr_Mod: this.pedidosBAuthService.getCurrentUser().trim(),
-      Ped_Obs_Ped: detalle.observaciones.trim()
+      Ped_Obs_Ped: detalle.observaciones.trim(),
+      Ped_Com: detalle.comentarios.trim(),
+      Ped_Req: detalle.requisitos.trim(),
+      Ped_Det_Img: detalle.storedImageName.trim()
     };
+  }
+
+  private hasDetalleImagen(detalle: PedidoBDetalleTemporal): boolean {
+    return !!detalle.imageFile || !!detalle.imagePreviewUrl || !!detalle.storedImageName.trim();
+  }
+
+  private resolveDetalleImagenPreviewUrl(detalle: PedidoBDetalleTemporal): string {
+    if (detalle.imagePreviewUrl) {
+      return detalle.imagePreviewUrl;
+    }
+
+    const storedImageName = detalle.storedImageName.trim();
+
+    if (!storedImageName) {
+      return '';
+    }
+
+    return `${this.pedidosBApiService.baseUrl}Pedido/getArchivoDetallePedido?nombreArchivo=${encodeURIComponent(storedImageName)}`;
+  }
+
+  private readDetalleImagenPreview(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+
+        if (!result) {
+          reject(new Error('No se pudo leer la imagen seleccionada.'));
+          return;
+        }
+
+        resolve(result);
+      };
+
+      reader.onerror = () => reject(reader.error ?? new Error('No se pudo leer la imagen seleccionada.'));
+      reader.readAsDataURL(file);
+    });
   }
 
   private normalizePedidoBCosto(value: number): number {
@@ -900,7 +1363,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       return 0;
     }
 
-    return Number(value.toFixed(2));
+    return Number(value.toFixed(4));
   }
 
   private normalizePedidoBFechaEntrega(value: unknown): string {
@@ -968,10 +1431,50 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
   }
 
   private resolvePedidoBErrorMessage(error: unknown, fallbackMessage: string): string {
+    if (typeof error === 'object' && error !== null) {
+      const errorRecord = error as Record<string, unknown>;
+      const backendError = errorRecord['error'];
+
+      if (typeof backendError === 'object' && backendError !== null) {
+        const backendRecord = backendError as Record<string, unknown>;
+        const backendDetail = typeof backendRecord['detail'] === 'string' ? backendRecord['detail'].trim() : '';
+        const backendMessage = typeof backendRecord['message'] === 'string' ? backendRecord['message'].trim() : '';
+
+        if (backendDetail) {
+          return backendDetail;
+        }
+
+        if (backendMessage) {
+          return backendMessage;
+        }
+      }
+
+      const topLevelMessage = typeof errorRecord['message'] === 'string' ? errorRecord['message'].trim() : '';
+      if (topLevelMessage) {
+        return topLevelMessage;
+      }
+    }
+
     if (error instanceof Error && error.message.trim()) {
       return error.message.trim();
     }
 
     return fallbackMessage;
   }
+
+  private abrirPrevisualizacionPedidoSeleccionado(): void {
+    const pedidoId = this.selectedPedidoId;
+
+    if (pedidoId === null || this.isLoadingPedidoDetalle) {
+      return;
+    }
+
+    this.isPreviewPedido = true;
+    this.pedidoBDetalles = [];
+    this.nextPedidoBDetalleId = 1;
+    super.modificarPedidoSeleccionado();
+    this.cargarCabeceraPedidoB(pedidoId);
+    this.cargarDetallePedidoB(pedidoId);
+  }
 }
+

@@ -3,10 +3,9 @@
     <header class="orden-compra-card__header">
       <div>
         <p class="orden-compra-card__eyebrow">Operacion</p>
-        <h2>Orden de Compra</h2>
+        <h2>{{ paginaTitulo }}</h2>
         <p class="orden-compra-card__description">
-          Registra y actualiza ordenes de compra con un flujo de trabajo unico y una grilla de centros de costo
-          habilitable para casos parciales.
+          {{ paginaDescripcion }}
         </p>
       </div>
 
@@ -29,7 +28,7 @@
 
         <div class="filters-panel__generated" *ngIf="isListadoGenerados">
           <label class="field">
-            <span>Nro. O/C</span>
+            <span>{{ numeroOrdenLabel }}</span>
             <input type="number" formControlName="ordenCompraId" min="1" step="1">
           </label>
 
@@ -63,22 +62,27 @@
         <table class="orden-compra-table">
           <thead>
             <tr>
-              <th>Nro. O/C</th>
+              <th>Acciones</th>
+              <th *ngIf="isOrdenServicio">Conformidad</th>
+              <th>{{ numeroOrdenLabel }}</th>
+              <th>Correlativo</th>
+              <th>Archivo</th>
+              <th>Usr. Reg.</th>
+              <th>Usr. Aprobacion</th>
               <th>Proveedor</th>
               <th>Forma de Pago</th>
               <th>Total</th>
               <th>Estado</th>
-              <th>Accion</th>
             </tr>
           </thead>
 
           <tbody>
             <tr *ngIf="isLoadingOrdenesCompra">
-              <td colspan="6" class="empty-row">Cargando ordenes de compra registradas...</td>
+              <td [attr.colspan]="isOrdenServicio ? 11 : 10" class="empty-row">Cargando ordenes de compra registradas...</td>
             </tr>
 
             <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !ordenesCompra.length">
-              <td colspan="6" class="empty-row">No se encontraron ordenes de compra.</td>
+              <td [attr.colspan]="isOrdenServicio ? 11 : 10" class="empty-row">No se encontraron ordenes de compra.</td>
             </tr>
 
             <tr
@@ -86,30 +90,80 @@
               class="orden-compra-table__row"
               [class.orden-compra-table__row--selected]="isOrdenCompraSeleccionada(item)"
               (click)="seleccionarOrdenCompra(item)">
+              <td class="orden-compra-table__actions-cell">
+                <div class="orden-compra-table__actions">
+                  <button
+                    type="button"
+                    class="row-detail-button row-detail-button--pdf"
+                    [disabled]="isLoadingReporteOrdenCompraId === item.id"
+                    (click)="verReporteOrdenCompra(item); $event.stopPropagation()">
+                    {{ isLoadingReporteOrdenCompraId === item.id ? 'PDF...' : 'PDF' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-button icon-button--edit"
+                    aria-label="Editar orden de compra"
+                    [disabled]="!item.canEdit || isAnulandoOrdenCompra(item)"
+                    (click)="editarOrdenCompraDesdeFila(item); $event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-button icon-button--danger"
+                    title="Anular orden de compra"
+                    aria-label="Anular orden de compra"
+                    [disabled]="!canAnularOrdenCompra(item)"
+                    (click)="anularOrdenCompraFila(item, $event)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 3.8h6l1 1.5H20v2h-1.2l-.9 10.2A2.4 2.4 0 0 1 15.4 20H8.6a2.4 2.4 0 0 1-2.4-2.5L5.3 7.3H4v-2h4l1-1.5ZM8.2 7.3l.8 9.8c0 .2.2.4.4.4h6.2c.2 0 .4-.2.4-.4l.8-9.8H8.2Zm2.1 1.6h1.5v6.6h-1.5V8.9Zm3.9 0h1.5v6.6h-1.5V8.9Z"/>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+              <td *ngIf="isOrdenServicio">
+                <div class="conformidad-actions">
+                  <button
+                    type="button"
+                    class="button button--secondary button--compact conformidad-actions__button"
+                    [class.conformidad-actions__button--completed]="item.conformidadRegistro"
+                    [disabled]="!puedeConfirmarConformidadRegistro(item)"
+                    [title]="'Usuario registro: ' + item.usuarioRegistro"
+                    (click)="confirmarConformidadRegistro(item, $event)">
+                    Reg.
+                  </button>
+                  <button
+                    type="button"
+                    class="button button--secondary button--compact conformidad-actions__button"
+                    [class.conformidad-actions__button--completed]="item.conformidadAprobacion"
+                    [disabled]="!puedeConfirmarConformidadAprobacion(item)"
+                    [title]="'Usuario aprobacion: ' + item.usuarioAprobacionPedido"
+                    (click)="confirmarConformidadAprobacion(item, $event)">
+                    Apr.
+                  </button>
+                </div>
+              </td>
               <td>{{ item.ordenCompraId ?? '-' }}</td>
+              <td>{{ item.correlativo }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="icon-button icon-button--folder"
+                  aria-label="Ver archivos adjuntos"
+                  [disabled]="isLoadingArchivosOrdenCompraListado === item.id"
+                  (click)="abrirArchivosOrdenCompraListado(item, $event)">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8l1.2 1.2h5.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-10Zm2.5-.7a.7.7 0 0 0-.7.7v10c0 .4.3.7.7.7h13c.4 0 .7-.3.7-.7v-8c0-.4-.3-.7-.7-.7h-6.6l-1.7-1.7a.8.8 0 0 0-.6-.3H5.5Z"/>
+                  </svg>
+                </button>
+              </td>
+              <td>{{ item.usuarioRegistro }}</td>
+              <td>{{ item.usuarioAprobacionPedido }}</td>
               <td>{{ item.proveedor }}</td>
               <td>{{ item.formaPago }}</td>
               <td>{{ formatCurrency(item.total) }}</td>
               <td>{{ item.estado }}</td>
-              <td>
-                <button
-                  type="button"
-                  class="button button--secondary button--compact"
-                  [disabled]="isLoadingReporteOrdenCompraId === item.id"
-                  (click)="verReporteOrdenCompra(item); $event.stopPropagation()">
-                  {{ isLoadingReporteOrdenCompraId === item.id ? 'PDF...' : 'PDF' }}
-                </button>
-                <button
-                  type="button"
-                  class="icon-button"
-                  aria-label="Editar orden de compra"
-                  [disabled]="!item.canEdit"
-                  (click)="editarOrdenCompraDesdeFila(item); $event.stopPropagation()">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 20h4.75L19.81 8.94a1.5 1.5 0 0 0 0-2.12l-2.63-2.63a1.5 1.5 0 0 0-2.12 0L4 15.25V20zm3.5-1.5H5.5v-2l9.66-9.66 2 2L7.5 18.5z"/>
-                  </svg>
-                </button>
-              </td>
             </tr>
           </tbody>
         </table>
@@ -216,7 +270,7 @@
 
           <label class="field">
             <span>Contacto</span>
-            <input type="text" formControlName="contacto" class="input--readonly input--autofilled-provider" readonly>
+            <input type="text" formControlName="contacto">
           </label>
 
           <label class="field field--provider-wide">
@@ -231,7 +285,7 @@
               formControlName="formaPagoId"
               placeholder="Seleccionar forma de pago"
               [disabled]="isLoadingFormasPago"
-              (selectionChange)="onFormaPagoChange($event.value)"
+              (selectionChange)="onFormaPagoChange($any($event).value)"
               (openedChange)="formaPagoSearch = ''">
               <mat-option class="select-search-option">
                 <input
@@ -246,6 +300,20 @@
               <mat-option [value]="0">Seleccionar forma de pago</mat-option>
               <mat-option *ngFor="let formaPago of filteredFormasPago" [value]="formaPago.code">
                 {{ formaPago.description }}
+              </mat-option>
+            </mat-select>
+          </div>
+
+          <div class="field field--provider-currency">
+            <span>Moneda</span>
+            <mat-select
+              class="moneda-select"
+              formControlName="monedaId"
+              placeholder="Seleccionar moneda"
+              [disabled]="isLoadingMonedas">
+              <mat-option [value]="0">Seleccionar moneda</mat-option>
+              <mat-option *ngFor="let moneda of monedas" [value]="moneda.id">
+                {{ moneda.descripcion }}{{ moneda.abreviacion ? ' (' + moneda.abreviacion + ')' : '' }}
               </mat-option>
             </mat-select>
           </div>
@@ -279,10 +347,13 @@
             </button>
             <button
               type="button"
-              class="button button--secondary pedido-pdf-button"
-              [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle"
-              (click)="verPedidoArchivo()">
-              PDF
+              class="icon-button pedido-archivos-button"
+              aria-label="Ver archivos adjuntos del pedido"
+              [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle || isLoadingPedidoArchivosAdjuntos"
+              (click)="abrirArchivosPedido()">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8l1.2 1.2h5.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-10Zm2.5-.7a.7.7 0 0 0-.7.7v10c0 .4.3.7.7.7h13c.4 0 .7-.3.7-.7v-8c0-.4-.3-.7-.7-.7h-6.6l-1.7-1.7a.8.8 0 0 0-.6-.3H5.5Z"/>
+              </svg>
             </button>
           </div>
 
@@ -344,17 +415,34 @@
                 <td>{{ item.itemDescripcion }}</td>
                 <td>{{ item.unidadDescripcion }}</td>
                 <td>{{ item.centroCostoDescripcion }}</td>
-                <td>{{ formatCurrency(item.cantidad) }}</td>
                 <td>
                   <input
                     type="number"
                     class="detalle-pedido-table__input detalle-pedido-table__input--amount"
                     min="0"
                     step="0.01"
+                    [value]="item.cantidad"
+                    (input)="actualizarCantidadDetallePedido(item, $event)">
+                  <!-- {{ formatCurrency(item.cantidad) }} -->
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    class="detalle-pedido-table__input detalle-pedido-table__input--amount"
+                    min="0"
+                    step="0.0001"
                     [value]="item.costoUnitario"
                     (input)="actualizarCostoUnitarioDetallePedido(item, $event)">
                 </td>
-                <td>{{ formatCurrency(item.subtotal) }}</td>
+                <td>
+                  <input
+                    type="number"
+                    class="detalle-pedido-table__input detalle-pedido-table__input--amount"
+                    min="0"
+                    step="0.0001"
+                    [value]="item.subtotal"
+                    (input)="actualizarSubtotalDetallePedido(item, $event)">
+                </td>
                 <td>
                   <input
                     type="text"
@@ -377,6 +465,16 @@
                 </td>
               </tr>
             </tbody>
+
+            <tfoot *ngIf="pedidoDetalles.length" class="detalle-pedido-table__footer">
+              <tr>
+                <td colspan="4" class="detalle-pedido-table__footer-label">Totales</td>
+                <td class="detalle-pedido-table__footer-value">{{ formatCurrency(totalCantidadDetallePedido) }}</td>
+                <td class="detalle-pedido-table__footer-value">{{ formatCurrencyWithPrecision(totalCostoUnitarioDetallePedido, 4) }}</td>
+                <td class="detalle-pedido-table__footer-value">{{ formatCurrencyWithPrecision(totalSubtotalDetallePedido, 4) }}</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 
@@ -412,7 +510,7 @@
 
           <label class="field">
             <span>IGV</span>
-            <input type="number" formControlName="igv" min="0" step="0.01" class="input--readonly" readonly>
+            <input type="number" formControlName="igv" min="0" step="0.0001" class="input--readonly" readonly>
           </label>
 
           <div class="field">
@@ -461,20 +559,61 @@
           </label>
 
           <div class="attachment-panel attachment-panel--orden-compra">
-            <input #ordenCompraFileInput type="file" style="display:none" (change)="onOrdenCompraFileSelected($event)">
+            <div class="attachment-grid attachment-grid--orden-compra">
+              <div class="attachment-grid__header">
+                <h3>Archivo</h3>
+                <input #ordenCompraFileInput type="file" multiple style="display:none" (change)="onOrdenCompraFileSelected($event)">
+                <button
+                  type="button"
+                  class="icon-button attachment-grid__add"
+                  aria-label="Adjuntar archivo"
+                  (click)="ordenCompraFileInput.click()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/>
+                  </svg>
+                </button>
+              </div>
 
-            <div class="attachment-panel__actions">
-              <button type="button" class="button button--secondary" (click)="ordenCompraFileInput.click()">Agregar</button>
-              <button type="button" class="button button--secondary" (click)="verOrdenCompraArchivo()">Ver</button>
-              <button type="button" class="button button--secondary" (click)="quitarOrdenCompraArchivo(ordenCompraFileInput)">Quitar</button>
+              <div class="table-shell attachment-grid__table-shell">
+                <table class="attachment-grid__table">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let archivo of ordenCompraArchivosAdjuntosVista">
+                      <td>{{ archivo.nombre }}</td>
+                      <td class="attachment-grid__actions-cell">
+                        <button
+                          type="button"
+                          class="icon-button icon-button--edit"
+                          aria-label="Ver archivo"
+                          (click)="verOrdenCompraArchivoAdjunto(archivo)">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 5c5 0 8.8 4.1 10 7-1.2 2.9-5 7-10 7S3.2 14.9 2 12c1.2-2.9 5-7 10-7zm0 2C8.4 7 5.5 9.6 4.2 12 5.5 14.4 8.4 17 12 17s6.5-2.6 7.8-5C18.5 9.6 15.6 7 12 7zm0 2.5A2.5 2.5 0 1 1 12 14a2.5 2.5 0 0 1 0-5z"/>
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="icon-button icon-button--danger"
+                          aria-label="Quitar archivo"
+                          (click)="quitarOrdenCompraArchivoAdjunto(archivo, ordenCompraFileInput)">
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2h4v2H4V6h4l1-2z"/>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+
+                    <tr *ngIf="!ordenCompraArchivosAdjuntosVista.length">
+                      <td colspan="2" class="empty-row">No hay archivos adjuntos.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-
-            <label class="field">
-              <span>Archivo</span>
-              <input type="text" formControlName="archivo" class="input--readonly" readonly>
-            </label>
-
-            <p class="attachment-panel__hint">{{ ordenCompraArchivoAdjunto }}</p>
           </div>
         </div>
       </form>

@@ -121,7 +121,7 @@
         <input
           type="number"
           min="0"
-          step="0.01"
+          step="0.0001"
           inputmode="decimal"
           formControlName="unitPrice"
           (input)="onCostoInput($event)">
@@ -132,7 +132,7 @@
         <input
           type="text"
           class="input--readonly"
-          [value]="formatMoney(pedidoBCostoTotal)"
+          [value]="formatMoney(pedidoBCostoTotal, 4)"
           readonly
           disabled
           tabindex="-1">

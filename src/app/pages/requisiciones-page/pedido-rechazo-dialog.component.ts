@@ -1,11 +1,20 @@
-import { Component } from '@angular/core';
+import { Component, Inject, Optional } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 import { noWhitespaceValidator } from 'src/app/shared/validators/form-validators';
 
 export interface PedidoRechazoDialogResult {
   motivo: string;
+}
+
+export interface PedidoRechazoDialogData {
+  titulo?: string;
+  etiquetaMotivo?: string;
+  textoError?: string;
+  textoConfirmar?: string;
+  valorInicial?: string;
+  requerido?: boolean;
 }
 
 @Component({
@@ -18,11 +27,32 @@ export class PedidoRechazoDialogComponent {
 
   constructor(
     private readonly formBuilder: FormBuilder,
-    private readonly dialogRef: MatDialogRef<PedidoRechazoDialogComponent>
+    private readonly dialogRef: MatDialogRef<PedidoRechazoDialogComponent>,
+    @Optional() @Inject(MAT_DIALOG_DATA) public readonly data: PedidoRechazoDialogData | null
   ) {
+    const validators = this.data?.requerido === false
+      ? []
+      : [Validators.required, noWhitespaceValidator()];
+
     this.form = this.formBuilder.group({
-      motivo: ['', [Validators.required, noWhitespaceValidator()]]
+      motivo: [this.data?.valorInicial ?? '', validators]
     });
+  }
+
+  get titulo(): string {
+    return this.data?.titulo || 'Rechazar pedido';
+  }
+
+  get etiquetaMotivo(): string {
+    return this.data?.etiquetaMotivo || 'Motivo del rechazo';
+  }
+
+  get textoError(): string {
+    return this.data?.textoError || 'Ingresa un motivo de rechazo.';
+  }
+
+  get textoConfirmar(): string {
+    return this.data?.textoConfirmar || 'Confirmar rechazo';
   }
 
   confirmar(): void {

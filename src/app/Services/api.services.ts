@@ -22,6 +22,13 @@ export interface ConsultaDatosUsuarioFiltro {
     Usr_Cod: string;
 }
 
+export interface RegistrarAsignacionRequest {
+    Asg_Fec: string;
+    Asg_Usr: string;
+    Asg_Usr_Cen_Cos: number;
+    Usr_Reg: string;
+}
+
 export interface RegistrarObservacionPlaneadaRequest {
     Usr_Cod: string;
     Cliente_Id: number;
@@ -551,6 +558,7 @@ export interface PedidosFiltro {
 export interface OrdenCompraFiltro {
     Ord_Com_Id?: number;
     Ord_Com_Prv?: string;
+    Ord_Com_Tip?: number;
     Flg_Est?: string;
 }
 
@@ -567,6 +575,7 @@ export interface RegistrarIngresoAlmacenRequest {
     Alm_Sol_Dni: string;
     Alm_Cen_Cos: number;
     Usr_Reg: string;
+    Flg_Est_Apr?: string;
 }
 
 export interface RegistrarIngresoAlmacenOrdenCompraRequest {
@@ -596,6 +605,7 @@ export interface RegistrarIngresoAlmacenDetalleRequest {
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number;
     Usr_Reg: string;
+    Alm_Ser?: string | null;
 }
 
 export interface ActualizarIngresoAlmacenDetalleRequest {
@@ -608,6 +618,7 @@ export interface ActualizarIngresoAlmacenDetalleRequest {
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number;
     Usr_Reg: string;
+    Alm_Ser?: string | null;
 }
 
 export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
@@ -616,9 +627,43 @@ export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
     Can_Ing: number;
 }
 
+export interface ActualizarIngresoAlmacenDetalleOrdenCompraRequest {
+    Alm_Det_Id: number;
+    Alm_Det_Can: number;
+    Usr_Mod: string;
+}
+
+export interface ActualizarStockItemRequest {
+    Itm_Id: number;
+    Ord_Com_Id: number;
+    Can_Ing: number;
+}
+
+export interface ActualizarStockItemIngresoDirectoRequest {
+    Alm_Mov_Id: number;
+    Alm_Det_Itm_Id: number;
+    Can_Ing: number;
+}
+
+export interface ActualizarStockItemSalidaRequest {
+    Alm_Mov_Id: number;
+    Alm_Det_Itm_Id: number;
+    Can_Ing: number;
+}
+
+export interface ActualizarMotivoRechazoAlmacenRequest {
+    Alm_Mov_Id: number;
+    Alm_Mot_Rch: string;
+}
+
 export interface CambiarEstadoOrdenCompraRequest {
     Ord_Com_Id: number;
     Flg_Alm: string;
+}
+
+export interface ActualizarEstadoConfirmacionOrdenCompraRequest {
+    Ord_Com_Id: number;
+    Flg_Est_Con: number;
 }
 
 export interface CatalogoTextoOption {
@@ -735,6 +780,7 @@ export interface RegistrarPedidoRequest {
     Ped_Lug_Ent: number;
     Ped_Ref: string;
     Ped_Ref_Gral: string;
+    Ped_Acl?: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
     Ped_Fec_Ent: string;
@@ -747,12 +793,27 @@ export interface RegistrarPedidoRequest {
     Usr_Reg: string;
 }
 
+export interface RegistrarArchivoAdjuntoPedidoRequest {
+    Ped_Cab_Arc_Id: number;
+    Ped_Cab_Id: number;
+    Ped_Cab_Arc_Rut?: string;
+    Ped_Cab_Arc_Nom?: string;
+}
+
+export interface RegistrarArchivoAdjuntoOrdenCompraRequest {
+    Ord_Com_Arc_Id: number;
+    Ord_Com_Id: number;
+    Ord_Com_Arc_Rut?: string;
+    Ord_Com_Arc_Nom?: string;
+}
+
 export interface ActualizarPedidoRequest {
     Ped_Id: number;
     Ped_Usr_Apr: string;
     Ped_Lug_Ent: number;
     Ped_Ref: string;
     Ped_Ref_Gral: string;
+    Ped_Acl?: string;
     Ped_Tip_Com: string;
     Ped_Tip_Mon: number;
     Ped_Fec_Ent: string;
@@ -829,8 +890,11 @@ export interface ActualizarReferenciaGeneralRequest {
 }
 
 export interface RegistrarOrdenCompraRequest {
+    Ord_Com_Tip: number;
     Ord_Com_Prv: number;
     Ord_Com_For_Pag: number;
+    Con_Nom?: string;
+    Mon_Id?: number;
     Ord_Com_Ref_Obr: string;
     Ord_Com_Obs: string;
     Ord_Com_Ref: string;
@@ -849,8 +913,11 @@ export interface RegistrarOrdenCompraRequest {
 
 export interface ActualizarOrdenCompraRequest {
     Ord_Com_Id: number;
+    Ord_Com_Tip: number;
     Ord_Com_Prv: number;
     Ord_Com_For_Pag: number;
+    Con_Nom?: string;
+    Mon_Id?: number;
     Ord_Com_Ref_Obr: string;
     Ord_Com_Obs: string;
     Ord_Com_Ref: string;
@@ -866,6 +933,12 @@ export interface ActualizarOrdenCompraRequest {
     Igv_Por?: number;
     Flg_Est: string;
     Usr_Mod: string;
+}
+
+export interface AnularOrdenCompraRequest {
+    Ord_Com_Id: number;
+    Flg_Est: string;
+    Usr_Mod?: string;
 }
 
 export interface RegistrarCentroCostoPedidoRequest {
@@ -888,6 +961,9 @@ export interface RegistrarDetallePedidoRequest {
     Ped_Cos_Tot: number;
     Usr_Reg: string;
     Ped_Obs_Ped?: string;
+    Ped_Com?: string;
+    Ped_Req?: string;
+    Ped_Det_Img?: string;
 }
 
 export interface ActualizarDetallePedidoRequest {
@@ -900,6 +976,9 @@ export interface ActualizarDetallePedidoRequest {
     Ped_Cos_Tot: number;
     Usr_Mod: string;
     Ped_Obs_Ped?: string;
+    Ped_Com?: string;
+    Ped_Req?: string;
+    Ped_Det_Img?: string;
 }
 
 export interface EliminarDetallePedidoRequest {
@@ -909,6 +988,7 @@ export interface EliminarDetallePedidoRequest {
 export interface AsignarOrdenCompraDetallePedidoRequest {
     Ord_Com_Id: number;
     Ped_Det_Id: number;
+    Ped_Can?: number;
     Ped_Cos_Uni?: number;
     Ped_Obs?: string;
     Usr_Mod?: string;
@@ -1320,6 +1400,14 @@ export class ApiService {
         }
 
         return this.http.get(this.baseUrl + 'Item/getListarItem', { headers, params });
+    }
+
+    getListarStocksItems(Usr_Cen_Cos_Id: number, Alm_Det_Itm_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Usr_Cen_Cos_Id', String(Usr_Cen_Cos_Id));
+        params = params.append('Alm_Det_Itm_Id', String(Alm_Det_Itm_Id));
+        return this.http.get(this.baseUrl + 'Item/getListarStocksItems', { headers, params });
     }
 
     registrarItem(item: RegistrarItemRequest): Observable<any> {
@@ -1873,7 +1961,7 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
             params = params.append('Prv_Nom', filtros.Prv_Nom);
         }
 
-        if (filtros.Flg_Est) {
+        if (filtros.Flg_Est !== undefined) {
             params = params.append('Flg_Est', filtros.Flg_Est);
         }
 
@@ -1923,6 +2011,10 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
             params = params.append('Ord_Com_Prv', filtros.Ord_Com_Prv);
         }
 
+        if (filtros.Ord_Com_Tip !== undefined) {
+            params = params.append('Ord_Com_Tip', filtros.Ord_Com_Tip);
+        }
+
         if (filtros.Flg_Est) {
             params = params.append('Flg_Est', filtros.Flg_Est);
         }
@@ -1940,6 +2032,10 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
 
         if (filtros.Ord_Com_Prv) {
             params = params.append('Ord_Com_Prv', filtros.Ord_Com_Prv);
+        }
+
+        if (filtros.Ord_Com_Tip !== undefined) {
+            params = params.append('Ord_Com_Tip', filtros.Ord_Com_Tip);
         }
 
         if (filtros.Flg_Est) {
@@ -1966,6 +2062,11 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     patchCambiarEstadoOrdenCompra(ordenCompra: CambiarEstadoOrdenCompraRequest): Observable<any> {
         const headers = this.Header;
         return this.http.patch(this.baseUrl + 'OrdenCompra/patchCambiarEstadoOrdenCompra', ordenCompra, { headers });
+    }
+
+    patchActualizarEstadoConfirmacionOrdenCompra(ordenCompra: ActualizarEstadoConfirmacionOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'OrdenCompra/patchActualizarEstadoConfirmación', ordenCompra, { headers });
     }
 
     getListarIngresoAlmacen(filtros: AlmacenFiltro = {}): Observable<any> {
@@ -2030,6 +2131,18 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.patch(this.baseUrl + 'Almacen/patchActualizarIngresoAlmacenDetalle', detalle, { headers });
     }
 
+    patchActualizarIngresoAlmacenDetalleOrdenCompra(detalle: ActualizarIngresoAlmacenDetalleOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Almacen/patchActualizarIngresoAlmacenDetalleOrdenCompra', detalle, { headers });
+    }
+
+    getListarIngresoSalidaAlmacenPorCentroCosto(Alm_Det_Itm_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Alm_Det_Itm_Id', Alm_Det_Itm_Id);
+        return this.http.get(this.baseUrl + 'Almacen/getListarIngresoSalidaAlmacenPorCentroCosto', { headers, params });
+    }
+
     getListarPedidoCorrelativoNuevo(): Observable<any> {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Pedido/getListarPedidoCorrelativoNuevo', { headers });
@@ -2069,6 +2182,26 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarPedidoDetalleIngresoAlmacen', detalle, { headers });
     }
 
+    patchActualizarStockItem(item: ActualizarStockItemRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItem', item, { headers });
+    }
+
+    patchActualizarStockItemIngresoDirecto(item: ActualizarStockItemIngresoDirectoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItemIngresoDirecto', item, { headers });
+    }
+
+    patchActualizarStockItemSalida(item: ActualizarStockItemSalidaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItemSalida', item, { headers });
+    }
+
+    patchActualizarMotivoRechazoAlmacen(item: ActualizarMotivoRechazoAlmacenRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Almacen/patchActualizarMotivoRechazoAlmacen', item, { headers });
+    }
+
     getListarItemsAsignadosPedidoCentroCosto(Ped_Cab_Id: number): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -2091,6 +2224,13 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'Pedido/getListarDetallePedidoModificar', { headers, params });
     }
 
+    getGenerarKardexGeneral(Itm_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Itm_Id', Itm_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getGenerarKardexGeneral', { headers, params });
+    }
+
     getCargarReportePedido(Ped_Id: string): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -2101,6 +2241,18 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     getArchivoPedido(nombreArchivo: string): Observable<ArrayBuffer> {
         let params = new HttpParams().set('nombreArchivo', nombreArchivo);
         return this.http.get(this.baseUrl + 'Pedido/getArchivoPedido', { params, responseType: 'arraybuffer' });
+    }
+
+    getArchivoDetallePedido(nombreArchivo: string): Observable<ArrayBuffer> {
+        let params = new HttpParams().set('nombreArchivo', nombreArchivo);
+        return this.http.get(this.baseUrl + 'Pedido/getArchivoDetallePedido', { params, responseType: 'arraybuffer' });
+    }
+
+    getListarArchivosAdjuntos(Ped_Cab_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Cab_Id', Ped_Cab_Id);
+        return this.http.get(this.baseUrl + 'Pedido/getListarArchivosAdjuntos', { headers, params });
     }
 
     getArchivoOrdenCompra(nombreArchivo: string): Observable<ArrayBuffer> {
@@ -2228,6 +2380,61 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     return this.http.post(this.baseUrl + 'Pedido/postRegistrarPedido', formData);
     }
 
+    postRegistrarArchivoAdjuntoPedido(archivoAdjunto: RegistrarArchivoAdjuntoPedidoRequest, archivo: File): Observable<any> {
+        const formData = new FormData();
+
+        Object.entries(archivoAdjunto).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+
+            formData.append(key, String(value));
+        });
+
+        formData.append('archivo', archivo, archivo.name);
+
+        return this.http.post(this.baseUrl + 'Pedido/postRegistrarArchivoAdjunto', formData);
+    }
+
+    deleteEliminarArchivoAdjunto(archivoAdjunto: RegistrarArchivoAdjuntoPedidoRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.delete(this.baseUrl + 'Pedido/deleteEliminarArchivoAdjunto', {
+            headers,
+            body: archivoAdjunto
+        });
+    }
+
+    getListarArchivosAdjuntosOrdenCompra(Ord_Com_Id: number): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+        params = params.append('Ped_Cab_Id', Ord_Com_Id);
+        return this.http.get(this.baseUrl + 'OrdenCompra/getListarArchivosAdjuntosOrdenCompra', { headers, params });
+    }
+
+    postRegistrarArchivoAdjuntoOrdenCompra(archivoAdjunto: RegistrarArchivoAdjuntoOrdenCompraRequest, archivo: File): Observable<any> {
+        const formData = new FormData();
+
+        Object.entries(archivoAdjunto).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+
+            formData.append(key, String(value));
+        });
+
+        formData.append('archivo', archivo, archivo.name);
+
+        return this.http.post(this.baseUrl + 'OrdenCompra/postRegistrarArchivoAdjuntoOrdenCompra', formData);
+    }
+
+    deleteEliminarArchivoAdjuntoOrdenCompra(archivoAdjunto: RegistrarArchivoAdjuntoOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.delete(this.baseUrl + 'OrdenCompra/deleteEliminarArchivoAdjuntoOrdenCompra', {
+            headers,
+            body: archivoAdjunto
+        });
+    }
+
     postEnviarCorreo(correo: EnviarCorreoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'EnviarCorreo/postEnviarCorreo', correo, { headers });
@@ -2316,6 +2523,11 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.patch(this.baseUrl + 'OrdenCompra/patchActualizarOdenCompra', formData);
     }
 
+    patchAnularOrdenCompra(ordenCompra: AnularOrdenCompraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'OrdenCompra/patchAnularOrdenCompra', ordenCompra, { headers });
+    }
+
     private formatOrdenCompraFormValue(key: string, value: unknown): string {
         const decimalKeys = new Set([
             'Ord_Com_Sub_Tot',
@@ -2325,11 +2537,32 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
             'Igv_Por'
         ]);
 
-        if (decimalKeys.has(key) && typeof value === 'number') {
-            return value.toFixed(2);
+        if (decimalKeys.has(key)) {
+            return this.formatDecimalForFormData(value);
         }
 
         return String(value);
+    }
+
+    private formatDecimalForFormData(value: unknown, precision: number = 2): string {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value.toFixed(precision).replace('.', ',') : `0,${'0'.repeat(precision)}`;
+        }
+
+        const rawValue = String(value ?? '').trim();
+
+        if (!rawValue) {
+            return `0,${'0'.repeat(precision)}`;
+        }
+
+        const normalizedValue = rawValue.includes(',')
+            ? rawValue.replace(/\./g, '').replace(',', '.')
+            : rawValue.replace(/,/g, '');
+        const numericValue = Number(normalizedValue);
+
+        return Number.isFinite(numericValue)
+            ? numericValue.toFixed(precision).replace('.', ',')
+            : `0,${'0'.repeat(precision)}`;
     }
 
     patchAsignarOrdenCompraADetallePedido(detalle: AsignarOrdenCompraDetallePedidoRequest): Observable<any> {
@@ -2367,14 +2600,52 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.patch(this.baseUrl + 'Pedido/patchActualizarReferenciaGeneral', pedido, { headers });
     }
 
-    postRegistrarDetallePedido(detalle: RegistrarDetallePedidoRequest): Observable<any> {
-        const headers = this.Header;
-        return this.http.post(this.baseUrl + 'Pedido/postRegistrarDetallePedido', detalle, { headers });
+    postRegistrarDetallePedido(detalle: RegistrarDetallePedidoRequest, archivo?: File | null): Observable<any> {
+        const formData = new FormData();
+
+        Object.entries(detalle).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+
+            formData.append(key, this.formatPedidoDetalleFormValue(key, value));
+        });
+
+        if (archivo) {
+            formData.append('archivo', archivo, archivo.name);
+        }
+
+        return this.http.post(this.baseUrl + 'Pedido/postRegistrarDetallePedido', formData);
     }
 
-    patchActualizarDetallePedido(detalle: ActualizarDetallePedidoRequest): Observable<any> {
-        const headers = this.Header;
-        return this.http.patch(this.baseUrl + 'Pedido/patchActualizarDetallePedido', detalle, { headers });
+    patchActualizarDetallePedido(detalle: ActualizarDetallePedidoRequest, archivo?: File | null): Observable<any> {
+        const formData = new FormData();
+
+        Object.entries(detalle).forEach(([key, value]) => {
+            if (value === null || value === undefined) {
+                return;
+            }
+
+            formData.append(key, this.formatPedidoDetalleFormValue(key, value));
+        });
+
+        if (archivo) {
+            formData.append('archivo', archivo, archivo.name);
+        }
+
+        return this.http.patch(this.baseUrl + 'Pedido/patchActualizarDetallePedido', formData);
+    }
+
+    private formatPedidoDetalleFormValue(key: string, value: unknown): string {
+        if (key === 'Ped_Cos_Uni' || key === 'Ped_Cos_Tot') {
+            return this.formatDecimalForFormData(value, 4);
+        }
+
+        if (key === 'Ped_Can') {
+            return this.formatDecimalForFormData(value, 2);
+        }
+
+        return String(value);
     }
 
     deleteEliminarDetallePedido(detalle: EliminarDetallePedidoRequest): Observable<any> {
@@ -2390,6 +2661,11 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     deleteEliminarCentroCostoPedidoRegistrado(centroCosto: EliminarCentroCostoPedidoRequest): Observable<any> {
         const headers = this.Header;
         return this.http.request('delete', this.baseUrl + 'Pedido/deleteEliminarCentroCostoPedidoRegistrado', { headers, body: centroCosto });
+    }
+
+    postRegistrarAsignacion(asignacion: RegistrarAsignacionRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Asignacion/postRegistrarAsignacion', asignacion, { headers });
     }
 
     registrarProveedor(proveedor: RegistrarProveedorRequest): Observable<any> {

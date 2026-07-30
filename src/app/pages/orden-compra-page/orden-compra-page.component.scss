@@ -147,6 +147,10 @@
   grid-column: 1 / 2;
 }
 
+.field--provider-currency {
+  grid-column: 2 / 3;
+}
+
 .field--checkbox {
   align-content: end;
 }
@@ -189,6 +193,7 @@
 .field select,
 .field textarea,
 .forma-pago-select,
+.moneda-select,
 .detraccion-select {
   min-height: 3rem;
   padding: 0.7rem 0.85rem;
@@ -208,6 +213,7 @@
 .field select:focus,
 .field textarea:focus,
 .forma-pago-select:focus,
+.moneda-select:focus,
 .detraccion-select:focus,
 .selector-code-button:focus {
   outline: none;
@@ -216,6 +222,7 @@
 }
 
 .forma-pago-select,
+.moneda-select,
 .detraccion-select {
   display: flex;
   align-items: center;
@@ -320,7 +327,7 @@
 
 .icon-button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
 .icon-button svg {
@@ -330,7 +337,45 @@
 }
 
 .icon-button--danger {
-  color: #c2410c;
+  color: var(--accent);
+}
+
+.icon-button--edit {
+  color: var(--text-secondary);
+}
+
+.orden-compra-table__actions-cell {
+  min-width: 8rem;
+}
+
+.orden-compra-table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.row-detail-button {
+  min-height: 2.4rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--surface-soft) 100%);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.row-detail-button--pdf {
+  min-width: 4.25rem;
+  padding-inline: 0.95rem;
+}
+
+.row-detail-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .attachment-panel {
@@ -353,6 +398,71 @@
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.92rem;
+}
+
+.attachment-grid {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.attachment-grid__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.attachment-grid__header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.attachment-grid__add {
+  color: #ffffff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.attachment-grid__table-shell {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.attachment-grid__table {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: collapse;
+}
+
+.attachment-grid__table th,
+.attachment-grid__table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.attachment-grid__table th {
+  background: var(--text-primary);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.attachment-grid__table tbody tr:nth-child(even) {
+  background: var(--surface-muted);
+}
+
+.attachment-grid__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.attachment-grid__actions-cell {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
 }
 
 .button {
@@ -452,6 +562,32 @@
   background: #fff4e8;
 }
 
+.conformidad-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.conformidad-actions__button {
+  min-width: 3.2rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.conformidad-actions__button--completed {
+  border-color: #2e7d32;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.conformidad-actions__button--completed:disabled {
+  border-color: #2e7d32;
+  background: #e8f5e9;
+  color: #2e7d32;
+  opacity: 1;
+}
+
 .centros-costo-table__row--checked {
   background: #fff8ef;
 }
@@ -507,6 +643,22 @@
   text-align: right;
 }
 
+.detalle-pedido-table__footer td {
+  background: #f7f3ea;
+  font-weight: 700;
+  border-top: 1px solid var(--line-soft);
+}
+
+.detalle-pedido-table__footer-label {
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.detalle-pedido-table__footer-value {
+  text-align: right;
+  color: var(--text-primary);
+}
+
 .empty-row {
   color: var(--text-secondary);
 }
@@ -532,10 +684,13 @@
 .pedido-centro-costo-toolbar__actions {
   display: flex;
   align-items: end;
+  gap: 0.65rem;
 }
 
-.pedido-pdf-button {
-  margin-left: 5%;
+.pedido-archivos-button {
+  flex: 0 0 auto;
+  height: 3rem;
+  width: 3rem;
 }
 
 .section-copy h3 {
@@ -593,10 +748,6 @@
   .button,
   .selector-code-button {
     width: 100%;
-  }
-
-  .pedido-pdf-button {
-    margin-left: 0;
   }
 
   .pedido-referencia-field {

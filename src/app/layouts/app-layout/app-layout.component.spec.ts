@@ -19,6 +19,27 @@ describe('AppLayoutComponent', () => {
     router = TestBed.inject(Router);
     sessionStorage.setItem('app_auth_session', 'true');
     sessionStorage.setItem('app_auth_user', 'dayala');
+    sessionStorage.setItem('app_auth_access_routes', JSON.stringify([
+      '/',
+      '/pedidos',
+      '/orden-compra',
+      '/orden-servicio',
+      '/almacen',
+      '/stock',
+      '/inspecciones',
+      '/asignacion',
+      '/reportes',
+      '/perfil',
+      '/forma-pago',
+      '/banco',
+      '/moneda',
+      '/tipo-servicio',
+      '/unidad-medida',
+      '/jefe',
+      '/cliente',
+      '/usuario',
+      '/proveedor'
+    ]));
   });
 
   afterEach(() => {
@@ -69,6 +90,11 @@ describe('AppLayoutComponent', () => {
 
     expect(links).toContain('Pedidos');
     expect(links).toContain('Orden de Compra');
+    expect(links).toContain('Orden de Servicio');
+    expect(links).toContain('Asignacion');
+    expect(links).toContain('Reportes');
+
+    expect(links.indexOf('Asignacion')).toBeLessThan(links.indexOf('Reportes'));
   });
 
   it('should toggle the mantenimiento group', () => {
