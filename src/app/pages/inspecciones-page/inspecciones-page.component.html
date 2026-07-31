@@ -148,7 +148,6 @@
                 </td>
               </tr>
 
-<<<<<<< HEAD
               <tr *ngIf="!cargandoObservacionesPlaneadas && observacionesPaginadas.length === 0">
                 <td colspan="10" class="table-empty">No se encontró ningún registro</td>
               </tr>
@@ -156,35 +155,6 @@
           </table>
         </div>
       </ng-container>
-=======
-            <tr *ngFor="let obs of observacionesPaginadas">
-              <td data-label="#">{{ obs.Observacion_Id }}</td>
-              <td data-label="Nro">{{ obs.Codigo_Obs || '-' }}</td>
-              <td data-label="Observador">{{ obs.Usr_Nom || '-' }}</td>
-              <td data-label="Supervisor">{{ obs.Jef_Nombre || '-' }}</td>
-              <td data-label="Área Sup.">{{ obs.Cen_Cos_Des || '-' }}</td>
-              <td data-label="Cliente">{{ obs.Cliente_Nombre || '-' }}</td>
-              <td data-label="Subestación">{{ obs.Subestacion_Nombre || '-' }}</td>
-              <td data-label="Motivo">{{ obs.Motivo_Nombre || '-' }}</td>
-              <td data-label="Motivo Det.">{{ obs.Obs_Detalle || '-' }}</td>
-              <td data-label="Acciones">
-                <button type="button" class="table-action" aria-label="Editar observación" title="Editar" (click)="editarObservacion(obs.Codigo_Obs)">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-                  </svg>
-                </button>
-                <button type="button" class="table-action table-action--delete" aria-label="Eliminar observación" title="Eliminar" (click)="eliminarObservacion(obs)" [disabled]="eliminandoObservacion">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 6h18"></path>
-                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                  </svg>
-                </button>
-              </td>
-            </tr>
->>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 
       <!-- ── Tabla Prevención ── -->
       <ng-container *ngIf="tabActivo === 'prevencion'">
@@ -581,7 +551,6 @@
     [modoEdicion]="modoFormulario === 'editar'"
     (volver)="volverAInspecciones()"></app-observaciones-planeadas>
 </ng-template>
-<<<<<<< HEAD
 
 <ng-template #vistaMedioAmbiente>
   <app-inspeccion-medio-ambiente
@@ -622,5 +591,3 @@
     (volver)="cancelarPuntajeCentroMonitoreoHse()"
     (guardado)="manejarPuntajeCentroMonitoreoGuardado($event)"></app-centro-monitoreo-hse-puntaje-dialog>
 </ng-template>
-=======
->>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7

@@ -29,7 +29,6 @@ import { InspeccionesPageComponent } from './pages/inspecciones-page/inspeccione
 import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
-<<<<<<< HEAD
 import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
 import { ClimaPageComponent } from './pages/inspecciones/clima/clima-page.component';
 import { TareaPageComponent } from './pages/inspecciones/tarea/tarea-page.component';
@@ -39,12 +38,10 @@ import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
 import { PreguntasHsePageComponent } from './pages/inspecciones/preguntas-hse/preguntas-hse-page.component';
 import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
-=======
 import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
 import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
->>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 
 const routes: Routes = [
   {
@@ -154,10 +151,10 @@ const routes: Routes = [
         component: InspeccionesPageComponent
       },
       {
-<<<<<<< HEAD
         path: 'tipo-reporte',
         component: TipoReportePageComponent
-=======
+      },
+      {
         path: 'asignacion',
         component: AsignacionPageComponent
       },
@@ -168,7 +165,6 @@ const routes: Routes = [
       {
         path: 'reportes/kardex-general',
         component: KardexGeneralReportePageComponent
->>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
       },
       {
         path: 'reportes/ingresos-salidas-almacen',

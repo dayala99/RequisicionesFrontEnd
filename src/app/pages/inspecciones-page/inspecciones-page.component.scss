@@ -291,11 +291,10 @@
     font-size: 1.6rem;
   }
 }
-<<<<<<< HEAD
 /* ── Columna ID oculta: visible solo en modo edición (internamente) ── */
 .col-id-hidden {
   display: none;
-=======
+}
 
 @media (max-width: 720px) {
   .inspecciones-page,
@@ -396,5 +395,4 @@
   .table-empty::before {
     content: none;
   }
->>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 }

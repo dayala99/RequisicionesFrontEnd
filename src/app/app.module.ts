@@ -105,7 +105,6 @@ import { ElegirEdicionCentroMonitoreoDialogComponent } from './pages/inspeccione
 import { CentroMonitoreoHsePuntajeDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-puntaje-dialog.component';
 import { CentroMonitoreoHseMotivoDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-motivo-dialog.component';
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
-<<<<<<< HEAD
 import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
 import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
 import { InspeccionStopReportComponent } from './pages/inspecciones-page/inspeccion-stop-report/inspeccion-stop-report.component';
@@ -116,12 +115,10 @@ import { CapturaFotoDialogComponent } from './pages/inspecciones-page/captura-fo
 import { CapturaAudioDialogComponent } from './pages/inspecciones-page/captura-audio-dialog.component';
 import { CentroMonitoreoHseComponent } from './pages/inspecciones-page/centro-monitoreo-hse/centro-monitoreo-hse.component';
 import { CentroMonitoreoHseNotaDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-nota-dialog.component';
-=======
 import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
 import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
->>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
