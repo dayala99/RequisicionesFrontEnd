@@ -1,11 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { MatDialog } from '@angular/material/dialog';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-import { ApiService, RegistrarAsignacionDetalleRequest, RegistrarAsignacionRequest } from 'src/app/Services/api.services';
+import { ApiService, AsignacionFiltro, RegistrarAsignacionDetalleRequest, RegistrarAsignacionRequest } from 'src/app/Services/api.services';
 import { AuthService } from 'src/app/features/auth/services/auth.service';
+import { ConfirmacionAccionDialogComponent } from '../inspecciones-page/confirmacion-accion-dialog.component';
 
 type DataRecord = Record<string, unknown>;
 
@@ -25,6 +27,7 @@ interface AsignacionDetalleFormValue {
 })
 export class AsignacionPageComponent implements OnInit {
   readonly form: FormGroup;
+  readonly filtrosForm: FormGroup;
   usuarios: Array<{ codigo: string; nombre: string }> = [];
   centrosCosto: Array<{ id: number; descripcion: string }> = [];
   materiales: Array<{ id: number; descripcion: string; unidadId: number; unidadDescripcion: string; stock: number }> = [];
@@ -32,23 +35,38 @@ export class AsignacionPageComponent implements OnInit {
   mostrarEditorAsignacion = false;
   editandoAsignacionId: number | null = null;
   isLoadingOptions = false;
+  isLoadingAsignaciones = false;
+  isDeletingAsignacion = false;
+  isLoadingEdit = false;
   isLoadingCentroCosto = false;
   isSaving = false;
   errorMessage = '';
   successMessage = '';
   centroCostoMessage = '';
+  listErrorMessage = '';
+  listInfoMessage = '';
   private pendingStockRequests = 0;
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly apiService: ApiService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly dialog: MatDialog
   ) {
     this.form = this.formBuilder.group({
       fecha: [this.getToday(), Validators.required],
       usuario: ['', Validators.required],
       centroCosto: [{ value: '', disabled: true }, Validators.required],
       materiales: this.formBuilder.array([this.crearMaterialGroup()])
+    });
+    this.filtrosForm = this.formBuilder.group({
+      asignacionId: [null],
+      fechaInicio: [this.getFirstDayOfCurrentMonth()],
+      fechaFin: [this.getToday()],
+      usuarioAsignado: [''],
+      usuarioRegistro: [''],
+      centroCosto: [0],
+      estado: ['A']
     });
   }
 
@@ -57,7 +75,129 @@ export class AsignacionPageComponent implements OnInit {
     this.cargarAsignaciones();
   }
 
+  buscarAsignaciones(): void {
+    const fechaInicio = String(this.filtrosForm.controls['fechaInicio'].value || '');
+    const fechaFin = String(this.filtrosForm.controls['fechaFin'].value || '');
+    const rawAsignacionId = this.filtrosForm.controls['asignacionId'].value;
+    const asignacionId = rawAsignacionId === null || rawAsignacionId === '' ? 0 : Number(rawAsignacionId);
+
+    if (!fechaInicio || !fechaFin) {
+      this.listErrorMessage = 'Selecciona la fecha inicial y la fecha final.';
+      return;
+    }
+
+    if (asignacionId < 0 || !Number.isInteger(asignacionId)) {
+      this.listErrorMessage = 'El ID de asignación debe ser un número entero positivo.';
+      return;
+    }
+
+    if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+      this.listErrorMessage = 'La fecha final no puede ser menor que la fecha inicial.';
+      return;
+    }
+
+    this.cargarAsignaciones();
+  }
+
+  limpiarFiltrosAsignacion(): void {
+    this.filtrosForm.reset({
+      asignacionId: null,
+      fechaInicio: this.getFirstDayOfCurrentMonth(),
+      fechaFin: this.getToday(),
+      usuarioAsignado: '',
+      usuarioRegistro: '',
+      centroCosto: 0,
+      estado: 'A'
+    });
+    this.cargarAsignaciones();
+  }
+
+  eliminarAsignacion(asignacion: DataRecord): void {
+    const asignacionId = this.number(asignacion, ['Asg_Id', 'asg_Id', 'asgId']);
+
+    if (asignacionId <= 0) {
+      return;
+    }
+
+    const usuario = this.text(asignacion, [
+      'Usr_Asignacion',
+      'usr_Asignacion',
+      'usrAsignacion',
+      'Asg_Usr',
+      'asg_Usr',
+      'asgUsr'
+    ]);
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '460px',
+      disableClose: true,
+      data: {
+        titulo: 'Eliminar asignación',
+        mensaje: `Se eliminará la asignación ${asignacionId}${usuario ? ` de ${usuario}` : ''}. ¿Deseas continuar?`,
+        textoConfirmar: 'Confirmar eliminación',
+        textoCancelar: 'Volver',
+        tipo: 'peligro'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.ejecutarEliminacionAsignacion(asignacionId);
+    });
+  }
+
+  private ejecutarEliminacionAsignacion(asignacionId: number): void {
+    if (this.isDeletingAsignacion) {
+      return;
+    }
+
+    const payload = { Asg_Id: asignacionId };
+    this.isDeletingAsignacion = true;
+    this.listErrorMessage = '';
+    this.listInfoMessage = '';
+
+    this.apiService.patchEliminarAsignacionDetalleTotal(payload).subscribe({
+      next: (detalleResponse: unknown) => {
+        if (!this.isSuccessfulResponse(detalleResponse)) {
+          this.listErrorMessage = this.text((detalleResponse || {}) as DataRecord, ['Message', 'message'])
+            || 'No se pudieron eliminar los detalles de la asignación.';
+          this.isDeletingAsignacion = false;
+          return;
+        }
+
+        this.apiService.patchEliminarAsignacion(payload).subscribe({
+          next: (cabeceraResponse: unknown) => {
+            if (!this.isSuccessfulResponse(cabeceraResponse)) {
+              this.listErrorMessage = this.text((cabeceraResponse || {}) as DataRecord, ['Message', 'message'])
+                || 'Los detalles fueron eliminados, pero no se pudo eliminar la cabecera de la asignación.';
+              this.isDeletingAsignacion = false;
+              return;
+            }
+
+            this.isDeletingAsignacion = false;
+            this.cargarAsignaciones();
+            this.listInfoMessage = `La asignación ${asignacionId} fue eliminada correctamente.`;
+          },
+          error: (error: unknown) => {
+            this.listErrorMessage = this.resolveDeleteError(
+              error,
+              'Los detalles fueron eliminados, pero no se pudo eliminar la cabecera de la asignación.'
+            );
+            this.isDeletingAsignacion = false;
+          }
+        });
+      },
+      error: (error: unknown) => {
+        this.listErrorMessage = this.resolveDeleteError(error, 'No se pudieron eliminar los detalles de la asignación.');
+        this.isDeletingAsignacion = false;
+      }
+    });
+  }
+
   nuevaAsignacion(): void {
+    this.isLoadingEdit = false;
     this.editandoAsignacionId = null;
     this.form.reset({ fecha: this.getToday(), usuario: '', centroCosto: '' });
     this.resetMateriales();
@@ -119,6 +259,7 @@ export class AsignacionPageComponent implements OnInit {
 
   cerrarEditor(): void {
     if (!this.isSaving) {
+      this.isLoadingEdit = false;
       this.mostrarEditorAsignacion = false;
       this.errorMessage = '';
       this.successMessage = '';
@@ -127,28 +268,87 @@ export class AsignacionPageComponent implements OnInit {
   }
 
   editarAsignacion(asignacion: DataRecord): void {
-    this.editandoAsignacionId = Number(asignacion['Asg_Id'] || asignacion['asg_Id']);
+    const id = this.number(asignacion, ['Asg_Id', 'asg_Id', 'asgId']);
+
+    if (id <= 0) {
+      this.listErrorMessage = 'No se pudo identificar la asignación seleccionada.';
+      return;
+    }
+
+    let cabeceraFailed = false;
+    let detallesFailed = false;
+    this.editandoAsignacionId = id;
     this.mostrarEditorAsignacion = true;
-    const id = Number(asignacion['Asg_Id'] || asignacion['asg_Id']);
-    if (id <= 0) return;
-    forkJoin({ cabecera: this.apiService.getListarAsignacionModificar(id), detalles: this.apiService.getListarDetallesXAsignacion(id) }).subscribe({
+    this.isLoadingEdit = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    forkJoin({
+      cabecera: this.apiService.getListarAsignacionModificar(id).pipe(
+        catchError((error: unknown) => {
+          console.error('[Asignacion] No se pudo cargar la cabecera:', error);
+          cabeceraFailed = true;
+          return of(null);
+        })
+      ),
+      detalles: this.apiService.getListarDetallesXAsignacion(id).pipe(
+        catchError((error: unknown) => {
+          console.error('[Asignacion] No se pudo cargar el detalle:', error);
+          detallesFailed = true;
+          return of(null);
+        })
+      )
+    }).subscribe({
       next: ({ cabecera, detalles }) => {
-        const cab = this.extractRecords(cabecera)[0] || asignacion;
-        this.form.patchValue({ fecha: String(cab['Asg_Fec'] || cab['asg_Fec'] || '').slice(0, 10), usuario: cab['Asg_Usr'] || cab['asg_Usr'] || '' });
-        this.onUsuarioChange();
+        const cab = this.extractRecords(cabecera)[0] ?? asignacion;
+        const fecha = this.text(cab, ['Asg_Fec', 'asg_Fec', 'asgFec']).slice(0, 10);
+        const usuario = this.text(cab, ['Asg_Usr', 'asg_Usr', 'asgUsr']);
+        const centroCostoId = this.number(cab, ['Asg_Usr_Cen_Cos', 'asg_Usr_Cen_Cos', 'asgUsrCenCos']);
+        const centroCostoDescripcion = this.text(asignacion, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']);
+
+        if (cabeceraFailed || !fecha || !usuario) {
+          this.errorMessage = 'No se pudo cargar la cabecera de la asignación seleccionada.';
+          this.isLoadingEdit = false;
+          return;
+        }
+
+        if (centroCostoId > 0 && !this.centrosCosto.some((centro) => centro.id === centroCostoId)) {
+          this.centrosCosto = [
+            ...this.centrosCosto,
+            { id: centroCostoId, descripcion: centroCostoDescripcion || `Centro de costo ${centroCostoId}` }
+          ];
+        }
+
+        this.form.patchValue({ fecha, usuario, centroCosto: centroCostoId || '' });
         const rows = this.extractRecords(detalles)
           .filter((detail) => this.text(detail, ['Flg_Est', 'flg_Est', 'flgEst']).toUpperCase() !== 'I');
-        console.log('[Asignacion] Detalles recibidos para edición:', detalles, rows);
         while (this.materialesForm.length) this.materialesForm.removeAt(0);
         rows.forEach((detail, index) => {
           this.materialesForm.push(this.crearMaterialGroup());
           const row = this.materialRows[index];
-          row.patchValue({ detailId: Number(detail['Asg_Det_Id'] || detail['asg_Det_Id']), materialId: Number(detail['Asg_Det_Itm_Id'] || detail['asg_Det_Itm_Id']), cantidad: Number(detail['Asg_Det_Can'] || detail['asg_Det_Can'] || 0), serie: detail['Asg_Det_Ser'] || detail['asg_Det_Ser'] || '', observaciones: detail['Asg_Det_Obs'] || detail['asg_Det_Obs'] || '', markedForDelete: false });
+          row.patchValue({
+            detailId: this.number(detail, ['Asg_Det_Id', 'asg_Det_Id', 'asgDetId']),
+            materialId: this.number(detail, ['Asg_Det_Itm_Id', 'asg_Det_Itm_Id', 'asgDetItmId']),
+            cantidad: this.number(detail, ['Asg_Det_Can', 'asg_Det_Can', 'asgDetCan']),
+            serie: this.text(detail, ['Asg_Det_Ser', 'asg_Det_Ser', 'asgDetSer']),
+            observaciones: this.text(detail, ['Asg_Det_Obs', 'asg_Det_Obs', 'asgDetObs']),
+            markedForDelete: false
+          });
           this.onMaterialChange(index);
         });
         if (!rows.length) this.materialesForm.push(this.crearMaterialGroup());
+        if (detallesFailed) {
+          this.errorMessage = 'La cabecera cargó correctamente, pero no se pudo consultar el detalle.';
+        }
+        if (!centroCostoId) {
+          this.onUsuarioChange();
+        }
+        this.isLoadingEdit = false;
       },
-      error: (error: unknown) => { this.errorMessage = this.resolveError(error); }
+      error: (error: unknown) => {
+        this.errorMessage = this.resolveError(error);
+        this.isLoadingEdit = false;
+      }
     });
   }
 
@@ -222,7 +422,7 @@ export class AsignacionPageComponent implements OnInit {
   }
 
   guardar(): void {
-    if (this.isSaving || this.isLoadingOptions || this.errorMessage || this.centroCostoMessage || this.pendingStockRequests > 0) { console.log('[Asignacion] Guardado bloqueado por validación/estado:', { errorMessage: this.errorMessage, centroCostoMessage: this.centroCostoMessage, pendingStockRequests: this.pendingStockRequests }); this.form.markAllAsTouched(); return; }
+    if (this.isSaving || this.isLoadingOptions || this.isLoadingEdit || this.errorMessage || this.centroCostoMessage || this.pendingStockRequests > 0) { console.log('[Asignacion] Guardado bloqueado por validación/estado:', { errorMessage: this.errorMessage, centroCostoMessage: this.centroCostoMessage, pendingStockRequests: this.pendingStockRequests }); this.form.markAllAsTouched(); return; }
     if (this.form.controls['fecha'].invalid || this.form.controls['usuario'].invalid) { this.errorMessage = 'Completa correctamente los datos de la asignación.'; this.form.markAllAsTouched(); return; }
     const centroCostoId = Number(this.form.controls['centroCosto'].value);
     if (!Number.isInteger(centroCostoId) || centroCostoId <= 0) { this.centroCostoMessage = 'El usuario seleccionado no tiene un centro de costo asociado.'; return; }
@@ -332,10 +532,35 @@ export class AsignacionPageComponent implements OnInit {
   }
 
   private cargarAsignaciones(): void {
-    this.apiService.getListarAsignacion().subscribe({
-      next: (response: unknown) => { this.asignaciones = this.extractRecords(response); },
-      error: () => { this.asignaciones = []; }
+    this.isLoadingAsignaciones = true;
+    this.listErrorMessage = '';
+    this.listInfoMessage = '';
+
+    this.apiService.getListarAsignacion(this.getAsignacionFiltros()).subscribe({
+      next: (response: unknown) => {
+        this.asignaciones = this.extractRecords(response);
+        this.isLoadingAsignaciones = false;
+      },
+      error: (error: unknown) => {
+        this.asignaciones = [];
+        this.listErrorMessage = error instanceof HttpErrorResponse && this.isRecord(error.error)
+          ? this.text(error.error, ['Message', 'message', 'title']) || 'No se pudieron cargar las asignaciones.'
+          : 'No se pudieron cargar las asignaciones.';
+        this.isLoadingAsignaciones = false;
+      }
     });
+  }
+
+  private getAsignacionFiltros(): AsignacionFiltro {
+    return {
+      Asg_Id: Number(this.filtrosForm.controls['asignacionId'].value || 0),
+      Fec_Ini: String(this.filtrosForm.controls['fechaInicio'].value || ''),
+      Fec_Fin: String(this.filtrosForm.controls['fechaFin'].value || ''),
+      Asg_Usr: String(this.filtrosForm.controls['usuarioAsignado'].value || '').trim(),
+      Usr_Reg: String(this.filtrosForm.controls['usuarioRegistro'].value || '').trim(),
+      Flg_Est: String(this.filtrosForm.controls['estado'].value || '').trim(),
+      Asg_Usr_Cen_Cos: Number(this.filtrosForm.controls['centroCosto'].value || 0)
+    };
   }
 
   private get materialesForm(): FormArray {
@@ -420,6 +645,12 @@ export class AsignacionPageComponent implements OnInit {
     return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
+  private getFirstDayOfCurrentMonth(): string {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    return new Date(firstDay.getTime() - firstDay.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
   private extractRecords(response: unknown): DataRecord[] {
     if (Array.isArray(response)) {
       return response.filter((item): item is DataRecord => this.isRecord(item));
@@ -467,6 +698,13 @@ export class AsignacionPageComponent implements OnInit {
       return this.text(error.error, ['Message', 'message', 'title']) || 'No se pudo registrar la asignacion.';
     }
     return 'No se pudo registrar la asignacion.';
+  }
+
+  private resolveDeleteError(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse && this.isRecord(error.error)) {
+      return this.text(error.error, ['Message', 'message', 'title']) || fallback;
+    }
+    return fallback;
   }
 
   private isRecord(value: unknown): value is DataRecord {

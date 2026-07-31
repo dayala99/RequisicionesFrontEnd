@@ -25,6 +25,12 @@ export class ReportesPageComponent {
       description: 'Consulta los movimientos de almacén por solicitante, fechas, centro de costo y proveedor.',
       route: '/reportes/ingresos-salidas-almacen',
       endpoint: 'getReporteIngresoSalidasAlmacen'
+    },
+    {
+      title: 'Órdenes de Compra y Servicio',
+      description: 'Consulta las órdenes generadas por solicitante, tipo, pedido, proveedor y forma de pago.',
+      route: '/reportes/ordenes-compra-servicio',
+      endpoint: 'getGenerarReporteOcos'
     }
   ];
 }

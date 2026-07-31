@@ -118,6 +118,7 @@ import { CentroMonitoreoHseNotaDialogComponent } from './pages/inspecciones-page
 import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
 import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
+import { OrdenesCompraServicioReportePageComponent } from './pages/reportes-page/ordenes-compra-servicio-reporte-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
@@ -240,6 +241,7 @@ const APP_DATE_FORMATS = {
     ReportesPageComponent,
     KardexGeneralReportePageComponent,
     IngresoSalidasAlmacenReportePageComponent,
+    OrdenesCompraServicioReportePageComponent,
     AsignacionPageComponent,
   ],
   imports: [

@@ -41,6 +41,21 @@
 .asignacion-listado,
 .asignacion-editor { display: grid; gap: 1rem; min-width: 0; }
 
+.asignacion-filtros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.1rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.asignacion-filtros__actions {
+  grid-column: 1 / -1;
+}
+
 .asignacion-panel,
 .asignacion-editor {
   padding: 1.25rem;
@@ -54,7 +69,7 @@
 .asignacion-table { width: 100%; border-collapse: collapse; min-width: 620px; }
 .asignacion-table th { background: #706e6b; color: #fff; text-align: left; padding: .85rem; }
 .asignacion-table td { padding: .85rem; border-bottom: 1px solid var(--line-soft); color: var(--text-secondary); }
-.asignacion-edit-button {
+.asignacion-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -68,11 +83,12 @@
   cursor: pointer;
 }
 
-.asignacion-edit-button svg {
+.asignacion-icon-button svg {
   width: 1.15rem;
   height: 1.15rem;
   fill: currentColor;
 }
+
 .asignacion-form { display: grid; gap: 1.25rem; min-width: 0; }
 
 .asignacion-form__grid {
@@ -260,9 +276,11 @@
     grid-row: auto;
   }
   .asignacion-material-row__remove { width: 100%; }
+  .asignacion-filtros { grid-template-columns: minmax(0, 1fr); padding: 1rem; }
 }
 
 @media (min-width: 701px) and (max-width: 1100px) {
+  .asignacion-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .asignacion-material-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .asignacion-material-row__selector { grid-column: 1 / -1; }
   .asignacion-material-row__serie,

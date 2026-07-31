@@ -29,6 +29,16 @@ export interface RegistrarAsignacionRequest {
     Usr_Reg: string;
 }
 
+export interface AsignacionFiltro {
+    Asg_Id?: number;
+    Fec_Ini?: string;
+    Fec_Fin?: string;
+    Asg_Usr?: string;
+    Usr_Reg?: string;
+    Flg_Est?: string;
+    Asg_Usr_Cen_Cos?: number;
+}
+
 export interface RegistrarAsignacionDetalleRequest {
     Asg_Id: number;
     Asg_Det_Itm_Id: number;
@@ -39,6 +49,10 @@ export interface RegistrarAsignacionDetalleRequest {
 
 export interface EliminarAsignacionDetalleRequest {
     Asg_Det_Id: number;
+}
+
+export interface EliminarAsignacionRequest {
+    Asg_Id: number;
 }
 
 export interface RegistrarObservacionPlaneadaRequest {
@@ -2185,6 +2199,25 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'Almacen/getReporteIngresoSalidasAlmacen', { headers, params });
     }
 
+    getGenerarReporteOcos(
+        Usr_Reg: string,
+        Ped_Tip_Com: number,
+        Ped_Id: number,
+        Ord_Com_Id: number,
+        Ord_Com_Prv: number,
+        Ord_Com_For_Pag: number
+    ): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Usr_Reg', Usr_Reg)
+            .set('Ped_Tip_Com', String(Ped_Tip_Com))
+            .set('Ped_Id', String(Ped_Id))
+            .set('Ord_Com_Id', String(Ord_Com_Id))
+            .set('Ord_Com_Prv', String(Ord_Com_Prv))
+            .set('Ord_Com_For_Pag', String(Ord_Com_For_Pag));
+        return this.http.get(this.baseUrl + 'Pedido/getGenerarReporteOcos', { headers, params });
+    }
+
     getListarPedidoCorrelativoNuevo(): Observable<any> {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Pedido/getListarPedidoCorrelativoNuevo', { headers });
@@ -2710,9 +2743,24 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.post(this.baseUrl + 'Asignacion/postRegistrarAsignacion', asignacion, { headers });
     }
 
-    getListarAsignacion(): Observable<any> {
+    getListarAsignacion(filtros: AsignacionFiltro = {}): Observable<any> {
         const headers = this.Header;
-        return this.http.get(this.baseUrl + 'Asignacion/getListarAsignacion', { headers });
+        let params = new HttpParams()
+            .set('Asg_Id', String(filtros.Asg_Id ?? 0))
+            .set('Asg_Usr', filtros.Asg_Usr ?? '')
+            .set('Usr_Reg', filtros.Usr_Reg ?? '')
+            .set('Flg_Est', filtros.Flg_Est ?? '')
+            .set('Asg_Usr_Cen_Cos', String(filtros.Asg_Usr_Cen_Cos ?? 0));
+
+        if (filtros.Fec_Ini) {
+            params = params.set('Fec_Ini', filtros.Fec_Ini);
+        }
+
+        if (filtros.Fec_Fin) {
+            params = params.set('Fec_Fin', filtros.Fec_Fin);
+        }
+
+        return this.http.get(this.baseUrl + 'Asignacion/getListarAsignacion', { headers, params });
     }
 
     getObtenerStockReservadoAsignacion(Asg_Usr_Cen_Cos: number, Asg_Det_Itm_Id: number): Observable<any> {
@@ -2735,6 +2783,12 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     patchActualizarAsignacionDetalle(detalle: any): Observable<any> { return this.http.patch(this.baseUrl + 'Asignacion/patchActualizarAsignacionDetalle', detalle, { headers: this.Header }); }
     patchEliminarAsignacionDetalle(detalle: EliminarAsignacionDetalleRequest): Observable<any> {
         return this.http.patch(this.baseUrl + 'Asignacion/patchEliminarAsignacionDetalle', detalle, { headers: this.Header });
+    }
+    patchEliminarAsignacion(asignacion: EliminarAsignacionRequest): Observable<any> {
+        return this.http.patch(this.baseUrl + 'Asignacion/patchEliminarAsignacion', asignacion, { headers: this.Header });
+    }
+    patchEliminarAsignacionDetalleTotal(asignacion: EliminarAsignacionRequest): Observable<any> {
+        return this.http.patch(this.baseUrl + 'Asignacion/patchEliminarAsignacionDetalleTotal', asignacion, { headers: this.Header });
     }
     getListarDetallesXAsignacion(id: number): Observable<any> {
         const headers = this.Header;

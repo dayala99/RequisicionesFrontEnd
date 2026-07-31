@@ -213,7 +213,8 @@ export class AuthService {
       '/sub-contrata': ['/jefe'],
       '/asignacion': ['/reportes'],
       '/reportes/kardex-general': ['/reportes'],
-      '/reportes/ingresos-salidas-almacen': ['/reportes']
+      '/reportes/ingresos-salidas-almacen': ['/reportes'],
+      '/reportes/ordenes-compra-servicio': ['/reportes']
     };
 
     const candidateRoutes = [normalizedRoute, ...(aliases[normalizedRoute] ?? [])];
