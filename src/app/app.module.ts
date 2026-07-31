@@ -22,6 +22,7 @@ import { ProviderSelectorDialogComponent } from './features/provider-form/dialog
 import { ProviderFormComponent } from './features/provider-form/provider-form.component';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
 import { AlmacenPageComponent } from './pages/almacen-page/almacen-page.component';
+import { AlmacenSalidasReporteDialogComponent } from './pages/almacen-page/almacen-salidas-reporte-dialog.component';
 import { BancoEditDialogComponent } from './pages/banco-page/banco-edit-dialog.component';
 import { BancoPageComponent } from './pages/banco-page/banco-page.component';
 import { BancoRegisterDialogComponent } from './pages/banco-page/banco-register-dialog.component';
@@ -97,6 +98,7 @@ import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/con
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
 import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
 import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
+import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
@@ -120,6 +122,7 @@ const APP_DATE_FORMATS = {
     AppComponent,
     AppLayoutComponent,
     AlmacenPageComponent,
+    AlmacenSalidasReporteDialogComponent,
     BancoPageComponent,
     BancoRegisterDialogComponent,
     BancoEditDialogComponent,
@@ -198,6 +201,7 @@ const APP_DATE_FORMATS = {
     GridPaginationComponent,
     ReportesPageComponent,
     KardexGeneralReportePageComponent,
+    IngresoSalidasAlmacenReportePageComponent,
     AsignacionPageComponent,
   ],
   imports: [

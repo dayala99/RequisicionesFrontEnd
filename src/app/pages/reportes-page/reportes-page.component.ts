@@ -16,9 +16,15 @@ export class ReportesPageComponent {
   readonly reportes: ReporteAccesoDirecto[] = [
     {
       title: 'Kardex General',
-      description: 'Abre el panel base para consultar el kardex general y luego conectarlo con su endpoint.',
+      description: 'Consulta el kardex general y filtra los movimientos por ítem.',
       route: '/reportes/kardex-general',
       endpoint: 'getGenerarKardexGeneral'
+    },
+    {
+      title: 'Ingresos y Salidas de Almacén',
+      description: 'Consulta los movimientos de almacén por solicitante, fechas, centro de costo y proveedor.',
+      route: '/reportes/ingresos-salidas-almacen',
+      endpoint: 'getReporteIngresoSalidasAlmacen'
     }
   ];
 }

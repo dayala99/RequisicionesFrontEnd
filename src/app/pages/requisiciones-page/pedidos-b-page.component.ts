@@ -160,6 +160,10 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
   aprobarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
     event?.stopPropagation();
+    if (this.isActionRowBusy(item) || !this.canDecidirPedidoFila(item)) {
+      return;
+    }
+
     this.seleccionarPedido(item as never);
     this.confirmarAccionPedidoB({
       titulo: 'Aprobar pedido',
@@ -171,6 +175,10 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
 
   rechazarPedidoFila(item: PedidoBListadoRow, event?: Event): void {
     event?.stopPropagation();
+    if (this.isActionRowBusy(item) || !this.canDecidirPedidoFila(item)) {
+      return;
+    }
+
     this.seleccionarPedido(item as never);
     this.ejecutarAccion('Rechazar');
   }
@@ -198,9 +206,47 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     return !!usuarioAprobacion && usuarioAprobacion === usuarioActual;
   }
 
-  isPedidoAprobadoFila(item: { estado?: unknown }): boolean {
+  canDecidirPedidoFila(item: PedidoBListadoRow): boolean {
+    if (this.isPedidoPendienteFila(item)) {
+      return this.canApprovePedidoFila(item);
+    }
+
+    if (this.isPedidoAprobadoFila(item)) {
+      return this.canAdministrarPedidoAprobado();
+    }
+
+    return true;
+  }
+
+  isPedidoPendienteFila(item: any): boolean {
+    const estado = String(item.estado ?? '').trim().toLowerCase();
+    return estado === 'pendiente' || estado === 'p';
+  }
+
+  isPedidoAprobadoFila(item: any): boolean {
     const estado = String(item.estado ?? '').trim().toLowerCase();
     return estado === 'aprobado';
+  }
+
+  revertirPedidoFila(item: PedidoBListadoRow, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isPedidoAprobadoFila(item) || this.isActionRowBusy(item)) return;
+
+    this.seleccionarPedido(item as never);
+    this.confirmarAccionPedidoB({
+      titulo: 'Revertir pedido',
+      mensaje: `¿Deseas revertir el pedido ${this.detallePedidoSeleccionado?.codigo || item.requisicion} a pendiente?`,
+      textoConfirmar: 'Revertir',
+      textoCancelar: 'Cancelar'
+    }, () => this.ejecutarReversionPedido(item));
+  }
+
+  private ejecutarReversionPedido(item: PedidoBListadoRow): void {
+    this.isUpdatingPedidoEstado = true;
+    this.pedidosBApiService.patchActualizarPedidoEstado({ Ped_Id: item.requisicion, Flg_Est: 'P' }).subscribe({
+      next: () => { this.isUpdatingPedidoEstado = false; (this as any).cargarPedidos(); },
+      error: (error: unknown) => { console.error('No se pudo revertir el pedido:', error); this.isUpdatingPedidoEstado = false; }
+    });
   }
 
   canAdministrarPedidoAprobado(): boolean {

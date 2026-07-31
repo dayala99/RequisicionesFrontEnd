@@ -28,6 +28,18 @@ export interface RegistrarAsignacionRequest {
     Usr_Reg: string;
 }
 
+export interface RegistrarAsignacionDetalleRequest {
+    Asg_Id: number;
+    Asg_Det_Itm_Id: number;
+    Asg_Det_Can: number;
+    Asg_Det_Ser?: string | null;
+    Asg_Det_Obs?: string | null;
+}
+
+export interface EliminarAsignacionDetalleRequest {
+    Asg_Det_Id: number;
+}
+
 export interface RegistrarObservacionPlaneadaRequest {
     Usr_Cod: string;
     Cliente_Id: number;
@@ -454,7 +466,7 @@ export interface RegistrarIngresoAlmacenDetalleRequest {
     Alm_Det_Doc_Nro: string;
     Alm_Det_Fec: string;
     Alm_Det_Cen_Cos_Id: number;
-    Alm_Det_Prv_Id: number;
+    Alm_Det_Prv_Id: number | null;
     Usr_Reg: string;
     Alm_Ser?: string | null;
 }
@@ -467,7 +479,7 @@ export interface ActualizarIngresoAlmacenDetalleRequest {
     Alm_Det_Doc_Nro: string;
     Alm_Det_Fec: string;
     Alm_Det_Cen_Cos_Id: number;
-    Alm_Det_Prv_Id: number;
+    Alm_Det_Prv_Id: number | null;
     Usr_Reg: string;
     Alm_Ser?: string | null;
 }
@@ -1695,6 +1707,36 @@ export class ApiService {
         return this.http.get(this.baseUrl + 'Almacen/getListarIngresoSalidaAlmacenPorCentroCosto', { headers, params });
     }
 
+    getReporteListarSalidas(Fec_Ini: string, Fec_Fin: string, Alm_Det_Itm_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Fec_Ini', Fec_Ini)
+            .set('Fec_Fin', Fec_Fin)
+            .set('Alm_Det_Itm_Id', String(Alm_Det_Itm_Id));
+        return this.http.get(this.baseUrl + 'Almacen/getReporteListarSalidas', { headers, params });
+    }
+
+    getReporteIngresoSalidasAlmacen(
+        Usr_Cod: string,
+        Fec_Ini: string,
+        Fec_Fin: string,
+        Alm_Det_Cen_Cos_Id: number,
+        Alm_Det_Prv_Id: number,
+        Alm_Det_Itm_Id: number,
+        Alm_Tip_Ing: number
+    ): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Usr_Cod', Usr_Cod)
+            .set('Fec_Ini', Fec_Ini)
+            .set('Fec_Fin', Fec_Fin)
+            .set('Alm_Det_Cen_Cos_Id', String(Alm_Det_Cen_Cos_Id))
+            .set('Alm_Det_Prv_Id', String(Alm_Det_Prv_Id))
+            .set('Alm_Det_Itm_Id', String(Alm_Det_Itm_Id))
+            .set('Alm_Tip_Ing', String(Alm_Tip_Ing));
+        return this.http.get(this.baseUrl + 'Almacen/getReporteIngresoSalidasAlmacen', { headers, params });
+    }
+
     getListarPedidoCorrelativoNuevo(): Observable<any> {
         const headers = this.Header;
         return this.http.get(this.baseUrl + 'Pedido/getListarPedidoCorrelativoNuevo', { headers });
@@ -2107,6 +2149,42 @@ export class ApiService {
     postRegistrarAsignacion(asignacion: RegistrarAsignacionRequest): Observable<any> {
         const headers = this.Header;
         return this.http.post(this.baseUrl + 'Asignacion/postRegistrarAsignacion', asignacion, { headers });
+    }
+
+    getListarAsignacion(): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Asignacion/getListarAsignacion', { headers });
+    }
+
+    getObtenerStockReservadoAsignacion(Asg_Usr_Cen_Cos: number, Asg_Det_Itm_Id: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Asg_Usr_Cen_Cos', String(Asg_Usr_Cen_Cos))
+            .set('Asg_Det_Itm_Id', String(Asg_Det_Itm_Id));
+        return this.http.get(this.baseUrl + 'Asignacion/getObtenerStockReservadoAsignacion', { headers, params });
+    }
+
+    getListarAsignacionDetalleModificar(id: number): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Asignacion/getListarAsignacionDetalleModificar', { headers, params: new HttpParams().set('Asg_Det_Id', id) });
+    }
+    getListarAsignacionModificar(id: number): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Asignacion/getListarAsignacionModificar', { headers, params: new HttpParams().set('Asg_Id', id) });
+    }
+    patchActualizarAsignacion(asignacion: any): Observable<any> { return this.http.patch(this.baseUrl + 'Asignacion/patchActualizarAsignacion', asignacion, { headers: this.Header }); }
+    patchActualizarAsignacionDetalle(detalle: any): Observable<any> { return this.http.patch(this.baseUrl + 'Asignacion/patchActualizarAsignacionDetalle', detalle, { headers: this.Header }); }
+    patchEliminarAsignacionDetalle(detalle: EliminarAsignacionDetalleRequest): Observable<any> {
+        return this.http.patch(this.baseUrl + 'Asignacion/patchEliminarAsignacionDetalle', detalle, { headers: this.Header });
+    }
+    getListarDetallesXAsignacion(id: number): Observable<any> {
+        const headers = this.Header;
+        return this.http.get(this.baseUrl + 'Asignacion/getListarDetallesXAsignacion', { headers, params: new HttpParams().set('Asg_Id', id) });
+    }
+
+    postRegistrarAsignacionDetalle(detalle: RegistrarAsignacionDetalleRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Asignacion/postRegistrarAsignacionDetalle', detalle, { headers });
     }
 
     registrarProveedor(proveedor: RegistrarProveedorRequest): Observable<any> {

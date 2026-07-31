@@ -30,6 +30,10 @@ import { PedidoRechazoDialogComponent, PedidoRechazoDialogResult } from '../requ
 import { DEFAULT_GRID_PAGE_SIZE, normalizePaginationPage, paginateItems } from 'src/app/shared/utils/pagination.utils';
 import { formatDateRequestValue, formatDisplayDate } from 'src/app/shared/utils/date.utils';
 import { PedidoDetalleItemOption, PedidoDetalleUnidadOption } from '../requisiciones-page/pedido-detalle-dialog.models';
+import {
+  AlmacenSalidaReporteDialogResult,
+  AlmacenSalidasReporteDialogComponent
+} from './almacen-salidas-reporte-dialog.component';
 
 type DataRecord = Record<string, unknown>;
 
@@ -47,6 +51,7 @@ interface AlmacenRow {
   almacen: string;
   fechaRegistro: string;
   registradoPor: string;
+  solicitante: string;
   estadoAprobacion: string;
   estadoConsumo: string;
 }
@@ -111,6 +116,15 @@ interface SalidaDetalleDraft {
   fecha: string;
   originalCantidad: number;
   serie: string | null;
+}
+
+interface ReporteSalidaRow {
+  fecha: string;
+  solicitante: string;
+  documento: string;
+  item: string;
+  unidad: string;
+  cantidad: number;
 }
 
 interface AlmacenSolicitanteOption {
@@ -186,6 +200,7 @@ export class AlmacenPageComponent implements OnInit {
   isLoadingCatalogos = false;
   isSavingIngreso = false;
   isLoadingEditor = false;
+  isExportingSalidas = false;
   showIngresoDirectoForm = false;
   showIngresoOrdenForm = false;
   isSalidaMode = false;
@@ -276,6 +291,7 @@ export class AlmacenPageComponent implements OnInit {
         item.almacen,
         item.fechaRegistro,
         item.registradoPor,
+        item.solicitante,
         item.estadoAprobacion,
         item.estadoConsumo
       ];
@@ -614,6 +630,15 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   guardarIngresoDirecto(): void {
+    console.log('[Almacen][Generar consumo][Botón Guardar] datos del formulario:', {
+      modo: this.isEditMode ? 'actualización' : 'registro',
+      cabecera: this.ingresoDirectoForm.getRawValue(),
+      materiales: this.salidaMaterialRows.map((row, index) => ({
+        index,
+        ...row.getRawValue()
+      }))
+    });
+
     if (this.isSalidaMode) {
       if (this.isEditMode) {
         this.actualizarSalidaDirecta();
@@ -835,8 +860,12 @@ export class AlmacenPageComponent implements OnInit {
     this.isSavingIngreso = true;
     this.saveErrorMessage = '';
 
+    console.log('[Almacen][Salida][Guardar][POST /api/Almacen/postRegistrarIngresoAlmacen] payload:', cabeceraPayload);
+
     this.apiService.postRegistrarIngresoAlmacen(cabeceraPayload).subscribe({
       next: (cabeceraResponse: unknown) => {
+        console.log('[Almacen][Salida][Guardar][POST /api/Almacen/postRegistrarIngresoAlmacen] response:', cabeceraResponse);
+
         try {
           this.assertSuccessfulResponse(cabeceraResponse, 'No se pudo registrar la cabecera de la salida de almacen.');
         } catch (error: unknown) {
@@ -947,8 +976,12 @@ export class AlmacenPageComponent implements OnInit {
       detallePayloads
     });
 
+    console.log('[Almacen][Salida][Actualizar][PATCH /api/Almacen/patchActualizarIngresoAlmacen] payload:', cabeceraPayload);
+
     this.apiService.patchActualizarIngresoAlmacen(cabeceraPayload).subscribe({
       next: (cabeceraResponse: unknown) => {
+        console.log('[Almacen][Salida][Actualizar][PATCH /api/Almacen/patchActualizarIngresoAlmacen] response:', cabeceraResponse);
+
         try {
           this.assertSuccessfulResponse(cabeceraResponse, 'No se pudo actualizar la cabecera de la salida de almacen.');
         } catch (error: unknown) {
@@ -1297,8 +1330,8 @@ export class AlmacenPageComponent implements OnInit {
 
   editarMovimiento(item: AlmacenRow): void {
     const isSalidaMovimiento = this.esMovimientoSalida(item);
-    if (isSalidaMovimiento && !this.esEstadoConsumoPendiente(item)) {
-      this.snackBar.open('No se puede editar una salida despachada o rechazada.', 'Cerrar', {
+    if (isSalidaMovimiento && !this.esUsuarioEditorSalida()) {
+      this.snackBar.open('Solo los usuarios dayala y jmalasquez pueden editar movimientos de salida.', 'Cerrar', {
         duration: 3500,
         horizontalPosition: 'center',
         verticalPosition: 'top'
@@ -1477,7 +1510,12 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   puedeEditarMovimiento(item: AlmacenRow): boolean {
-    return !this.esMovimientoSalida(item) || this.esEstadoConsumoPendiente(item);
+    return !this.esMovimientoSalida(item) || this.esUsuarioEditorSalida();
+  }
+
+  private esUsuarioEditorSalida(): boolean {
+    const currentUser = this.authService.getCurrentUser().trim().toLowerCase();
+    return currentUser === 'dayala' || currentUser === 'jmalasquez';
   }
 
   private validarEstadoConsumoPendiente(item: AlmacenRow): boolean {
@@ -1543,6 +1581,180 @@ export class AlmacenPageComponent implements OnInit {
     this.ingresoDirectoForm.controls['materialId'].enable({ emitEvent: false });
     this.ingresoDirectoForm.controls['unidadId'].enable({ emitEvent: false });
     this.cargarCentroCostoUsuarioSalida(currentUser);
+  }
+
+  abrirReporteSalidas(): void {
+    const dialogRef = this.dialog.open<
+      AlmacenSalidasReporteDialogComponent,
+      { items: Array<{ id: number; code: string; description: string }> },
+      AlmacenSalidaReporteDialogResult | undefined
+    >(AlmacenSalidasReporteDialogComponent, {
+      width: '680px',
+      maxWidth: '95vw',
+      data: {
+        items: this.itemOptions
+          .map((item) => ({
+            id: item.id,
+            code: item.code,
+            description: item.description
+          }))
+          .sort((left, right) =>
+            left.description.localeCompare(right.description, 'es', { sensitivity: 'base' })
+          )
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.exportarReporteSalidas(result);
+      }
+    });
+  }
+
+  private exportarReporteSalidas(filters: AlmacenSalidaReporteDialogResult): void {
+    const fechaInicio = formatDateRequestValue(filters.fechaInicio);
+    const fechaFin = formatDateRequestValue(filters.fechaFin);
+
+    if (!fechaInicio || !fechaFin) {
+      this.snackBar.open('No se pudo identificar el rango de fechas del reporte.', 'Cerrar', {
+        duration: 3500,
+        horizontalPosition: 'center',
+        verticalPosition: 'top'
+      });
+      return;
+    }
+
+    this.isExportingSalidas = true;
+
+    this.apiService.getReporteListarSalidas(fechaInicio, fechaFin, filters.itemId).subscribe({
+      next: (response: unknown) => {
+        const rows = this.extractRecords(response)
+          .map((item) => this.mapReporteSalidaRow(item))
+          .filter((item): item is ReporteSalidaRow => item !== null);
+
+        this.isExportingSalidas = false;
+
+        if (!rows.length) {
+          this.snackBar.open('No se encontraron salidas para los filtros seleccionados.', 'Cerrar', {
+            duration: 4000,
+            horizontalPosition: 'center',
+            verticalPosition: 'top'
+          });
+          return;
+        }
+
+        this.descargarReporteSalidasExcel(rows, fechaInicio, fechaFin, filters.itemLabel);
+      },
+      error: (error: unknown) => {
+        this.isExportingSalidas = false;
+        this.snackBar.open(
+          this.resolveErrorMessage(error, 'No se pudo generar el reporte de salidas.'),
+          'Cerrar',
+          {
+            duration: 4500,
+            horizontalPosition: 'center',
+            verticalPosition: 'top'
+          }
+        );
+      }
+    });
+  }
+
+  private mapReporteSalidaRow(item: DataRecord): ReporteSalidaRow | null {
+    const fecha = this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg']);
+    const solicitante = this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom']);
+    const documento = this.getTextValue(item, ['Usr_Doc_Nro', 'usr_Doc_Nro', 'usrDocNro']);
+    const itemDescripcion = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']);
+    const unidad = this.getTextValue(item, ['Uni_Med_Abr', 'uni_Med_Abr', 'uniMedAbr']);
+    const cantidad = Number(this.findDataValue(item, 'Alm_Det_Can') ?? 0);
+
+    if (!fecha && !solicitante && !documento && !itemDescripcion) {
+      return null;
+    }
+
+    return {
+      fecha: formatDisplayDate(fecha) || fecha || '-',
+      solicitante: solicitante || '-',
+      documento: documento || '-',
+      item: itemDescripcion || '-',
+      unidad: unidad || '-',
+      cantidad: Number.isFinite(cantidad) ? cantidad : 0
+    };
+  }
+
+  private descargarReporteSalidasExcel(
+    rows: ReporteSalidaRow[],
+    fechaInicio: string,
+    fechaFin: string,
+    itemLabel: string
+  ): void {
+    const headers = ['Fecha salida', 'Solicitante', 'Documento', 'Ítem', 'Unidad', 'Cantidad'];
+    const body = rows
+      .map((row) => `<Row>${[
+        row.fecha,
+        row.solicitante,
+        row.documento,
+        row.item,
+        row.unidad,
+        new Intl.NumberFormat('es-PE', { maximumFractionDigits: 3 }).format(row.cantidad)
+      ].map((value) => this.buildReporteSalidaExcelCell(value)).join('')}</Row>`)
+      .join('');
+    const headerCells = headers
+      .map((header) => this.buildReporteSalidaExcelCell(header, 'Header'))
+      .join('');
+    const workbook = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles>
+    <Style ss:ID="Header">
+      <Font ss:Bold="1" ss:Color="#FFFFFF"/>
+      <Interior ss:Color="#6F6B67" ss:Pattern="Solid"/>
+      <Alignment ss:Vertical="Center"/>
+    </Style>
+    <Style ss:ID="Default">
+      <Alignment ss:Vertical="Center" ss:WrapText="1"/>
+    </Style>
+  </Styles>
+  <Worksheet ss:Name="Reporte de salidas">
+    <Table>
+      <Row>${headerCells}</Row>
+      ${body}
+    </Table>
+  </Worksheet>
+</Workbook>`;
+    const blob = new Blob([workbook], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const itemSuffix = this.sanitizeReporteSalidaFileName(itemLabel || 'todos');
+    link.href = url;
+    link.download = `reporte_salidas_${fechaInicio}_${fechaFin}_${itemSuffix}.xls`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private buildReporteSalidaExcelCell(value: string | number, styleId = 'Default'): string {
+    return `<Cell ss:StyleID="${styleId}"><Data ss:Type="String">${this.escapeReporteSalidaXml(value)}</Data></Cell>`;
+  }
+
+  private escapeReporteSalidaXml(value: string | number): string {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  private sanitizeReporteSalidaFileName(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 40) || 'todos';
   }
 
   private abrirSalidaItem(item: SalidaItemRow): void {
@@ -2808,13 +3020,20 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   private buildRegistrarSalidaAlmacenPayload(): RegistrarIngresoAlmacenRequest | null {
-    const solicitanteCode = this.authService.getCurrentUser().trim();
+    const solicitanteValue = String(
+      this.ingresoDirectoForm.controls['solicitanteId'].value || ''
+    ).trim();
     const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
     const ubicacion = Number(this.ingresoDirectoForm.controls['ubicacion'].value);
-    const currentUser = this.getCurrentOperator();
+    const currentUser = this.authService.getCurrentUser().trim();
 
-    if (!solicitanteCode) {
-      this.saveErrorMessage = 'No se pudo identificar el usuario solicitante para registrar la salida.';
+    if (!solicitanteValue) {
+      this.saveErrorMessage = 'Selecciona un solicitante válido para registrar la salida.';
+      return null;
+    }
+
+    if (!currentUser) {
+      this.saveErrorMessage = 'No se pudo identificar el usuario que inició sesión.';
       return null;
     }
 
@@ -2831,7 +3050,7 @@ export class AlmacenPageComponent implements OnInit {
     return {
       Alm_Ubi: ubicacion,
       Alm_Tip_Ing: 4,
-      Alm_Sol_Dni: solicitanteCode,
+      Alm_Sol_Dni: solicitanteValue,
       Alm_Cen_Cos: centroCostoId,
       Usr_Reg: currentUser
     };
@@ -2987,10 +3206,18 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
-    console.log('[Almacen][Salida][Guardar][Detalle sin actualizar stock]', detallePayload);
+    console.log(
+      `[Almacen][Salida][Guardar][POST /api/Almacen/postRegistrarIngresoAlmacenDetalle][${index + 1}/${detallePayloads.length}] payload:`,
+      detallePayload
+    );
 
     this.apiService.postRegistrarIngresoAlmacenDetalle(detallePayload).subscribe({
       next: (detalleResponse: unknown) => {
+        console.log(
+          `[Almacen][Salida][Guardar][POST /api/Almacen/postRegistrarIngresoAlmacenDetalle][${index + 1}/${detallePayloads.length}] response:`,
+          detalleResponse
+        );
+
         try {
           this.assertSuccessfulResponse(detalleResponse, 'No se pudo registrar el detalle de la salida de almacen.');
         } catch (error: unknown) {
@@ -3027,14 +3254,27 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
-    console.log('[Almacen][Salida][Actualizar][Detalle sin actualizar stock]', detallePayload);
+    const isDetalleExistente = 'Alm_Det_Id' in detallePayload;
+    const endpoint = isDetalleExistente
+      ? 'PATCH /api/Almacen/patchActualizarIngresoAlmacenDetalle'
+      : 'POST /api/Almacen/postRegistrarIngresoAlmacenDetalle';
 
-    const request$ = 'Alm_Det_Id' in detallePayload
+    console.log(
+      `[Almacen][Salida][Actualizar][${endpoint}][${index + 1}/${detallePayloads.length}] payload:`,
+      detallePayload
+    );
+
+    const request$ = isDetalleExistente
       ? this.apiService.patchActualizarIngresoAlmacenDetalle(detallePayload)
       : this.apiService.postRegistrarIngresoAlmacenDetalle(detallePayload);
 
     request$.subscribe({
       next: (detalleResponse: unknown) => {
+        console.log(
+          `[Almacen][Salida][Actualizar][${endpoint}][${index + 1}/${detallePayloads.length}] response:`,
+          detalleResponse
+        );
+
         try {
           this.assertSuccessfulResponse(detalleResponse, 'No se pudo guardar el detalle de la salida de almacen.');
         } catch (error: unknown) {
@@ -3065,7 +3305,10 @@ export class AlmacenPageComponent implements OnInit {
     const fecha = formatDateRequestValue(this.ingresoDirectoForm.controls['fecha'].value);
     const documentoReferencia = String(this.ingresoDirectoForm.controls['documentoNumero'].value || '').trim();
     const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
-    const proveedorId = Number(this.ingresoDirectoForm.controls['proveedorId'].value);
+    const proveedorValue = Number(this.ingresoDirectoForm.controls['proveedorId'].value);
+    const proveedorId = Number.isInteger(proveedorValue) && proveedorValue > 0
+      ? proveedorValue
+      : null;
     const currentUser = this.getCurrentOperator();
 
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -3085,11 +3328,6 @@ export class AlmacenPageComponent implements OnInit {
 
     if (!Number.isInteger(centroCostoId) || centroCostoId <= 0) {
       this.saveErrorMessage = 'Selecciona un centro de costo valido para registrar el detalle.';
-      return null;
-    }
-
-    if (!Number.isInteger(proveedorId) || proveedorId <= 0) {
-      this.saveErrorMessage = 'Selecciona un proveedor valido para registrar el detalle.';
       return null;
     }
 
@@ -3238,7 +3476,10 @@ export class AlmacenPageComponent implements OnInit {
     const fecha = formatDateRequestValue(this.ingresoDirectoForm.controls['fecha'].value);
     const documentoReferencia = String(this.ingresoDirectoForm.controls['documentoNumero'].value || '').trim();
     const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
-    const proveedorId = Number(this.ingresoDirectoForm.controls['proveedorId'].value);
+    const proveedorValue = Number(this.ingresoDirectoForm.controls['proveedorId'].value);
+    const proveedorId = Number.isInteger(proveedorValue) && proveedorValue > 0
+      ? proveedorValue
+      : null;
     const currentUser = this.getCurrentOperator();
 
     if (!Number.isInteger(this.currentEditDetalleId) || this.currentEditDetalleId <= 0) {
@@ -3263,11 +3504,6 @@ export class AlmacenPageComponent implements OnInit {
 
     if (!Number.isInteger(centroCostoId) || centroCostoId <= 0) {
       this.saveErrorMessage = 'Selecciona un centro de costo valido para actualizar el detalle.';
-      return null;
-    }
-
-    if (!Number.isInteger(proveedorId) || proveedorId <= 0) {
-      this.saveErrorMessage = 'Selecciona un proveedor valido para actualizar el detalle.';
       return null;
     }
 
@@ -3431,6 +3667,7 @@ export class AlmacenPageComponent implements OnInit {
       almacen: this.getTextValue(item, ['Ubi_Des', 'ubi_Des', 'ubiDes']) || this.resolveUbicacionDescripcion(item),
       fechaRegistro: formatDisplayDate(this.getTextValue(item, ['Fec_Reg', 'fec_Reg', 'fecReg', 'Fecha', 'fecha'])) || '-',
       registradoPor: this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom', 'RegistradoPor', 'registradoPor']) || this.resolveSolicitanteNombre(solicitanteDocumento),
+      solicitante: this.getTextValue(item, ['Solicitante', 'solicitante']) || '-',
       estadoAprobacion,
       estadoConsumo
     };

@@ -75,6 +75,14 @@
             Generar Consumo
           </button>
           <button
+            *ngIf="isListadoSalida"
+            type="button"
+            class="button button--secondary"
+            [disabled]="isExportingSalidas"
+            (click)="abrirReporteSalidas()">
+            {{ isExportingSalidas ? 'Generando reporte...' : 'Exportar Salidas' }}
+          </button>
+          <button
             *ngFor="let action of actionButtons"
             type="button"
             class="button button--primary"
@@ -97,6 +105,7 @@
               <th>Almacen</th>
               <th>Fecha Registro</th>
               <th>Registrado Por</th>
+              <th *ngIf="isListadoSalida">Solicitante</th>
               <th *ngIf="isListadoIngresado">Estado Aprobacion</th>
               <th *ngIf="isListadoSalida">Estado Consumo</th>
               <th>{{ isListadoSalida ? 'Editar' : 'Acciones' }}</th>
@@ -105,11 +114,11 @@
 
           <tbody>
             <tr *ngIf="isLoadingAlmacen">
-              <td [attr.colspan]="isListadoSalida ? 9 : 8" class="empty-row">Cargando ingresos de almacen...</td>
+              <td [attr.colspan]="isListadoSalida ? 10 : 8" class="empty-row">Cargando ingresos de almacen...</td>
             </tr>
 
             <tr *ngIf="!isLoadingAlmacen && !errorMessage && !filteredAlmacenes.length">
-              <td [attr.colspan]="isListadoSalida ? 9 : 8" class="empty-row">No se encontraron movimientos de almacen.</td>
+              <td [attr.colspan]="isListadoSalida ? 10 : 8" class="empty-row">No se encontraron movimientos de almacen.</td>
             </tr>
 
             <tr *ngFor="let item of paginatedAlmacenes; trackBy: trackByAlmacen" class="almacen-table__row">
@@ -137,6 +146,7 @@
               <td>{{ item.almacen }}</td>
               <td>{{ item.fechaRegistro }}</td>
               <td>{{ item.registradoPor }}</td>
+              <td *ngIf="isListadoSalida">{{ item.solicitante }}</td>
               <td *ngIf="isListadoIngresado">
                 <span class="status-badge" [attr.data-state]="item.estadoAprobacion.toLowerCase()">{{ item.estadoAprobacion }}</span>
               </td>
@@ -474,9 +484,10 @@
                   class="mat-select-search"
                   placeholder="Buscar proveedor..."
                   [formControl]="proveedorSearchControl"
-                  (click)="$event.stopPropagation()"
-                  (keydown)="$event.stopPropagation()">
+                (click)="$event.stopPropagation()"
+                (keydown)="$event.stopPropagation()">
               </mat-option>
+              <mat-option [value]="0">Sin proveedor</mat-option>
               <mat-option *ngFor="let option of filteredProveedorOptions" [value]="option.code">
                 {{ option.name }}
               </mat-option>

@@ -113,7 +113,7 @@
                       class="icon-button icon-button--edit"
                       title="Modificar pedido"
                       aria-label="Modificar pedido"
-                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canAdministrarPedidoAprobado())"
+                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canApprovePedidoFila(item))"
                       (click)="modificarPedidoFila(item, $event)">
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm14.71-9.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/>
@@ -125,10 +125,23 @@
                       class="icon-button icon-button--approve"
                       title="Aprobar pedido"
                       aria-label="Aprobar pedido"
-                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canAdministrarPedidoAprobado())"
+                      [disabled]="isActionRowBusy(item) || !canDecidirPedidoFila(item)"
                       (click)="aprobarPedidoFila(item, $event)">
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M9 16.2 4.8 12l-1.4 1.4L9 19.2 21 7.2 19.6 5.8z"/>
+                      </svg>
+                    </button>
+
+                    <button
+                      *ngIf="isPedidoAprobadoFila(item)"
+                      type="button"
+                      class="icon-button icon-button--edit"
+                      title="Revertir pedido"
+                      aria-label="Revertir pedido"
+                      [disabled]="isActionRowBusy(item)"
+                      (click)="revertirPedidoFila(item, $event)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 7h8.5A4.5 4.5 0 1 1 11 11.5H9a6.5 6.5 0 1 0 6.5-6.5H7l2-2-1.4-1.4L3.7 6l3.9 3.9L9 8.5z"/>
                       </svg>
                     </button>
 
@@ -137,7 +150,7 @@
                       class="icon-button icon-button--danger"
                       title="Rechazar pedido"
                       aria-label="Rechazar pedido"
-                      [disabled]="isActionRowBusy(item) || (isPedidoAprobadoFila(item) && !canAdministrarPedidoAprobado())"
+                      [disabled]="isActionRowBusy(item) || !canDecidirPedidoFila(item)"
                       (click)="rechazarPedidoFila(item, $event)">
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/>
