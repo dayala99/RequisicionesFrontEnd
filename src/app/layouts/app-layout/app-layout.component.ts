@@ -82,6 +82,36 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Asignacion', route: '/asignacion', icon: this.icons.asignacion },
     { label: 'Reportes', route: '/reportes', icon: this.icons.reportes }
   ];
+<<<<<<< HEAD
+  readonly maintenanceItems = [
+    { label: 'Perfil', route: '/perfil' },
+    { label: 'Forma de Pagos', route: '/forma-pago' },
+    { label: 'Banco', route: '/banco' },
+    { label: 'Centro de Costos', route: '/centro-costos' },
+    { label: 'Direccion de Entrega', route: '/direccion-entrega' },
+    { label: 'Moneda', route: '/moneda' },
+    { label: 'Grupo de Item', route: '/grupo-item' },
+    { label: 'Sub Grupo de Item', route: '/sub-grupo-item' },
+    { label: 'Detalle de Material', route: '/item-detalle-material' },
+    { label: 'Item', route: '/item' },
+    { label: 'Tipo de Servicio', route: '/tipo-servicio' },
+    { label: 'Unidad de Medida', route: '/unidad-medida' },
+    { label: 'Tipo Reporte', route: '/jefe' },
+    { label: 'Cliente', route: '/cliente' },
+    { label: 'Tipo de Inspección', route: '/tipo-inspeccion' },
+    { label: 'Preguntas HSE', route: '/preguntas-hse' },
+    { label: 'Tipo de Riesgo', route: '/tipo-riesgo' },
+    { label: 'Riesgo', route: '/riesgo' },
+    { label: 'Reporte', route: '/reporte' },
+    { label: 'Motivo', route: '/motivo' },
+    { label: 'Clima', route: '/clima' },
+    { label: 'Tarea', route: '/tarea' },
+    { label: 'Sub Contrata', route: '/sub-contrata' },
+    { label: 'Subestación', route: '/subestacion' },
+    { label: 'Detracciones', route: '/detraccion' },
+    { label: 'Usuario', route: '/usuario' },
+    { label: 'Proveedor', route: '/proveedor' }
+=======
   readonly maintenanceItems: MenuItem[] = [
     { label: 'Perfil', route: '/perfil', icon: this.icons.perfil },
     { label: 'Forma de Pagos', route: '/forma-pago', icon: this.icons.formaPago },
@@ -101,6 +131,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Detracciones', route: '/detraccion', icon: this.icons.detraccion },
     { label: 'Usuario', route: '/usuario', icon: this.icons.usuario },
     { label: 'Proveedor', route: '/proveedor', icon: this.icons.proveedor }
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
   ];
 
   get visibleMenuItems(): MenuItem[] {

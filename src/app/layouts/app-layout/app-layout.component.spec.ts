@@ -124,7 +124,7 @@ describe('AppLayoutComponent', () => {
     expect(links).toContain('Moneda');
     expect(links).toContain('Tipo de Servicio');
     expect(links).toContain('Unidad de Medida');
-    expect(links).toContain('Jefe');
+    expect(links).toContain('Tipo Reporte');
     expect(links).toContain('Usuario');
     expect(links).toContain('Proveedor');
   });

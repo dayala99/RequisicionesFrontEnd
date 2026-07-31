@@ -56,7 +56,6 @@
   max-width: 980px;
 }
 
-.tabs,
 .actions,
 .table-toolbar,
 .table-footer {
@@ -66,32 +65,8 @@
   gap: 0.75rem;
 }
 
-.tabs {
-  gap: 0.8rem;
-  margin-top: 0.25rem;
-}
-
-.tab-button {
-  border: 1px solid #e7dfd3;
-  background: #fbf8f4;
-  color: #5f6776;
-  border-radius: 1rem;
-  padding: 0.95rem 1.2rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: 0.15s ease;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
-}
-
-.tab-button:hover {
-  transform: translateY(-1px);
-}
-
-.tab-button--active {
-  background: #ff9f2e;
-  color: #fff;
-  border-color: #ff9f2e;
-  box-shadow: 0 12px 26px rgba(255, 159, 46, 0.18);
+.tabs-field__control {
+  width: 300px;
 }
 
 /* ── Filtros: fecha + botón Buscar a la misma altura ── */
@@ -119,13 +94,7 @@
   width: 200px;
 }
 
-.date-field--action {
-  display: flex;
-  align-items: flex-end;
-  min-height: 100%;
-  padding-top: 0;
-  padding-bottom: 0.15rem;
-}
+/* ── Filtros ── */
 
 .btn-orange {
   border: none;
@@ -141,11 +110,6 @@
 
 .btn-orange:hover {
   transform: translateY(-1px);
-}
-
-.btn-search {
-  width: fit-content;
-  margin-bottom: 0;
 }
 
 .actions {
@@ -278,10 +242,13 @@
   height: 1.1rem;
 }
 
+.table-action + .table-action {
+  margin-left: 0.45rem;
+}
+
 .table-action--delete {
   background: #fee2e2;
   color: #991b1b;
-  margin-left: 0.45rem;
 }
 
 .table-action--delete:hover {
@@ -324,6 +291,11 @@
     font-size: 1.6rem;
   }
 }
+<<<<<<< HEAD
+/* ── Columna ID oculta: visible solo en modo edición (internamente) ── */
+.col-id-hidden {
+  display: none;
+=======
 
 @media (max-width: 720px) {
   .inspecciones-page,
@@ -424,4 +396,5 @@
   .table-empty::before {
     content: none;
   }
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 }

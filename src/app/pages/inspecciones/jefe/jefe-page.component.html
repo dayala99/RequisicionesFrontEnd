@@ -2,9 +2,9 @@
   <header class="jefe-card__header">
     <div>
       <p class="jefe-card__eyebrow">Administracion</p>
-      <h2>Jefe</h2>
+      <h2>Tipo Reporte</h2>
       <p class="jefe-card__description">
-        Administra los jefes activos y actualiza su información desde mantenimiento.
+        Administra los tipos de reporte activos y actualiza su información desde mantenimiento.
       </p>
     </div>
 
@@ -23,33 +23,29 @@
         min="1"
         step="1"
         placeholder="Buscar por ID"
+        name="idFiltro"
+        [ngModelOptions]="{ standalone: true }"
         [(ngModel)]="filtros.Id">
     </label>
 
     <label class="filter-field">
-      <span>Nombre</span>
+      <span>Tipo de Reporte</span>
       <input
         type="text"
-        placeholder="Buscar por Nombre"
-        [(ngModel)]="filtros.Nombre">
-    </label>
-
-    <label class="filter-field">
-      <span>DNI</span>
-      <input
-        type="text"
-        placeholder="Buscar por DNI"
-        [(ngModel)]="filtros.Dni">
+        placeholder="Buscar por tipo de reporte"
+        name="tipoReporte"
+        [ngModelOptions]="{ standalone: true }"
+        [(ngModel)]="filtros.Reporte_Tipo">
     </label>
 
     <label class="filter-field estado-field">
-      <span>Estado:</span>
+      <span>Estado</span>
       <div class="custom-select-wrap">
         <select
           class="custom-select"
-          [(ngModel)]="filtros.Estado"
-          name="estado">
-          <option value="">Seleccionar</option>
+          name="estado"
+          [ngModelOptions]="{ standalone: true }"
+          [(ngModel)]="filtros.Estado">
           <option value="A">Activo</option>
           <option value="I">Inactivo</option>
         </select>
@@ -67,7 +63,7 @@
   </div>
 
   <div *ngIf="cargando" class="state-card">
-    Cargando jefes desde la API...
+    Cargando tipos de reporte desde la API...
   </div>
 
   <div *ngIf="!cargando && errorMessage" class="state-card state-card--error">
@@ -75,7 +71,7 @@
   </div>
 
   <div *ngIf="!cargando && !errorMessage && !jefes.length" class="state-card">
-    No hay jefes para mostrar.
+    No hay tipos de reporte para mostrar.
   </div>
 
   <ng-container *ngIf="jefes.length">
@@ -84,20 +80,16 @@
         <thead>
           <tr>
             <th>ID</th>
-            <th>Nombre</th>
-            <th>DNI</th>
-            <th>Área</th>
+            <th>Tipo de Reporte</th>
             <th>Estado</th>
-            <th>Action</th>
+            <th>Acciones</th>
           </tr>
         </thead>
 
         <tbody>
           <tr *ngFor="let jefe of jefesPaginados; trackBy: trackByJefe">
             <td>{{ jefe.id ?? '-' }}</td>
-            <td>{{ jefe.nombre || '-' }}</td>
-            <td>{{ jefe.dni || '-' }}</td>
-            <td>{{ jefe.area || '-' }}</td>
+            <td>{{ jefe.tipoReporte || '-' }}</td>
             <td>
               <span
                 class="estado-badge"
@@ -107,12 +99,12 @@
               </span>
             </td>
             <td>
-              <button type="button" class="table-action" aria-label="Editar jefe" (click)="editarJefe(jefe)">
+              <button type="button" class="table-action" aria-label="Editar tipo de reporte" (click)="editarJefe(jefe)">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
                 </svg>
               </button>
-              <button type="button" class="table-action table-action--delete" aria-label="Eliminar jefe" [disabled]="eliminandoJefe" (click)="eliminarJefe(jefe)">
+              <button type="button" class="table-action table-action--delete" aria-label="Eliminar tipo de reporte" [disabled]="eliminandoJefe" (click)="eliminarJefe(jefe)">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 6h18"></path>
                   <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>

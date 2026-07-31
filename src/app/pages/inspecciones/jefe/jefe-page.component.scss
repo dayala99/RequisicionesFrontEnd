@@ -40,6 +40,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  padding-top: 2.5rem;
 }
 
 .jefe-card__create,
@@ -62,7 +63,7 @@
 
 .jefe-filters {
   display: grid;
-  grid-template-columns: minmax(8rem, 0.7fr) minmax(14rem, 1.5fr) minmax(12rem, 1fr) minmax(11rem, 1fr) auto auto;
+  grid-template-columns: minmax(8rem, 0.7fr) minmax(16rem, 1.5fr) minmax(12rem, 1fr) auto auto;
   align-items: end;
   gap: 1rem;
 }

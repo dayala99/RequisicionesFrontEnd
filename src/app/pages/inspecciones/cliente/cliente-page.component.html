@@ -23,7 +23,7 @@
         min="1"
         step="1"
         placeholder="Buscar por ID"
-        [(ngModel)]="filtros.Id">
+        [ngModel]="filtros.Id === 0 ? null : filtros.Id" (ngModelChange)="actualizarFiltroId($event)" >
     </label>
 
     <label class="filter-field">
@@ -41,8 +41,7 @@
           class="custom-select"
           [(ngModel)]="filtros.Estado"
           name="estado">
-          <option value="">Seleccionar</option>
-          <option value="A">Activo</option>
+                    <option value="A">Activo</option>
           <option value="I">Inactivo</option>
         </select>
         <span class="custom-select-arrow"></span>

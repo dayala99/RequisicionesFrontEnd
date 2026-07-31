@@ -90,7 +90,7 @@
   border: 1px solid var(--line-soft);
   border-radius: 12px;
   background: #ffffff;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .observaciones-card h3 {
@@ -191,7 +191,7 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 40;
+  z-index: 1000;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 14px;

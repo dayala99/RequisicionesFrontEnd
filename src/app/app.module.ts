@@ -83,23 +83,45 @@ import { TipoServicioRegisterDialogComponent } from './pages/tipo-servicio-page/
 import { UnidadMedidaEditDialogComponent } from './pages/unidad-medida-page/unidad-medida-edit-dialog.component';
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/unidad-medida-register-dialog.component';
-import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
+import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
+import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
+import { PreguntasHsePageComponent } from './pages/inspecciones/preguntas-hse/preguntas-hse-page.component';
+import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
+import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
+import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
+import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
-import { JefeRegisterDialogComponent } from './pages/inspecciones/jefe/jefe-register-dialog.component';
+import { TipoReporteRegisterDialogComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-register-dialog.component';
 import { ClienteRegisterDialogComponent } from './pages/inspecciones/cliente/cliente-register-dialog.component';
-import { JefeService } from './pages/inspecciones/jefe/jefe.service';
+import { TipoReporteService } from './pages/inspecciones/tipo-reporte/tipo-reporte.service';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
 import { UsuarioRegisterDialogComponent } from './pages/usuarios-page/usuario-register-dialog.component';
 import { GridPaginationComponent } from './shared/components/grid-pagination/grid-pagination.component';
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
 import { ConfirmacionAccionDialogComponent } from './pages/inspecciones-page/confirmacion-accion-dialog.component';
+import { ElegirEdicionCentroMonitoreoDialogComponent } from './pages/inspecciones-page/elegir-edicion-centro-monitoreo-dialog.component';
+import { CentroMonitoreoHsePuntajeDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-puntaje-dialog.component';
+import { CentroMonitoreoHseMotivoDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-motivo-dialog.component';
 import { ObservacionesPlaneadasComponent } from './pages/inspecciones-page/observaciones-planeadas/observaciones-planeadas.component';
+<<<<<<< HEAD
+import { InspeccionMedioAmbienteComponent } from './pages/inspecciones-page/inspeccion-medio-ambiente/inspeccion-medio-ambiente.component';
+import { InspeccionPrevencionComponent } from './pages/inspecciones-page/inspeccion-prevencion/inspeccion-prevencion.component';
+import { InspeccionStopReportComponent } from './pages/inspecciones-page/inspeccion-stop-report/inspeccion-stop-report.component';
+import { WeReportComponent } from './pages/inspecciones-page/we-report/we-report.component';
+import { WeReportArchivosDialogComponent } from './pages/inspecciones-page/we-report-archivos-dialog.component';
+import { SeleccionCapturaFotoDialogComponent } from './pages/inspecciones-page/seleccion-captura-foto-dialog.component';
+import { CapturaFotoDialogComponent } from './pages/inspecciones-page/captura-foto-dialog.component';
+import { CapturaAudioDialogComponent } from './pages/inspecciones-page/captura-audio-dialog.component';
+import { CentroMonitoreoHseComponent } from './pages/inspecciones-page/centro-monitoreo-hse/centro-monitoreo-hse.component';
+import { CentroMonitoreoHseNotaDialogComponent } from './pages/inspecciones-page/centro-monitoreo-hse-nota-dialog.component';
+=======
 import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
 import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -186,10 +208,16 @@ const APP_DATE_FORMATS = {
     UnidadMedidaPageComponent,
     UnidadMedidaRegisterDialogComponent,
     UnidadMedidaEditDialogComponent,
-    JefePageComponent,
+    TipoReportePageComponent,
     ClientePageComponent,
+    TipoInspeccionPageComponent,
+    PreguntasHsePageComponent,
+    TipoRiesgoPageComponent,
+    RiesgoPageComponent,
+    ReportePageComponent,
+    MotivoPageComponent,
     SubestacionPageComponent,
-    JefeRegisterDialogComponent,
+    TipoReporteRegisterDialogComponent,
     ClienteRegisterDialogComponent,
     LoginPageComponent,
     UsuariosPageComponent,
@@ -197,7 +225,20 @@ const APP_DATE_FORMATS = {
     UsuarioRegisterDialogComponent,
     InspeccionesPageComponent,
     ConfirmacionAccionDialogComponent,
+    ElegirEdicionCentroMonitoreoDialogComponent,
     ObservacionesPlaneadasComponent,
+    InspeccionMedioAmbienteComponent,
+    InspeccionPrevencionComponent,
+    InspeccionStopReportComponent,
+    WeReportComponent,
+    WeReportArchivosDialogComponent,
+    SeleccionCapturaFotoDialogComponent,
+    CapturaFotoDialogComponent,
+    CapturaAudioDialogComponent,
+    CentroMonitoreoHseComponent,
+    CentroMonitoreoHseNotaDialogComponent,
+    CentroMonitoreoHsePuntajeDialogComponent,
+    CentroMonitoreoHseMotivoDialogComponent,
     GridPaginationComponent,
     ReportesPageComponent,
     KardexGeneralReportePageComponent,
@@ -235,7 +276,7 @@ const APP_DATE_FORMATS = {
       provide: MAT_DATE_FORMATS,
       useValue: APP_DATE_FORMATS
     },
-    JefeService
+    TipoReporteService
   ],
   bootstrap: [AppComponent]
 })

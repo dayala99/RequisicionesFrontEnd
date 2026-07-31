@@ -26,13 +26,25 @@ import { TipoServicioPageComponent } from './pages/tipo-servicio-page/tipo-servi
 import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-medida-page.component';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
-import { JefePageComponent } from './pages/inspecciones/jefe/jefe-page.component';
+import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
+<<<<<<< HEAD
+import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
+import { ClimaPageComponent } from './pages/inspecciones/clima/clima-page.component';
+import { TareaPageComponent } from './pages/inspecciones/tarea/tarea-page.component';
+import { SubContrataPageComponent } from './pages/inspecciones/sub-contrata/sub-contrata-page.component';
+import { RiesgoPageComponent } from './pages/inspecciones/riesgo/riesgo-page.component';
+import { ReportePageComponent } from './pages/inspecciones/reporte/reporte-page.component';
+import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
+import { PreguntasHsePageComponent } from './pages/inspecciones/preguntas-hse/preguntas-hse-page.component';
+import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
+=======
 import { ReportesPageComponent } from './pages/reportes-page/reportes-page.component';
 import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
 
 const routes: Routes = [
   {
@@ -142,6 +154,10 @@ const routes: Routes = [
         component: InspeccionesPageComponent
       },
       {
+<<<<<<< HEAD
+        path: 'tipo-reporte',
+        component: TipoReportePageComponent
+=======
         path: 'asignacion',
         component: AsignacionPageComponent
       },
@@ -152,6 +168,7 @@ const routes: Routes = [
       {
         path: 'reportes/kardex-general',
         component: KardexGeneralReportePageComponent
+>>>>>>> 0d52b286a2c5c1c0416000ede0c79c35ff52bea7
       },
       {
         path: 'reportes/ingresos-salidas-almacen',
@@ -159,11 +176,48 @@ const routes: Routes = [
       },
       {
         path: 'jefe',
-        component: JefePageComponent
+        redirectTo: 'tipo-reporte',
+        pathMatch: 'full'
       },
       {
         path: 'cliente',
         component: ClientePageComponent
+      },
+      {
+        path: 'tipo-inspeccion',
+        component: TipoInspeccionPageComponent
+      },
+      {
+        path: 'preguntas-hse',
+        component: PreguntasHsePageComponent
+      },
+      {
+        path: 'tipo-riesgo',
+        component: TipoRiesgoPageComponent
+      },
+      {
+        path: 'riesgo',
+        component: RiesgoPageComponent
+      },
+      {
+        path: 'reporte',
+        component: ReportePageComponent
+      },
+      {
+        path: 'motivo',
+        component: MotivoPageComponent
+      },
+      {
+        path: 'clima',
+        component: ClimaPageComponent
+      },
+      {
+        path: 'tarea',
+        component: TareaPageComponent
+      },
+      {
+        path: 'sub-contrata',
+        component: SubContrataPageComponent
       },
       {
         path: 'subestacion',

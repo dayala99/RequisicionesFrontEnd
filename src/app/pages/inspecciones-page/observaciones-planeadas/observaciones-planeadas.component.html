@@ -204,7 +204,7 @@
                 class="combo__option"
                 *ngFor="let j of jefesAreaFiltrados"
                 (click)="selectJefeArea(j)">
-                {{ j.Jef_Nombre }}
+                {{ j.Usr_Nom }}
               </button>
 
               <div class="combo__empty" *ngIf="jefesAreaFiltrados.length === 0">
@@ -217,12 +217,12 @@
 
       <div class="field">
         <label>Área de jefe de área:</label>
-        <input type="text" [value]="jefeAreaSeleccionado?.Cen_Cos_Des || ''" readonly>
+        <input type="text" formControlName="areaJefeEquipo" readonly>
       </div>
 
       <div class="field">
         <label>DNI:</label>
-        <input type="text" [value]="jefeAreaSeleccionado?.Jef_DNI || ''" readonly>
+        <input type="text" formControlName="dniJefeEquipo" readonly>
       </div>
 
       <div class="field combo-field">
