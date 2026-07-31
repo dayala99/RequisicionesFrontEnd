@@ -1597,6 +1597,108 @@ export class ApiService {
         return this.http.delete(this.baseUrl + `Cliente/deleteEliminarCliente/${id}`, { headers, params });
     }
 
+    getListarClienteTjh2b(filtros: { Id?: number; Nombre?: string; Estado?: string } = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Id !== undefined && filtros.Id !== null) {
+            params = params.append('Id', String(filtros.Id));
+        }
+
+        if (filtros.Nombre !== undefined && filtros.Nombre !== null) {
+            params = params.append('Nombre', filtros.Nombre);
+        }
+
+        if (filtros.Estado !== undefined && filtros.Estado !== null) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        return this.http.get(this.baseUrl + 'ClienteTjh2b/getListarClienteTjh2b', { headers, params });
+    }
+
+    getConsultarDatosClienteTjh2b(clienteId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Cliente_Id', clienteId);
+        return this.http.get(this.baseUrl + 'ClienteTjh2b/getConsultarDatosClienteTjh2b', { headers, params });
+    }
+
+    registrarClienteTjh2b(cliente: { Nombre: string; Usr_Reg: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'ClienteTjh2b/postRegistrarClienteTjh2b', cliente, { headers });
+    }
+
+    actualizarClienteTjh2b(cliente: { Id: number; Nombre: string; Estado: string; Usr_Mod: string }): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'ClienteTjh2b/patchActualizarClienteTjh2b', cliente, { headers });
+    }
+
+    eliminarClienteTjh2b(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `ClienteTjh2b/deleteEliminarClienteTjh2b/${id}`, { headers, params });
+    }
+
+
+    getListarCotizacionTjh2b(filtros: { Numero?: string; ClienteNombre?: string; Servicio?: string; FechaInicio?: string | null; FechaFin?: string | null; Estado?: string; EstadoCotizacion?: string } = {}): Observable<any> {
+        const headers = this.Header;
+        let params = new HttpParams();
+
+        if (filtros.Numero !== undefined && filtros.Numero !== null) {
+            params = params.append('Numero', filtros.Numero);
+        }
+
+        if (filtros.ClienteNombre !== undefined && filtros.ClienteNombre !== null) {
+            params = params.append('ClienteNombre', filtros.ClienteNombre);
+        }
+
+        if (filtros.Servicio !== undefined && filtros.Servicio !== null) {
+            params = params.append('Servicio', filtros.Servicio);
+        }
+
+        if (filtros.FechaInicio !== undefined && filtros.FechaInicio !== null && String(filtros.FechaInicio).trim() !== '') {
+            params = params.append('FechaInicio', filtros.FechaInicio);
+        }
+
+        if (filtros.FechaFin !== undefined && filtros.FechaFin !== null && String(filtros.FechaFin).trim() !== '') {
+            params = params.append('FechaFin', filtros.FechaFin);
+        }
+
+        if (filtros.Estado !== undefined && filtros.Estado !== null) {
+            params = params.append('Estado', filtros.Estado);
+        }
+
+        if (filtros.EstadoCotizacion !== undefined && filtros.EstadoCotizacion !== null) {
+            params = params.append('EstadoCotizacion', filtros.EstadoCotizacion);
+        }
+
+        return this.http.get(this.baseUrl + 'CotizacionTjh2b/getListarCotizacionTjh2b', { headers, params });
+    }
+
+    getConsultarDatosCotizacionTjh2b(cotizacionId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Cotizacion_Id', cotizacionId);
+        return this.http.get(this.baseUrl + 'CotizacionTjh2b/getConsultarDatosCotizacionTjh2b', { headers, params });
+    }
+
+    postRegistrarCotizacionTjh2b(formData: FormData): Observable<any> {
+        return this.http.post(this.baseUrl + 'CotizacionTjh2b/postRegistrarCotizacionTjh2b', formData);
+    }
+
+    patchActualizarCotizacionTjh2b(formData: FormData): Observable<any> {
+        return this.http.post(this.baseUrl + 'CotizacionTjh2b/patchActualizarCotizacionTjh2b', formData);
+    }
+
+    deleteEliminarCotizacionTjh2b(id: number, usrMod: string): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().append('Usr_Mod', usrMod);
+        return this.http.delete(this.baseUrl + `CotizacionTjh2b/deleteEliminarCotizacionTjh2b/${id}`, { headers, params });
+    }
+
+    getArchivoCotizacionTjh2b(ruta: string): Observable<ArrayBuffer> {
+        const params = new HttpParams().set('ruta', ruta);
+        return this.http.get(this.baseUrl + 'CotizacionTjh2b/getArchivoCotizacionTjh2b', { params, responseType: 'arraybuffer' });
+    }
+
     getListarTipoInspeccion(filtros: TipoInspeccionFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();

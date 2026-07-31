@@ -18,6 +18,7 @@ import { ItemDetalleMaterialPageComponent } from './pages/item-detalle-material-
 import { MonedaPageComponent } from './pages/moneda-page/moneda-page.component';
 import { OrdenCompraPageComponent } from './pages/orden-compra-page/orden-compra-page.component';
 import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page.component';
+import { CotizacionesTjh2bPageComponent } from './pages/Cotizaciones-page/cotizaciones-tjh2b-page.component';
 import { PerfilPageComponent } from './pages/perfil-page/perfil-page.component';
 import { ProviderPageComponent } from './pages/provider-page/provider-page.component';
 import { StockPageComponent } from './pages/stock-page/stock-page.component';
@@ -28,6 +29,7 @@ import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.compo
 import { InspeccionesPageComponent } from './pages/inspecciones-page/inspecciones-page.component';
 import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
+import { ClienteTjh2bPageComponent } from './pages/inspecciones/cliente-tjh2b/cliente-tjh2b-page.component';
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
 import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.component';
 import { ClimaPageComponent } from './pages/inspecciones/clima/clima-page.component';
@@ -129,6 +131,10 @@ const routes: Routes = [
         pathMatch: 'full'
       },
       {
+        path: 'cotizaciones-tjh2b',
+        component: CotizacionesTjh2bPageComponent
+      },
+      {
         path: 'orden-compra',
         component: OrdenCompraPageComponent,
         data: { ordComTip: 1 }
@@ -178,6 +184,10 @@ const routes: Routes = [
       {
         path: 'cliente',
         component: ClientePageComponent
+      },
+      {
+        path: 'cliente-tjh2b',
+        component: ClienteTjh2bPageComponent
       },
       {
         path: 'tipo-inspeccion',

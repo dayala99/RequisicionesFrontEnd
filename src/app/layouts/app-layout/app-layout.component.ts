@@ -74,6 +74,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
   ];
   readonly processItems: MenuItem[] = [
     { label: 'Pedidos', route: '/pedidos', icon: this.icons.pedidos },
+    { label: 'Cotizaciones - TJH2B', route: '/cotizaciones-tjh2b', icon: this.icons.pedidos },
     { label: 'Orden de Compra', route: '/orden-compra', icon: this.icons.ordenCompra },
     { label: 'Orden de Servicio', route: '/orden-servicio', icon: this.icons.ordenServicio },
     { label: 'Almacen', route: '/almacen', icon: this.icons.almacen },
@@ -97,6 +98,7 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Unidad de Medida', route: '/unidad-medida', icon: this.icons.unidadMedida },
     { label: 'Tipo Reporte', route: '/jefe', icon: this.icons.jefe },
     { label: 'Cliente', route: '/cliente', icon: this.icons.cliente },
+    { label: 'Cliente - TJH2B', route: '/cliente-tjh2b', icon: this.icons.cliente },
     { label: 'Tipo de Inspección', route: '/tipo-inspeccion', icon: this.icons.inspecciones },
     { label: 'Preguntas HSE', route: '/preguntas-hse', icon: this.icons.inspecciones },
     { label: 'Tipo de Riesgo', route: '/tipo-riesgo', icon: this.icons.inspecciones },
