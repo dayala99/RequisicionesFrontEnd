@@ -2763,6 +2763,30 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.get(this.baseUrl + 'Asignacion/getListarAsignacion', { headers, params });
     }
 
+    getReporteAsignacionUsuario(
+        Flg_Est: string,
+        Asg_Usr: string,
+        Usr_Reg: string,
+        Asg_Usr_Cen_Cos: number,
+        Asg_Id: number,
+        Asg_Det_Itm_Id: number,
+        Fec_Ini: string,
+        Fec_Fin: string
+    ): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Flg_Est', Flg_Est)
+            .set('Asg_Usr', Asg_Usr)
+            .set('Usr_Reg', Usr_Reg)
+            .set('Asg_Usr_Cen_Cos', String(Asg_Usr_Cen_Cos))
+            .set('Asg_Id', String(Asg_Id))
+            .set('Asg_Det_Itm_Id', String(Asg_Det_Itm_Id))
+            .set('Fec_Ini', Fec_Ini)
+            .set('Fec_Fin', Fec_Fin);
+
+        return this.http.get(this.baseUrl + 'Asignacion/getReporteAsignacionUsuario', { headers, params });
+    }
+
     getObtenerStockReservadoAsignacion(Asg_Usr_Cen_Cos: number, Asg_Det_Itm_Id: number): Observable<any> {
         const headers = this.Header;
         const params = new HttpParams()

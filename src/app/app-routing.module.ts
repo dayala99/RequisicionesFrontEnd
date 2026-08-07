@@ -42,6 +42,7 @@ import { ReportesPageComponent } from './pages/reportes-page/reportes-page.compo
 import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-general-reporte-page.component';
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { OrdenesCompraServicioReportePageComponent } from './pages/reportes-page/ordenes-compra-servicio-reporte-page.component';
+import { AsignacionesUsuariosReportePageComponent } from './pages/reportes-page/asignaciones-usuarios-reporte-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
 
 const routes: Routes = [
@@ -174,6 +175,10 @@ const routes: Routes = [
       {
         path: 'reportes/ordenes-compra-servicio',
         component: OrdenesCompraServicioReportePageComponent
+      },
+      {
+        path: 'reportes/asignaciones-usuarios',
+        component: AsignacionesUsuariosReportePageComponent
       },
       {
         path: 'jefe',

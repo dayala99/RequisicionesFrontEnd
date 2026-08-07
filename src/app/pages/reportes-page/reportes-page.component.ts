@@ -31,6 +31,12 @@ export class ReportesPageComponent {
       description: 'Consulta las órdenes generadas por solicitante, tipo, pedido, proveedor y forma de pago.',
       route: '/reportes/ordenes-compra-servicio',
       endpoint: 'getGenerarReporteOcos'
+    },
+    {
+      title: 'Asignaciones por Usuario',
+      description: 'Consulta las asignaciones de materiales por usuario, fecha, centro de costo e ítem.',
+      route: '/reportes/asignaciones-usuarios',
+      endpoint: 'getReporteAsignacionUsuario'
     }
   ];
 }
