@@ -115,7 +115,6 @@ interface SalidaDetalleDraft {
   cantidad: number;
   fecha: string;
   originalCantidad: number;
-  serie: string | null;
 }
 
 interface ReporteSalidaRow {
@@ -240,6 +239,7 @@ export class AlmacenPageComponent implements OnInit {
       solicitanteId: [''],
       proveedorId: [0],
       centroCostoSolicitanteId: [0, Validators.required],
+      serie: [''],
       materialId: [0, Validators.required],
       materialCode: [''],
       materialDescription: ['', Validators.required],
@@ -1504,9 +1504,78 @@ export class AlmacenPageComponent implements OnInit {
     });
   }
 
+  anularConsumoSalida(item: AlmacenRow): void {
+    if (!this.esEstadoConsumoDespachado(item)) {
+      this.snackBar.open('Solo se puede anular un consumo que haya sido despachado.', 'Cerrar', {
+        duration: 3500,
+        horizontalPosition: 'center',
+        verticalPosition: 'top'
+      });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmacionAccionDialogComponent, {
+      width: '460px',
+      disableClose: true,
+      data: {
+        titulo: 'Anular consumo',
+        mensaje: `Se anulara el movimiento ${item.movimientoId} y se devolvera su stock. ¿Deseas continuar?`,
+        textoConfirmar: 'Anular',
+        textoCancelar: 'Cancelar',
+        tipo: 'peligro'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmado: boolean | undefined) => {
+      if (!confirmado) {
+        return;
+      }
+
+      const payload: ActualizarStockItemSalidaRequest = {
+        Alm_Mov_Id: item.movimientoId,
+        Alm_Det_Itm_Id: 0,
+        Can_Ing: 0
+      };
+
+      this.errorMessage = '';
+      this.isLoadingAlmacen = true;
+      console.log('[Almacen][Salida][Anular consumo] payload:', payload);
+
+      this.apiService.patchActualizarStockItemSalidaAnulacion(payload).subscribe({
+        next: (response: unknown) => {
+          this.isLoadingAlmacen = false;
+
+          try {
+            this.assertSuccessfulResponse(response, 'No se pudo anular el consumo de salida.');
+          } catch (error: unknown) {
+            this.errorMessage = this.resolveErrorMessage(error, 'No se pudo anular el consumo de salida.');
+            return;
+          }
+
+          this.snackBar.open('Consumo anulado correctamente.', 'Cerrar', {
+            duration: 3000,
+            horizontalPosition: 'center',
+            verticalPosition: 'top'
+          });
+          this.cargarListadoSeleccionado();
+        },
+        error: (error: unknown) => {
+          this.isLoadingAlmacen = false;
+          console.log('[Almacen][Salida][Anular consumo] error:', error);
+          this.errorMessage = this.resolveErrorMessage(error, 'No se pudo anular el consumo de salida.');
+        }
+      });
+    });
+  }
+
   esEstadoConsumoPendiente(item: AlmacenRow): boolean {
     const estado = String(item.estadoConsumo || '').trim().toLowerCase();
     return estado === 'pendiente' || estado === 'p';
+  }
+
+  esEstadoConsumoDespachado(item: AlmacenRow): boolean {
+    const estado = String(item.estadoConsumo || '').trim().toLowerCase();
+    return estado === 'despachado' || estado === 'd';
   }
 
   puedeEditarMovimiento(item: AlmacenRow): boolean {
@@ -1860,6 +1929,7 @@ export class AlmacenPageComponent implements OnInit {
       solicitanteId: '',
       proveedorId: 0,
       centroCostoSolicitanteId: 0,
+      serie: '',
       materialId: 0,
       materialCode: '',
       materialDescription: '',
@@ -1893,7 +1963,6 @@ export class AlmacenPageComponent implements OnInit {
       materialId: [0, Validators.required],
       materialCode: [''],
       materialDescription: [''],
-      serie: [''],
       unidadId: [0, Validators.required],
       unidadCode: [''],
       unidadDescription: [''],
@@ -1955,6 +2024,8 @@ export class AlmacenPageComponent implements OnInit {
     const unidadDescription = unidadOption?.description
       || this.getTextValue(sourceRecord, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'Unidad', 'unidad']);
     const salidaStockInfo = this.getSalidaStockInfo(materialId);
+    const serie = this.getTextValue(cabeceraRecord ?? {}, ['Alm_Ser', 'alm_Ser', 'almSer'])
+      || this.getTextValue(detalleRecord ?? {}, ['Alm_Ser', 'alm_Ser', 'almSer']);
 
     this.ingresoDirectoForm.patchValue({
       movimientoId: String(movimientoId),
@@ -1963,6 +2034,7 @@ export class AlmacenPageComponent implements OnInit {
       solicitanteId,
       proveedorId,
       centroCostoSolicitanteId,
+      serie,
       materialId,
       materialCode,
       materialDescription,
@@ -2013,7 +2085,6 @@ export class AlmacenPageComponent implements OnInit {
           unidadId: recordUnidadId,
           unidadCode: recordUnidadCode,
           unidadDescription: recordUnidadDescription,
-          serie: this.getTextValue(record, ['Alm_Ser', 'alm_Ser', 'almSer']),
           stockDisponible: recordSalidaStockInfo.disponible,
           stockReservado: recordSalidaStockInfo.reservado,
           stockTotal: recordSalidaStockInfo.stockTotal,
@@ -3025,6 +3096,7 @@ export class AlmacenPageComponent implements OnInit {
     ).trim();
     const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
     const ubicacion = Number(this.ingresoDirectoForm.controls['ubicacion'].value);
+    const serie = String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null;
     const currentUser = this.authService.getCurrentUser().trim();
 
     if (!solicitanteValue) {
@@ -3052,6 +3124,7 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Tip_Ing: 4,
       Alm_Sol_Dni: solicitanteValue,
       Alm_Cen_Cos: centroCostoId,
+      Alm_Ser: serie,
       Usr_Reg: currentUser
     };
   }
@@ -3066,7 +3139,6 @@ export class AlmacenPageComponent implements OnInit {
       const unidadId = Number(row.controls['unidadId'].value);
       const cantidad = Number(row.controls['cantidad'].value);
       const originalCantidad = Number(row.controls['originalCantidad'].value || 0);
-      const serie = String(row.controls['serie'].value || '').trim() || null;
       const fecha = formatDateRequestValue(row.controls['fecha'].value);
 
       if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -3089,7 +3161,7 @@ export class AlmacenPageComponent implements OnInit {
         return [];
       }
 
-      drafts.push({ detalleId, itemId, itemDescripcion, unidadId, cantidad, fecha, originalCantidad, serie });
+      drafts.push({ detalleId, itemId, itemDescripcion, unidadId, cantidad, fecha, originalCantidad });
     }
 
     return drafts;
@@ -3140,8 +3212,7 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Det_Fec: fecha,
       Alm_Det_Cen_Cos_Id: centroCostoId,
       Alm_Det_Prv_Id: 0,
-      Usr_Reg: currentUser,
-      Alm_Ser: detalle.serie
+      Usr_Reg: currentUser
     };
   }
 
@@ -3188,8 +3259,7 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Det_Fec: detalle.fecha,
       Alm_Det_Cen_Cos_Id: centroCostoId,
       Alm_Det_Prv_Id: 0,
-      Usr_Reg: currentUser,
-      Alm_Ser: detalle.serie
+      Usr_Reg: currentUser
     };
   }
 
@@ -3432,6 +3502,7 @@ export class AlmacenPageComponent implements OnInit {
     const movimientoId = Number(this.ingresoDirectoForm.controls['movimientoId'].value);
     const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
     const ubicacion = Number(this.ingresoDirectoForm.controls['ubicacion'].value);
+    const serie = String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null;
     const currentUser = this.getCurrentOperator();
 
     if (!Number.isInteger(movimientoId) || movimientoId <= 0) {
@@ -3464,6 +3535,7 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Ubi: ubicacion,
       Alm_Sol_Dni: solicitante.code,
       Alm_Cen_Cos: centroCostoId,
+      Alm_Ser: serie,
       Flg_Est: this.currentEditFlgEst || 'A',
       Usr_Mod: currentUser
     };

@@ -108,7 +108,7 @@
               <th *ngIf="isListadoSalida">Solicitante</th>
               <th *ngIf="isListadoIngresado">Estado Aprobacion</th>
               <th *ngIf="isListadoSalida">Estado Consumo</th>
-              <th>{{ isListadoSalida ? 'Editar' : 'Acciones' }}</th>
+              <th>Acciones</th>
             </tr>
           </thead>
 
@@ -154,14 +154,26 @@
                 <span class="status-badge" [attr.data-state]="item.estadoConsumo.toLowerCase()">{{ item.estadoConsumo }}</span>
               </td>
               <td>
-                <button
-                  type="button"
-                  class="table-action"
-                  aria-label="Editar movimiento"
-                  [disabled]="!puedeEditarMovimiento(item)"
-                  (click)="editarMovimiento(item)">
-                  &#9998;
-                </button>
+                <div class="table-action-group">
+                  <button
+                    type="button"
+                    class="table-action"
+                    aria-label="Editar movimiento"
+                    [disabled]="!puedeEditarMovimiento(item)"
+                    (click)="editarMovimiento(item)">
+                    &#9998;
+                  </button>
+                  <button
+                    *ngIf="isListadoSalida"
+                    type="button"
+                    class="table-action button--danger"
+                    aria-label="Anular movimiento"
+                    title="Anular movimiento"
+                    [disabled]="!esEstadoConsumoDespachado(item)"
+                    (click)="anularConsumoSalida(item)">
+                    &#10006;
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -403,7 +415,10 @@
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="field field--mat field--full">
+        <mat-form-field
+          appearance="outline"
+          class="field field--mat"
+          [class.field--full]="!isSalidaMode">
           <mat-label>Centro de Costos (Solicitante)</mat-label>
           <mat-select formControlName="centroCostoSolicitanteId" (openedChange)="onCentroCostoSelectOpened($event)">
             <mat-option>
@@ -419,6 +434,11 @@
               {{ option.code }} - {{ option.description }}
             </mat-option>
           </mat-select>
+        </mat-form-field>
+
+        <mat-form-field *ngIf="isSalidaMode" appearance="outline" class="field--mat">
+          <mat-label>Serie</mat-label>
+          <input matInput type="text" formControlName="serie" maxlength="100" placeholder="Ingresar serie">
         </mat-form-field>
       </form>
 
@@ -562,11 +582,6 @@
                 </mat-option>
               </mat-select>
             </mat-form-field>
-
-            <label class="field salida-serie-field">
-              <span>Serie</span>
-              <input type="text" formControlName="serie" maxlength="100" placeholder="Ingresar serie">
-            </label>
 
             <div class="salida-stock-grid">
               <label class="field">

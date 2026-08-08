@@ -600,6 +600,7 @@ export interface RegistrarIngresoAlmacenRequest {
     Alm_Tip_Ing: number;
     Alm_Sol_Dni: string;
     Alm_Cen_Cos: number;
+    Alm_Ser?: string | null;
     Usr_Reg: string;
     Flg_Est_Apr?: string;
 }
@@ -617,6 +618,7 @@ export interface ActualizarIngresoAlmacenRequest {
     Alm_Ubi: number;
     Alm_Sol_Dni: string;
     Alm_Cen_Cos: number;
+    Alm_Ser?: string | null;
     Flg_Est: string;
     Usr_Mod: string;
 }
@@ -631,7 +633,6 @@ export interface RegistrarIngresoAlmacenDetalleRequest {
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number | null;
     Usr_Reg: string;
-    Alm_Ser?: string | null;
 }
 
 export interface ActualizarIngresoAlmacenDetalleRequest {
@@ -644,7 +645,6 @@ export interface ActualizarIngresoAlmacenDetalleRequest {
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number | null;
     Usr_Reg: string;
-    Alm_Ser?: string | null;
 }
 
 export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
@@ -2270,6 +2270,11 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     patchActualizarStockItemSalida(item: ActualizarStockItemSalidaRequest): Observable<any> {
         const headers = this.Header;
         return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItemSalida', item, { headers });
+    }
+
+    patchActualizarStockItemSalidaAnulacion(item: ActualizarStockItemSalidaRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Item/patchActualizarStockItemSalidaAnulacion', item, { headers });
     }
 
     patchActualizarMotivoRechazoAlmacen(item: ActualizarMotivoRechazoAlmacenRequest): Observable<any> {
