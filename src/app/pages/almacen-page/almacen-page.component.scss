@@ -184,6 +184,16 @@
   align-self: stretch;
 }
 
+.order-summary-guide input.mat-input-element,
+.order-summary-guide input.mat-input-element:focus {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .field {
   display: grid;
   gap: 0.45rem;
@@ -434,7 +444,7 @@
 }
 
 .almacen-table--ingreso-detalle {
-  min-width: 76rem;
+  min-width: 92rem;
 }
 
 .almacen-table th,
@@ -521,6 +531,10 @@
   color: var(--text-primary);
   font: inherit;
   text-align: center;
+}
+
+.table-input--text {
+  width: 9rem;
 }
 
 .table-checkbox {

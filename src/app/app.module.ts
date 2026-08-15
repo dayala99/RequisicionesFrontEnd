@@ -120,7 +120,10 @@ import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { OrdenesCompraServicioReportePageComponent } from './pages/reportes-page/ordenes-compra-servicio-reporte-page.component';
 import { AsignacionesUsuariosReportePageComponent } from './pages/reportes-page/asignaciones-usuarios-reporte-page.component';
+import { ReporteOcosPageComponent } from './pages/reportes-page/reporte-ocos-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
+import { ObraPageComponent } from './pages/obra-page/obra-page.component';
+import { TransferenciaAlmacenPageComponent } from './pages/transferencia-almacen-page/transferencia-almacen-page.component';
 
 export function dialogScrollStrategyFactory(overlay: Overlay) {
   return () => overlay.scrollStrategies.reposition();
@@ -244,7 +247,10 @@ const APP_DATE_FORMATS = {
     IngresoSalidasAlmacenReportePageComponent,
     OrdenesCompraServicioReportePageComponent,
     AsignacionesUsuariosReportePageComponent,
+    ReporteOcosPageComponent,
     AsignacionPageComponent,
+    ObraPageComponent,
+    TransferenciaAlmacenPageComponent,
   ],
   imports: [
     BrowserModule,

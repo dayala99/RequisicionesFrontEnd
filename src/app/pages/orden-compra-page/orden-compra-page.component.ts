@@ -329,7 +329,11 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get totalCalculado(): number {
-    return this.normalizeDecimal(this.totalConIgvCalculado - this.montoDetraccionCalculado);
+    return this.calcularTotalConDetraccion(
+      this.totalConIgvCalculado,
+      this.montoDetraccionCalculado,
+      this.detraccionSeleccionada?.descripcion ?? ''
+    );
   }
 
   get totalConIgvCalculado(): number {
@@ -2216,7 +2220,15 @@ export class OrdenCompraPageComponent implements OnInit {
     const totalCalculadoReporte = this.normalizeDecimal(subtotalReporte + igvReporte);
     const totalReporte = totalCalculadoReporte;
     const montoDetraccionReporte = this.normalizeDetraccionReporte(ordenCompra.montoDetraccion, totalReporte);
-    const totalPagarReporte = this.normalizeDecimal(totalReporte - montoDetraccionReporte);
+    const detraccionDescripcionReporte = this.resolveDetraccionReporteLabel(
+      ordenCompra.detraccionId,
+      ordenCompra.detraccionDescripcion
+    );
+    const totalPagarReporte = this.calcularTotalConDetraccion(
+      totalReporte,
+      montoDetraccionReporte,
+      detraccionDescripcionReporte
+    );
 
     return {
       ordenCompraId: ordenCompra.ordenCompraId ?? 0,
@@ -2242,7 +2254,7 @@ export class OrdenCompraPageComponent implements OnInit {
       subtotal: subtotalReporte,
       igv: igvReporte,
       total: totalReporte,
-      detraccionDescripcion: ordenCompra.detraccionDescripcion || this.resolveDetraccionDescripcion(ordenCompra.detraccionId),
+      detraccionDescripcion: detraccionDescripcionReporte,
       montoDetraccion: montoDetraccionReporte,
       totalPagar: totalPagarReporte,
       detalle
@@ -3068,7 +3080,11 @@ export class OrdenCompraPageComponent implements OnInit {
 
     const detraccionId = this.getDetraccionIdSeleccionada();
     const montoDetraccion = this.aplicarRedondeoMontoDetraccion(this.montoDetraccionCalculado, detraccionId);
-    const total = this.normalizeDecimal(this.totalConIgvCalculado - montoDetraccion);
+    const total = this.calcularTotalConDetraccion(
+      this.totalConIgvCalculado,
+      montoDetraccion,
+      this.detraccionSeleccionada?.descripcion ?? ''
+    );
 
     this.form.patchValue({
       subtotal: this.subtotalCalculado,
@@ -3089,6 +3105,24 @@ export class OrdenCompraPageComponent implements OnInit {
     const primerDecimal = Math.floor((montoNormalizado - parteEntera) * 10);
 
     return primerDecimal >= 5 ? parteEntera + 1 : parteEntera;
+  }
+
+  private calcularTotalConDetraccion(
+    totalBase: number,
+    montoDetraccion: number,
+    detraccionDescripcion: string
+  ): number {
+    const operador = this.esPercepcion(detraccionDescripcion) ? 1 : -1;
+    return this.normalizeDecimal(totalBase + operador * montoDetraccion);
+  }
+
+  private esPercepcion(descripcion: string): boolean {
+    return String(descripcion || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toUpperCase()
+      .includes('PERCEPCION');
   }
 
   private redondearIgvSegunTercerDecimal(igv: number): number {
@@ -3247,6 +3281,26 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private resolveDetraccionDescripcion(detraccionId: number): string {
     return this.detracciones.find((item) => item.id === detraccionId)?.descripcion || '-';
+  }
+
+  private resolveDetraccionReporteLabel(detraccionId: number, descripcionRegistrada: string): string {
+    const detraccion = this.detracciones.find((item) => item.id === detraccionId);
+    const descripcion = String(descripcionRegistrada || detraccion?.descripcion || '').trim();
+
+    if (!descripcion) {
+      return 'DETRACCION';
+    }
+
+    if (descripcion.includes('%') || detraccion === undefined) {
+      return descripcion;
+    }
+
+    const porcentaje = detraccion.porcentaje.toLocaleString('es-PE', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    });
+
+    return `${descripcion} - ${porcentaje}%`;
   }
 
   private resolveProveedorBancoPrincipal(response: unknown): OrdenCompraProveedorBancoReporte | null {

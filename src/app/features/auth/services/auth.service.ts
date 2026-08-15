@@ -212,6 +212,7 @@ export class AuthService {
       '/tarea': ['/jefe'],
       '/sub-contrata': ['/jefe'],
       '/asignacion': ['/reportes'],
+      '/transferencia-almacen': ['/almacen'],
       '/reportes/kardex-general': ['/reportes'],
       '/reportes/ingresos-salidas-almacen': ['/reportes'],
       '/reportes/ordenes-compra-servicio': ['/reportes']

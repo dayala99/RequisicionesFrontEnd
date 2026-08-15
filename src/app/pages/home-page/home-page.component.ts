@@ -58,6 +58,18 @@ export class HomePageComponent {
       iconPaths: ['M8 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M3 14a5 5 0 0 1 10 0', 'M15 8h6', 'M18 5v6', 'm15 17 2 2 4-5']
     },
     {
+      title: 'Obra',
+      description: 'Administra obras, clientes, centros de costo, responsables y datos contractuales.',
+      route: '/obra',
+      iconPaths: ['M4 20V8l8-5 8 5v12', 'M8 20v-6h8v6', 'M7 9h2', 'M11 9h2', 'M15 9h2']
+    },
+    {
+      title: 'Transferencia de almacén',
+      description: 'Traslada materiales entre centros de costo con control de stock y aprobación.',
+      route: '/transferencia-almacen',
+      iconPaths: ['M4 7h13', 'm14 4 3-4-3-4', 'M20 17H7', 'm10 13-3 4 3 4']
+    },
+    {
       title: 'Reportes',
       description: 'Consulta y exporta kardex, movimientos de almac\u00e9n, \u00f3rdenes y asignaciones.',
       route: '/reportes',

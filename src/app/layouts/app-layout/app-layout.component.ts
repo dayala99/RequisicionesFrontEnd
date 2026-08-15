@@ -47,6 +47,8 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     stock: { paths: ['M5 18.5V11', 'M10 18.5V5.5', 'M15 18.5v-8', 'M20 18.5v-4', 'M3.5 20.5h17'] },
     inspecciones: { paths: ['M12 3l7 3v5c0 4.6-2.7 8-7 10-4.3-2-7-5.4-7-10V6z', 'm9 6.8-7.2 7.2L9 16.9'] },
     asignacion: { paths: ['M8 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M3 14a5 5 0 0 1 10 0', 'M15 8h6', 'M18 5v6', 'm15 17 2 2 4-5'] },
+    obra: { paths: ['M4 20V8l8-5 8 5v12', 'M8 20v-6h8v6', 'M7 9h2', 'M11 9h2', 'M15 9h2'] },
+    transferencia: { paths: ['M4 7h13', 'm14 4 3-4-3-4', 'M20 17H7', 'm10 13-3 4 3 4'] },
     reportes: { paths: ['M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5a1.5 1.5 0 0 1 1.5-1.5z', 'M14 3.5V8h4', 'M9 16.5V12', 'M12 16.5v-3', 'M15 16.5V10'] },
     perfil: { paths: ['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M4 20a8 8 0 0 1 16 0'] },
     formaPago: { paths: ['M3.5 7.5h17a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-17A1.5 1.5 0 0 1 2 15V9a1.5 1.5 0 0 1 1.5-1.5z', 'M2 10.5h20', 'M6.5 14.5h3'] },
@@ -80,6 +82,8 @@ export class AppLayoutComponent implements OnInit, OnDestroy {
     { label: 'Stock', route: '/stock', icon: this.icons.stock },
     { label: 'Inspecciones', route: '/inspecciones', icon: this.icons.inspecciones },
     { label: 'Asignacion', route: '/asignacion', icon: this.icons.asignacion },
+    { label: 'Obra', route: '/obra', icon: this.icons.obra },
+    { label: 'Transferencia Almacen', route: '/transferencia-almacen', icon: this.icons.transferencia },
     { label: 'Reportes', route: '/reportes', icon: this.icons.reportes }
   ];
   readonly maintenanceItems: MenuItem[] = [

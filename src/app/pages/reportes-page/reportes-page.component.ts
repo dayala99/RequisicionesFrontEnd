@@ -37,6 +37,12 @@ export class ReportesPageComponent {
       description: 'Consulta las asignaciones de materiales por usuario, fecha, centro de costo e ítem.',
       route: '/reportes/asignaciones-usuarios',
       endpoint: 'getReporteAsignacionUsuario'
+    },
+    {
+      title: 'Reporte OC/OS',
+      description: 'Consulta el seguimiento de pedidos, órdenes de compra y servicio, importes y datos de pago.',
+      route: '/reportes/reporte-ocos',
+      endpoint: 'getReporteOCOS'
     }
   ];
 }

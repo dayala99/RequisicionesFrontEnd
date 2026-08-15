@@ -9,7 +9,6 @@ import {
   AlmacenFiltro,
   ActualizarMotivoRechazoAlmacenRequest,
   ActualizarPedidoDetalleIngresoAlmacenRequest,
-  ActualizarIngresoAlmacenDetalleOrdenCompraRequest,
   ActualizarIngresoAlmacenDetalleRequest,
   ActualizarIngresoAlmacenRequest,
   ActualizarStockItemIngresoDirectoRequest,
@@ -88,6 +87,10 @@ interface IngresoOrdenDetalleRow {
   compra: number;
   ingresado: number;
   pendiente: number;
+  serie: string;
+  costoUnitario: number | null;
+  documentoNumero: string;
+  fechaDetalle: string;
   cantidadIngresar: number | null;
   seleccionado: boolean;
 }
@@ -184,6 +187,7 @@ export class AlmacenPageComponent implements OnInit {
   readonly materialSearchControl = new FormControl('', { nonNullable: true });
   readonly unidadSearchControl = new FormControl('', { nonNullable: true });
   readonly listadoControl = new FormControl<'P' | 'I' | 'S'>('P', { nonNullable: true });
+  readonly ingresoOrdenGuiaRemitenteControl = new FormControl('', { nonNullable: true });
 
   almacenes: AlmacenRow[] = [];
   ordenesCompraPendientesAlmacen: OrdenCompraPendienteAlmacenRow[] = [];
@@ -216,6 +220,7 @@ export class AlmacenPageComponent implements OnInit {
   private currentEditDetalleId = 0;
   private currentEditFlgEst = 'A';
   private isIngresoOrdenEditMode = false;
+  private ingresoOrdenMovimientoId = 0;
   private salidaItemSeleccionado: SalidaItemRow | null = null;
 
   constructor(
@@ -240,6 +245,7 @@ export class AlmacenPageComponent implements OnInit {
       proveedorId: [0],
       centroCostoSolicitanteId: [0, Validators.required],
       serie: [''],
+      costoUnitario: [null, Validators.min(0)],
       materialId: [0, Validators.required],
       materialCode: [''],
       materialDescription: ['', Validators.required],
@@ -1039,9 +1045,11 @@ export class AlmacenPageComponent implements OnInit {
     this.showIngresoDirectoForm = false;
     this.showIngresoOrdenForm = true;
     this.isIngresoOrdenEditMode = false;
+    this.ingresoOrdenMovimientoId = 0;
     this.ingresoOrdenSeleccionada = item;
     this.ingresoOrdenDetalles = [];
     this.ingresoOrdenUbicacionId = 1;
+    this.ingresoOrdenGuiaRemitenteControl.setValue('');
 
     this.apiService.getListarCabeceraIngresoAlmacen(item.ordenCompraId).subscribe({
       next: (response: unknown) => {
@@ -1068,8 +1076,10 @@ export class AlmacenPageComponent implements OnInit {
     this.ingresoOrdenSeleccionada = null;
     this.ingresoOrdenDetalles = [];
     this.ingresoOrdenUbicacionId = 1;
+    this.ingresoOrdenGuiaRemitenteControl.setValue('');
     this.saveErrorMessage = '';
     this.isIngresoOrdenEditMode = false;
+    this.ingresoOrdenMovimientoId = 0;
   }
 
   trackByAlmacen(_: number, item: AlmacenRow): number {
@@ -1117,6 +1127,19 @@ export class AlmacenPageComponent implements OnInit {
     return this.ingresoOrdenSeleccionada
       ? this.esOrdenServicio(this.ingresoOrdenSeleccionada.tipo || this.ingresoOrdenSeleccionada.formaPago)
       : false;
+  }
+
+  setSerieIngresoDetalle(item: IngresoOrdenDetalleRow, value: string): void {
+    item.serie = value;
+  }
+
+  setCostoUnitarioIngresoDetalle(item: IngresoOrdenDetalleRow, value: string): void {
+    const costoUnitario = Number(value);
+    item.costoUnitario = value === '' || !Number.isFinite(costoUnitario) ? null : costoUnitario;
+  }
+
+  get mostrarGuiaRemitenteIngresoOrden(): boolean {
+    return !this.esIngresoOrdenServicio && !this.isIngresoOrdenEditMode;
   }
 
   guardarIngresoOrden(): void {
@@ -1233,6 +1256,8 @@ export class AlmacenPageComponent implements OnInit {
       unidadId: item.unidadId,
       centroCostoId: item.centroCostoId,
       cantidadIngresar: item.cantidadIngresar,
+      serie: item.serie,
+      costoUnitario: item.costoUnitario,
       compra: item.compra,
       ingresado: item.ingresado,
       pendiente: item.pendiente
@@ -1310,8 +1335,10 @@ export class AlmacenPageComponent implements OnInit {
     this.ingresoOrdenSeleccionada = null;
     this.ingresoOrdenDetalles = [];
     this.ingresoOrdenUbicacionId = 1;
+    this.ingresoOrdenGuiaRemitenteControl.setValue('');
     this.saveErrorMessage = '';
     this.isIngresoOrdenEditMode = false;
+    this.ingresoOrdenMovimientoId = 0;
     this.cargarListadoSeleccionado();
     window.dispatchEvent(new CustomEvent('process-notifications-refresh'));
   }
@@ -1930,6 +1957,7 @@ export class AlmacenPageComponent implements OnInit {
       proveedorId: 0,
       centroCostoSolicitanteId: 0,
       serie: '',
+      costoUnitario: null,
       materialId: 0,
       materialCode: '',
       materialDescription: '',
@@ -2024,8 +2052,15 @@ export class AlmacenPageComponent implements OnInit {
     const unidadDescription = unidadOption?.description
       || this.getTextValue(sourceRecord, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes', 'Unidad', 'unidad']);
     const salidaStockInfo = this.getSalidaStockInfo(materialId);
-    const serie = this.getTextValue(cabeceraRecord ?? {}, ['Alm_Ser', 'alm_Ser', 'almSer'])
-      || this.getTextValue(detalleRecord ?? {}, ['Alm_Ser', 'alm_Ser', 'almSer']);
+    const serieCabecera = this.getTextValue(cabeceraRecord ?? {}, ['Alm_Ser', 'alm_Ser', 'almSer']);
+    const serieDetalle = this.getTextValue(detalleRecord ?? {}, ['Alm_Ser', 'alm_Ser', 'almSer']);
+    const serie = this.isSalidaMode
+      ? (serieCabecera || serieDetalle)
+      : (serieDetalle || serieCabecera);
+    const costoUnitario = this.getDecimalValue(detalleRecord ?? {}, [
+      'Alm_Cos_Unit', 'alm_Cos_Unit', 'almCosUnit',
+      'Alm_Cost_Unit', 'alm_Cost_Unit', 'almCostUnit'
+    ]);
 
     this.ingresoDirectoForm.patchValue({
       movimientoId: String(movimientoId),
@@ -2035,6 +2070,7 @@ export class AlmacenPageComponent implements OnInit {
       proveedorId,
       centroCostoSolicitanteId,
       serie,
+      costoUnitario,
       materialId,
       materialCode,
       materialDescription,
@@ -2230,11 +2266,32 @@ export class AlmacenPageComponent implements OnInit {
         const detalleRecords = this.extractRecords(response);
         console.log('[Almacen][Detalle ingreso orden][records antes de mapear]', detalleRecords);
         console.log('[Almacen][Detalle ingreso orden][keys por registro]', detalleRecords.map((item) => Object.keys(item)));
-        this.ingresoOrdenDetalles = detalleRecords
-          .map((item, index) => this.mapIngresoOrdenDetalle(item, index))
-          .filter((item): item is IngresoOrdenDetalleRow => item !== null);
-        console.log('[Almacen][Detalle ingreso orden][grilla mapeada]', this.ingresoOrdenDetalles);
-        this.isLoadingEditor = false;
+
+        if (!this.isIngresoOrdenEditMode || !this.ingresoOrdenMovimientoId) {
+          this.aplicarDetalleIngresoOrden(detalleRecords);
+          return;
+        }
+
+        this.apiService.getListarIngresoAlmacenDetalleModificar(this.ingresoOrdenMovimientoId).subscribe({
+          next: (detalleAlmacenResponse: unknown) => {
+            const detalleAlmacenRecords = this.extractRecords(detalleAlmacenResponse);
+            const detalleCombinado = detalleRecords.map((detallePedido) => {
+              const almacenDetalleId = this.getNumberValue(detallePedido, ['Alm_Det_Id', 'alm_Det_Id', 'almDetId']) ?? 0;
+              const itemId = this.getNumberValue(detallePedido, ['Ped_Cod_Itm', 'ped_Cod_Itm', 'pedCodItm', 'Itm_Id', 'itm_Id', 'itmId']) ?? 0;
+              const detalleAlmacen = detalleAlmacenRecords.find((detalle) => {
+                const detalleId = this.getNumberValue(detalle, ['Alm_Det_Id', 'alm_Det_Id', 'almDetId']) ?? 0;
+                const detalleItemId = this.getNumberValue(detalle, ['Alm_Det_Itm_Id', 'alm_Det_Itm_Id', 'almDetItmId']) ?? 0;
+                return (almacenDetalleId > 0 && detalleId === almacenDetalleId)
+                  || (itemId > 0 && detalleItemId === itemId);
+              });
+
+              return detalleAlmacen ? { ...detallePedido, ...detalleAlmacen } : detallePedido;
+            });
+
+            this.aplicarDetalleIngresoOrden(detalleCombinado);
+          },
+          error: () => this.aplicarDetalleIngresoOrden(detalleRecords)
+        });
       },
       error: (error: unknown) => {
         this.ingresoOrdenDetalles = [];
@@ -2245,6 +2302,14 @@ export class AlmacenPageComponent implements OnInit {
         );
       }
     });
+  }
+
+  private aplicarDetalleIngresoOrden(detalleRecords: DataRecord[]): void {
+    this.ingresoOrdenDetalles = detalleRecords
+      .map((item, index) => this.mapIngresoOrdenDetalle(item, index))
+      .filter((item): item is IngresoOrdenDetalleRow => item !== null);
+    console.log('[Almacen][Detalle ingreso orden][grilla mapeada]', this.ingresoOrdenDetalles);
+    this.isLoadingEditor = false;
   }
 
   private cargarCatalogosEditor(): void {
@@ -2411,6 +2476,7 @@ export class AlmacenPageComponent implements OnInit {
     this.showIngresoDirectoForm = false;
     this.showIngresoOrdenForm = true;
     this.isIngresoOrdenEditMode = true;
+    this.ingresoOrdenMovimientoId = item.movimientoId;
     this.isEditMode = false;
     this.ingresoOrdenDetalles = [];
     this.ingresoOrdenUbicacionId = item.ubicacionId || 1;
@@ -2559,6 +2625,7 @@ export class AlmacenPageComponent implements OnInit {
     const cabecera = this.ingresoOrdenSeleccionada;
     const ubicacion = Number(this.ingresoOrdenUbicacionId);
     const currentUser = this.getCurrentOperator();
+    const guiaRemitente = this.ingresoOrdenGuiaRemitenteControl.value.trim() || null;
 
     if (!cabecera) {
       this.saveErrorMessage = 'No se encontro la orden de compra seleccionada para registrar el ingreso.';
@@ -2587,7 +2654,8 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Tip_Ing: tipoIngreso,
       Usr_Reg: currentUser,
       Ord_Com_Id: cabecera.ordenCompraId,
-      Ped_Id: cabecera.pedidoId
+      Ped_Id: cabecera.pedidoId,
+      Alm_Gui_Rem: guiaRemitente
     };
   }
 
@@ -2626,13 +2694,21 @@ export class AlmacenPageComponent implements OnInit {
     return seleccionados.map((item) => ({
       Ped_Det_Id: item.pedidoDetalleId,
       Ord_Com_Id: cabecera.ordenCompraId,
-      Can_Ing: Number(item.cantidadIngresar)
+      Can_Ing: Number(item.cantidadIngresar),
+      Alm_Ser: item.serie.trim() || null,
+      Alm_Cos_Unit: item.costoUnitario
     }));
   }
 
-  private buildActualizarIngresoAlmacenDetalleOrdenCompraPayloads(): ActualizarIngresoAlmacenDetalleOrdenCompraRequest[] {
+  private buildActualizarIngresoAlmacenDetalleOrdenCompraPayloads(): ActualizarIngresoAlmacenDetalleRequest[] {
+    const cabecera = this.ingresoOrdenSeleccionada;
     const seleccionados = this.ingresoOrdenDetalles.filter((item) => item.seleccionado);
     const currentUser = this.getCurrentOperator();
+
+    if (!cabecera) {
+      this.saveErrorMessage = 'No se encontro la orden de compra seleccionada para actualizar el detalle de almacen.';
+      return [];
+    }
 
     if (!seleccionados.length) {
       this.saveErrorMessage = 'Selecciona al menos un producto para actualizar el detalle de almacen.';
@@ -2651,9 +2727,43 @@ export class AlmacenPageComponent implements OnInit {
       return [];
     }
 
+    const detalleSinItem = seleccionados.find((item) => !Number.isInteger(item.itemId) || item.itemId <= 0);
+    if (detalleSinItem) {
+      this.saveErrorMessage = `El producto ${detalleSinItem.itemDescripcion} no tiene item asociado para actualizar el detalle de almacen.`;
+      return [];
+    }
+
+    const detalleSinUnidad = seleccionados.find((item) => !Number.isInteger(item.unidadId) || item.unidadId <= 0);
+    if (detalleSinUnidad) {
+      this.saveErrorMessage = `El producto ${detalleSinUnidad.itemDescripcion} no tiene unidad asociada para actualizar el detalle de almacen.`;
+      return [];
+    }
+
+    const detalleSinCentroCosto = seleccionados.find((item) => !Number.isInteger(item.centroCostoId) || item.centroCostoId <= 0);
+    if (detalleSinCentroCosto) {
+      this.saveErrorMessage = `El producto ${detalleSinCentroCosto.itemDescripcion} no tiene centro de costo asociado para actualizar el detalle de almacen.`;
+      return [];
+    }
+
+    const detalleCostoInvalido = seleccionados.find((item) => item.costoUnitario !== null
+      && (!Number.isFinite(item.costoUnitario) || item.costoUnitario < 0));
+    if (detalleCostoInvalido) {
+      this.saveErrorMessage = `Ingresa un costo unitario valido para ${detalleCostoInvalido.itemDescripcion}.`;
+      return [];
+    }
+
     return seleccionados.map((item) => ({
       Alm_Det_Id: item.almacenDetalleId,
+      Alm_Det_Itm_Id: item.itemId,
+      Alm_Det_Uni_Med_Id: item.unidadId,
       Alm_Det_Can: Number(item.cantidadIngresar),
+      Alm_Det_Doc_Nro: item.documentoNumero || cabecera.numeroOrden || cabecera.pedidoCodigo || '',
+      Alm_Det_Fec: item.fechaDetalle || formatDateRequestValue(new Date()),
+      Alm_Det_Cen_Cos_Id: item.centroCostoId,
+      Alm_Det_Prv_Id: cabecera.proveedorId || 0,
+      Alm_Ser: item.serie.trim() || null,
+      Alm_Cos_Unit: item.costoUnitario,
+      Usr_Reg: currentUser,
       Usr_Mod: currentUser
     }));
   }
@@ -2687,6 +2797,13 @@ export class AlmacenPageComponent implements OnInit {
     const detalleSinCantidad = seleccionados.find((item) => !Number.isFinite(item.cantidadIngresar) || Number(item.cantidadIngresar) <= 0);
     if (detalleSinCantidad) {
       this.saveErrorMessage = `Ingresa una cantidad valida para actualizar stock de ${detalleSinCantidad.itemDescripcion}.`;
+      return [];
+    }
+
+    const detalleCostoInvalido = seleccionados.find((item) => item.costoUnitario !== null
+      && (!Number.isFinite(item.costoUnitario) || item.costoUnitario < 0));
+    if (detalleCostoInvalido) {
+      this.saveErrorMessage = `Ingresa un costo unitario valido para ${detalleCostoInvalido.itemDescripcion}.`;
       return [];
     }
 
@@ -2742,6 +2859,13 @@ export class AlmacenPageComponent implements OnInit {
       return [];
     }
 
+    const detalleCostoInvalido = seleccionados.find((item) => item.costoUnitario !== null
+      && (!Number.isFinite(item.costoUnitario) || item.costoUnitario < 0));
+    if (detalleCostoInvalido) {
+      this.saveErrorMessage = `Ingresa un costo unitario valido para ${detalleCostoInvalido.itemDescripcion}.`;
+      return [];
+    }
+
     return seleccionados.map((item) => ({
       Alm_Mov_Id: movimientoId,
       Alm_Det_Itm_Id: item.itemId,
@@ -2751,6 +2875,8 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Det_Fec: fechaIngreso,
       Alm_Det_Cen_Cos_Id: item.centroCostoId,
       Alm_Det_Prv_Id: cabecera.proveedorId || 0,
+      Alm_Ser: item.serie.trim() || null,
+      Alm_Cos_Unit: item.costoUnitario,
       Usr_Reg: currentUser
     }));
   }
@@ -2832,7 +2958,7 @@ export class AlmacenPageComponent implements OnInit {
   }
 
   private actualizarDetallesIngresoOrdenAlmacenSecuencial(
-    detallePayloads: ActualizarIngresoAlmacenDetalleOrdenCompraRequest[],
+    detallePayloads: ActualizarIngresoAlmacenDetalleRequest[],
     index: number,
     onSuccess: () => void
   ): void {
@@ -2843,7 +2969,7 @@ export class AlmacenPageComponent implements OnInit {
       return;
     }
 
-    this.apiService.patchActualizarIngresoAlmacenDetalleOrdenCompra(detallePayload).subscribe({
+    this.apiService.patchActualizarIngresoAlmacenDetalle(detallePayload).subscribe({
       next: (response: unknown) => {
         try {
           this.assertSuccessfulResponse(response, 'No se pudo actualizar el detalle del ingreso por orden.');
@@ -3096,7 +3222,9 @@ export class AlmacenPageComponent implements OnInit {
     ).trim();
     const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
     const ubicacion = Number(this.ingresoDirectoForm.controls['ubicacion'].value);
-    const serie = String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null;
+    const serie = this.isSalidaMode
+      ? (String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null)
+      : null;
     const currentUser = this.authService.getCurrentUser().trim();
 
     if (!solicitanteValue) {
@@ -3379,6 +3507,11 @@ export class AlmacenPageComponent implements OnInit {
     const proveedorId = Number.isInteger(proveedorValue) && proveedorValue > 0
       ? proveedorValue
       : null;
+    const serie = String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null;
+    const costoUnitarioValue = this.ingresoDirectoForm.controls['costoUnitario'].value;
+    const costoUnitario = costoUnitarioValue === null || costoUnitarioValue === ''
+      ? null
+      : Number(costoUnitarioValue);
     const currentUser = this.getCurrentOperator();
 
     if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -3401,6 +3534,11 @@ export class AlmacenPageComponent implements OnInit {
       return null;
     }
 
+    if (costoUnitario !== null && (!Number.isFinite(costoUnitario) || costoUnitario < 0)) {
+      this.saveErrorMessage = 'Ingresa un costo unitario valido.';
+      return null;
+    }
+
     return {
       Alm_Mov_Id: movimientoId,
       Alm_Det_Itm_Id: itemId,
@@ -3410,6 +3548,8 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Det_Fec: fecha,
       Alm_Det_Cen_Cos_Id: centroCostoId,
       Alm_Det_Prv_Id: proveedorId,
+      Alm_Ser: serie,
+      Alm_Cos_Unit: costoUnitario,
       Usr_Reg: currentUser
     };
   }
@@ -3502,7 +3642,9 @@ export class AlmacenPageComponent implements OnInit {
     const movimientoId = Number(this.ingresoDirectoForm.controls['movimientoId'].value);
     const centroCostoId = Number(this.ingresoDirectoForm.controls['centroCostoSolicitanteId'].value);
     const ubicacion = Number(this.ingresoDirectoForm.controls['ubicacion'].value);
-    const serie = String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null;
+    const serie = this.isSalidaMode
+      ? (String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null)
+      : null;
     const currentUser = this.getCurrentOperator();
 
     if (!Number.isInteger(movimientoId) || movimientoId <= 0) {
@@ -3552,6 +3694,11 @@ export class AlmacenPageComponent implements OnInit {
     const proveedorId = Number.isInteger(proveedorValue) && proveedorValue > 0
       ? proveedorValue
       : null;
+    const serie = String(this.ingresoDirectoForm.controls['serie'].value || '').trim() || null;
+    const costoUnitarioValue = this.ingresoDirectoForm.controls['costoUnitario'].value;
+    const costoUnitario = costoUnitarioValue === null || costoUnitarioValue === ''
+      ? null
+      : Number(costoUnitarioValue);
     const currentUser = this.getCurrentOperator();
 
     if (!Number.isInteger(this.currentEditDetalleId) || this.currentEditDetalleId <= 0) {
@@ -3579,6 +3726,11 @@ export class AlmacenPageComponent implements OnInit {
       return null;
     }
 
+    if (costoUnitario !== null && (!Number.isFinite(costoUnitario) || costoUnitario < 0)) {
+      this.saveErrorMessage = 'Ingresa un costo unitario valido.';
+      return null;
+    }
+
     return {
       Alm_Det_Id: this.currentEditDetalleId,
       Alm_Det_Itm_Id: itemId,
@@ -3588,7 +3740,10 @@ export class AlmacenPageComponent implements OnInit {
       Alm_Det_Fec: fecha,
       Alm_Det_Cen_Cos_Id: centroCostoId,
       Alm_Det_Prv_Id: proveedorId,
-      Usr_Reg: currentUser
+      Alm_Ser: serie,
+      Alm_Cos_Unit: costoUnitario,
+      Usr_Reg: currentUser,
+      Usr_Mod: currentUser
     };
   }
 
@@ -3837,6 +3992,7 @@ export class AlmacenPageComponent implements OnInit {
     const compra = this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']) ?? 0;
     const ingresado = this.getDecimalValue(item, ['Can_Ing', 'can_Ing', 'canIng', 'Alm_Det_Can', 'alm_Det_Can', 'almDetCan', 'Ingresado', 'ingresado']) ?? 0;
     const pendiente = Math.max(compra - ingresado, 0);
+    const fechaDetalle = this.getTextValue(item, ['Alm_Det_Fec', 'alm_Det_Fec', 'almDetFec']);
 
     return {
       id: index + 1,
@@ -3852,6 +4008,17 @@ export class AlmacenPageComponent implements OnInit {
       compra,
       ingresado,
       pendiente,
+      serie: this.getTextValue(item, ['Alm_Ser', 'alm_Ser', 'almSer']),
+      costoUnitario: this.getDecimalValue(item, [
+        'Alm_Cos_Unit',
+        'alm_Cos_Unit',
+        'almCosUnit',
+        'Alm_Cost_Unit',
+        'alm_Cost_Unit',
+        'almCostUnit'
+      ]),
+      documentoNumero: this.getTextValue(item, ['Alm_Det_Doc_Nro', 'alm_Det_Doc_Nro', 'almDetDocNro']),
+      fechaDetalle: fechaDetalle ? formatDateRequestValue(fechaDetalle) : formatDateRequestValue(new Date()),
       cantidadIngresar: this.isIngresoOrdenEditMode ? ingresado : null,
       seleccionado: this.isIngresoOrdenEditMode
     };

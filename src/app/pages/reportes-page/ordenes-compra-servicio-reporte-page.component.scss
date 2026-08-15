@@ -75,8 +75,8 @@
 }
 
 .reporte-panel__table--ordenes {
-  width: 100%;
-  min-width: 72rem;
+  width: max-content;
+  min-width: 82rem;
 }
 
 .reporte-panel__table--ordenes thead th,
@@ -144,7 +144,7 @@
 
   .reporte-panel__table--ordenes {
     display: table;
-    min-width: 72rem;
+    min-width: 82rem;
     border-collapse: collapse;
   }
 

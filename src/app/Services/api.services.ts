@@ -249,7 +249,48 @@ export interface ItemFiltro {
     Itm_Grp?: number;
     Itm_Sub_Grp?: number;
     Itm_Det_Mat_Id?: number;
+    Itm_Tip?: string;
     Flg_Est?: string;
+}
+
+export interface TransferenciaAlmacenFiltro {
+    Fec_Ini?: string;
+    Fec_Fin?: string;
+    Alm_Sol_Dni?: string;
+    Alm_Cen_Cos?: number;
+    Alm_Destino?: number;
+    Alm_Tip_Ing?: number;
+    Alm_Usr_Apr?: string;
+    Alm_Mov_Ori?: number;
+}
+
+export interface TransferenciaAlmacenDetalleRequest {
+    Trf_Det_Id?: number;
+    Trf_Det_Itm_Id: number;
+    Trf_Det_Can: number;
+}
+
+export interface GuardarTransferenciaAlmacenRequest {
+    Trf_Id?: number;
+    Trf_Cen_Cos_Ori: number;
+    Trf_Cen_Cos_Des: number;
+    Trf_Sol: string;
+    Trf_Usr_Apr: string;
+    Flg_Est: string;
+    Usr_Reg?: string;
+    Usr_Mod?: string;
+    Detalles: TransferenciaAlmacenDetalleRequest[];
+}
+
+export interface RegistrarTransferenciaAlmacenRequest {
+    Alm_Ubi: number;
+    Alm_Sol_Dni: string;
+    Alm_Cen_Cos: number;
+    Alm_Tip_Ing: 5 | 6;
+    Usr_Reg: string;
+    Alm_Destino: number;
+    Alm_Usr_Apr: string;
+    Alm_Mov_Ori: number;
 }
 
 export interface TipoServicioFiltro {
@@ -611,6 +652,59 @@ export interface RegistrarIngresoAlmacenOrdenCompraRequest {
     Usr_Reg: string;
     Ord_Com_Id: number;
     Ped_Id: number;
+    Alm_Gui_Rem: string | null;
+}
+
+export interface ObraFiltro {
+    Obr_Id?: number;
+    Obr_Cen_Cos?: number;
+    Obr_Nom?: string;
+    Obr_Ubi?: string;
+    Obr_Are?: string;
+    Obr_Cli_Id?: number;
+    Flg_Est?: string;
+    Obr_Rsp?: string;
+}
+
+export interface ClienteWbFiltro {
+    Cli_Id?: number;
+    Cli_Nom?: string;
+    Cli_Ruc?: string;
+    Flg_Est?: string;
+}
+
+export interface RegistrarObraRequest {
+    Obr_Cen_Cos: number;
+    Obr_Nom: string;
+    Obr_Ubi: string | null;
+    Obr_Are: string | null;
+    Obr_Cli_Id: number;
+    Obr_Cod_Con: string | null;
+    Flg_Est: string;
+    Obr_Fec_Ape: string;
+    Obr_Rsp: string;
+    Usr_Reg: string;
+}
+
+export interface ActualizarObraRequest {
+    Obr_Id: number;
+    Obr_Cen_Cos: number;
+    Obr_Nom: string;
+    Obr_Ubi: string | null;
+    Obr_Are: string | null;
+    Obr_Cli_Id: number;
+    Obr_Cod_Con: string | null;
+    Obr_Fec_Ape: string;
+    Obr_Rsp: string;
+    Usr_Mod: string;
+}
+
+export interface ActualizarFechaObraRequest {
+    Obr_Id: number;
+    Obr_Fec_Ini?: string | null;
+    Obr_Fec_Fin?: string | null;
+    Obr_Fec_Cie?: string | null;
+    Usr_Mod: string;
 }
 
 export interface ActualizarIngresoAlmacenRequest {
@@ -632,6 +726,8 @@ export interface RegistrarIngresoAlmacenDetalleRequest {
     Alm_Det_Fec: string;
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number | null;
+    Alm_Ser?: string | null;
+    Alm_Cos_Unit?: number | null;
     Usr_Reg: string;
 }
 
@@ -644,13 +740,18 @@ export interface ActualizarIngresoAlmacenDetalleRequest {
     Alm_Det_Fec: string;
     Alm_Det_Cen_Cos_Id: number;
     Alm_Det_Prv_Id: number | null;
+    Alm_Ser?: string | null;
+    Alm_Cos_Unit?: number | null;
     Usr_Reg: string;
+    Usr_Mod?: string;
 }
 
 export interface ActualizarPedidoDetalleIngresoAlmacenRequest {
     Ped_Det_Id: number;
     Ord_Com_Id: number;
     Can_Ing: number;
+    Alm_Ser: string | null;
+    Alm_Cos_Unit: number | null;
 }
 
 export interface ActualizarIngresoAlmacenDetalleOrdenCompraRequest {
@@ -1421,6 +1522,10 @@ export class ApiService {
             params = params.append('Itm_Det_Mat_Id', filtros.Itm_Det_Mat_Id);
         }
 
+        if (filtros.Itm_Tip) {
+            params = params.append('Itm_Tip', filtros.Itm_Tip);
+        }
+
         if (filtros.Flg_Est) {
             params = params.append('Flg_Est', filtros.Flg_Est);
         }
@@ -1946,6 +2051,91 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         return this.http.patch(this.baseUrl + 'CentroCosto/patchActualizarCentroCosto', centroCosto, { headers });
     }
 
+    getListarObra(filtros: ObraFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Obr_Id', filtros.Obr_Id ?? 0)
+            .set('Obr_Cen_Cos', filtros.Obr_Cen_Cos ?? 0)
+            .set('Obr_Nom', filtros.Obr_Nom ?? '')
+            .set('Obr_Ubi', filtros.Obr_Ubi ?? '')
+            .set('Obr_Are', filtros.Obr_Are ?? '')
+            .set('Obr_Cli_Id', filtros.Obr_Cli_Id ?? 0)
+            .set('Flg_Est', filtros.Flg_Est ?? '')
+            .set('Obr_Rsp', filtros.Obr_Rsp ?? '');
+
+        return this.http.get(this.baseUrl + 'Obra/getListarObra', { headers, params });
+    }
+
+    getCargarObraModificar(obraId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Obr_Id', obraId);
+        return this.http.get(this.baseUrl + 'Obra/getCargarObraModificar', { headers, params });
+    }
+
+    registrarObra(obra: RegistrarObraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.post(this.baseUrl + 'Obra/postRegistrarObra', obra, { headers });
+    }
+
+    actualizarObra(obra: ActualizarObraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Obra/patchActualizarObra', obra, { headers });
+    }
+
+    getListarTransferenciaAlmacen(filtros: TransferenciaAlmacenFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Fec_Ini', filtros.Fec_Ini ?? '')
+            .set('Fec_Fin', filtros.Fec_Fin ?? '')
+            .set('Alm_Sol_Dni', filtros.Alm_Sol_Dni ?? '')
+            .set('Alm_Cen_Cos', filtros.Alm_Cen_Cos ?? 0)
+            .set('Alm_Destino', filtros.Alm_Destino ?? 0)
+            .set('Alm_Tip_Ing', filtros.Alm_Tip_Ing ?? 0)
+            .set('Alm_Usr_Apr', filtros.Alm_Usr_Apr ?? '')
+            .set('Alm_Mov_Ori', filtros.Alm_Mov_Ori ?? 0);
+        return this.http.get(this.baseUrl + 'Almacen/getListarTransferenciaAlmacen', { headers, params });
+    }
+
+    getCargarTransferenciaAlmacenModificar(transferenciaId: number): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams().set('Trf_Id', transferenciaId);
+        return this.http.get(this.baseUrl + 'TransferenciaAlmacen/getCargarTransferenciaAlmacenModificar', { headers, params });
+    }
+
+    registrarTransferenciaAlmacen(transferencia: RegistrarTransferenciaAlmacenRequest): Observable<any> {
+        return this.http.post(this.baseUrl + 'Almacen/postRegistrarTransferenciaAlmacen', transferencia, { headers: this.Header });
+    }
+
+    actualizarTransferenciaAlmacen(transferencia: GuardarTransferenciaAlmacenRequest): Observable<any> {
+        return this.http.patch(this.baseUrl + 'TransferenciaAlmacen/patchActualizarTransferenciaAlmacen', transferencia, { headers: this.Header });
+    }
+
+    actualizarFechaInicioObra(obra: ActualizarFechaObraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Obra/patchActualizarFechaInicioObra', obra, { headers });
+    }
+
+    actualizarFechaFinObra(obra: ActualizarFechaObraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Obra/patchActualizarFechaFinObra', obra, { headers });
+    }
+
+    actualizarFechaCierreObra(obra: ActualizarFechaObraRequest): Observable<any> {
+        const headers = this.Header;
+        return this.http.patch(this.baseUrl + 'Obra/patchActualizarFechaCierreObra', obra, { headers });
+    }
+
+    getListarClienteWb(filtros: ClienteWbFiltro = {}): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Cli_Id', filtros.Cli_Id ?? 0)
+            .set('Cli_Nom', filtros.Cli_Nom ?? '')
+            .set('Cli_Ruc', filtros.Cli_Ruc ?? '')
+            .set('Flg_Est', filtros.Flg_Est ?? '');
+
+        return this.http.get(this.baseUrl + 'ClienteWb/getListarClienteWb', { headers, params });
+    }
+
     getListarDireccionEntregaActivo(filtros: DireccionEntregaFiltro = {}): Observable<any> {
         const headers = this.Header;
         let params = new HttpParams();
@@ -2216,6 +2406,33 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
             .set('Ord_Com_Prv', String(Ord_Com_Prv))
             .set('Ord_Com_For_Pag', String(Ord_Com_For_Pag));
         return this.http.get(this.baseUrl + 'Pedido/getGenerarReporteOcos', { headers, params });
+    }
+
+    getReporteOCOS(
+        Fec_Ini: string,
+        Fec_Fin: string,
+        Ped_Id: number,
+        Ord_Com_Id: number,
+        Ped_Tip_Com: number,
+        Mon_Id: number,
+        Usr_Reg: string,
+        Ped_Cen_Cos_Asg: number,
+        Ord_Com_For_Pag: number,
+        Ord_Com_Prv: number
+    ): Observable<any> {
+        const headers = this.Header;
+        const params = new HttpParams()
+            .set('Fec_Ini', Fec_Ini)
+            .set('Fec_Fin', Fec_Fin)
+            .set('Ped_Id', String(Ped_Id))
+            .set('Ord_Com_Id', String(Ord_Com_Id))
+            .set('Ped_Tip_Com', String(Ped_Tip_Com))
+            .set('Mon_Id', String(Mon_Id))
+            .set('Usr_Reg', Usr_Reg)
+            .set('Ped_Cen_Cos_Asg', String(Ped_Cen_Cos_Asg))
+            .set('Ord_Com_For_Pag', String(Ord_Com_For_Pag))
+            .set('Ord_Com_Prv', String(Ord_Com_Prv));
+        return this.http.get(this.baseUrl + 'Item/getReporteOCOS', { headers, params });
     }
 
     getListarPedidoCorrelativoNuevo(): Observable<any> {

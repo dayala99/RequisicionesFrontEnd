@@ -43,7 +43,10 @@ import { KardexGeneralReportePageComponent } from './pages/reportes-page/kardex-
 import { IngresoSalidasAlmacenReportePageComponent } from './pages/reportes-page/ingreso-salidas-almacen-reporte-page.component';
 import { OrdenesCompraServicioReportePageComponent } from './pages/reportes-page/ordenes-compra-servicio-reporte-page.component';
 import { AsignacionesUsuariosReportePageComponent } from './pages/reportes-page/asignaciones-usuarios-reporte-page.component';
+import { ReporteOcosPageComponent } from './pages/reportes-page/reporte-ocos-page.component';
 import { AsignacionPageComponent } from './pages/asignacion-page/asignacion-page.component';
+import { ObraPageComponent } from './pages/obra-page/obra-page.component';
+import { TransferenciaAlmacenPageComponent } from './pages/transferencia-almacen-page/transferencia-almacen-page.component';
 
 const routes: Routes = [
   {
@@ -161,6 +164,14 @@ const routes: Routes = [
         component: AsignacionPageComponent
       },
       {
+        path: 'obra',
+        component: ObraPageComponent
+      },
+      {
+        path: 'transferencia-almacen',
+        component: TransferenciaAlmacenPageComponent
+      },
+      {
         path: 'reportes',
         component: ReportesPageComponent
       },
@@ -179,6 +190,10 @@ const routes: Routes = [
       {
         path: 'reportes/asignaciones-usuarios',
         component: AsignacionesUsuariosReportePageComponent
+      },
+      {
+        path: 'reportes/reporte-ocos',
+        component: ReporteOcosPageComponent
       },
       {
         path: 'jefe',

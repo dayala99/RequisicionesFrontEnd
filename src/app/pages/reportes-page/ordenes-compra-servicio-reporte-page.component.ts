@@ -131,7 +131,9 @@ export class OrdenesCompraServicioReportePageComponent implements OnInit {
       'Fecha de registro',
       'Orden',
       'Proveedor',
-      'Forma de pago'
+      'Forma de pago',
+      'Total',
+      'Moneda'
     ];
     const body = this.rows
       .map((row) => `<Row>${[
@@ -141,7 +143,9 @@ export class OrdenesCompraServicioReportePageComponent implements OnInit {
         row.fechaRegistro,
         row.ordenCorrelativo,
         row.proveedor,
-        row.formaPago
+        row.formaPago,
+        this.formatTotal(row.total),
+        row.monedaDescripcion
       ].map((value) => this.buildExcelCell(value)).join('')}</Row>`)
       .join('');
     const headerCells = headers.map((value) => this.buildExcelCell(value, 'Header')).join('');
@@ -187,6 +191,17 @@ export class OrdenesCompraServicioReportePageComponent implements OnInit {
     }
 
     return 'reporte-panel__documento-badge--neutral';
+  }
+
+  formatTotal(value: number | null): string {
+    if (value === null) {
+      return '-';
+    }
+
+    return new Intl.NumberFormat('es-PE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
   }
 
   trackByRow(index: number, row: OrdenCompraServicioRow): string {
@@ -256,7 +271,9 @@ export class OrdenesCompraServicioReportePageComponent implements OnInit {
       ordenId: ordenId ?? 0,
       ordenCorrelativo: this.formatOrdenCorrelativo(ordenId, tipoId),
       proveedor: this.getTextValue(item, ['Prv_Nom', 'prv_Nom', 'prvNom']) || '-',
-      formaPago: this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes']) || '-'
+      formaPago: this.getTextValue(item, ['For_Pag_Des', 'for_Pag_Des', 'forPagDes']) || '-',
+      total: this.getDecimalValue(item, ['Ord_Com_Tot', 'ord_Com_Tot', 'ordComTot']),
+      monedaDescripcion: this.getTextValue(item, ['Mon_Des', 'mon_Des', 'monDes']) || '-'
     };
   }
 
@@ -355,6 +372,23 @@ export class OrdenesCompraServicioReportePageComponent implements OnInit {
     return null;
   }
 
+  private getDecimalValue(item: DataRecord, keys: string[]): number | null {
+    for (const key of keys) {
+      const value = item[key];
+
+      if (value === null || value === undefined || value === '') {
+        continue;
+      }
+
+      const parsedValue = Number(value);
+      if (Number.isFinite(parsedValue)) {
+        return parsedValue;
+      }
+    }
+
+    return null;
+  }
+
   private isRecord(value: unknown): value is DataRecord {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
@@ -399,4 +433,6 @@ interface OrdenCompraServicioRow {
   ordenCorrelativo: string;
   proveedor: string;
   formaPago: string;
+  total: number | null;
+  monedaDescripcion: string;
 }

@@ -116,6 +116,8 @@
             <th>Nro. orden</th>
             <th>Proveedor</th>
             <th>Forma de pago</th>
+            <th>Total</th>
+            <th>Moneda</th>
           </tr>
         </thead>
         <tbody>
@@ -131,6 +133,8 @@
             <td data-label="Nro. orden">{{ row.ordenCorrelativo }}</td>
             <td data-label="Proveedor">{{ row.proveedor }}</td>
             <td data-label="Forma de pago">{{ row.formaPago }}</td>
+            <td data-label="Total">{{ formatTotal(row.total) }}</td>
+            <td data-label="Moneda">{{ row.monedaDescripcion }}</td>
           </tr>
         </tbody>
       </table>

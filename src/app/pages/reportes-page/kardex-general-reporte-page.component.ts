@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormControl } from '@angular/forms';
 
 import { ApiService } from 'src/app/Services/api.services';
@@ -8,7 +8,10 @@ import { ApiService } from 'src/app/Services/api.services';
   templateUrl: './kardex-general-reporte-page.component.html',
   styleUrls: ['./kardex-general-reporte-page.component.scss']
 })
-export class KardexGeneralReportePageComponent implements OnInit {
+export class KardexGeneralReportePageComponent implements OnInit, AfterViewChecked {
+  @ViewChild('tablaKardex') private tablaKardex?: ElementRef<HTMLTableElement>;
+  @ViewChild('scrollSuperiorContent') private scrollSuperiorContent?: ElementRef<HTMLDivElement>;
+
   readonly itemSearchControl = new FormControl('', { nonNullable: true });
   readonly itemIdControl = new FormControl(0, { nonNullable: true });
   readonly allItemsOption = {
@@ -60,26 +63,30 @@ export class KardexGeneralReportePageComponent implements OnInit {
 
     const headers = [
       'Mov. ID',
-      'Usuario',
-      'Solicitante',
+      'Fecha',
       'Cod. Item',
       'Descripcion Item',
-      'Centro de Costo',
       'Tipo Movimiento',
-      'Tipo',
-      'Cantidad'
+      'Serie',
+      'Guia remitente',
+      'Solicitante',
+      'Centro de Costo',
+      'Cantidad',
+      'Tipo'
     ];
 
     const rows = this.kardexRows.map((row) => [
       row.movimientoId ?? '-',
-      row.usuarioCodigo,
-      row.usuarioNombre,
+      this.formatFechaDetalle(row.fechaDetalle),
       row.itemCode,
       row.itemDescription,
-      row.centroCosto,
       row.tipoIngreso,
-      this.formatFecha(row.fechaAprobacion),
-      this.formatCantidad(row.cantidad)
+      row.serie,
+      row.guiaRemitente,
+      row.usuarioNombre,
+      row.centroCosto,
+      this.formatCantidad(row.cantidad),
+      this.formatFecha(row.fechaAprobacion)
     ]);
 
     const workbookXml = this.buildExcelWorkbookXml(headers, rows);
@@ -124,6 +131,40 @@ export class KardexGeneralReportePageComponent implements OnInit {
     }).format(date);
   }
 
+  ngAfterViewChecked(): void {
+    const tabla = this.tablaKardex?.nativeElement;
+    const contenidoSuperior = this.scrollSuperiorContent?.nativeElement;
+
+    if (!tabla || !contenidoSuperior) {
+      return;
+    }
+
+    const anchoTabla = `${tabla.scrollWidth}px`;
+    if (contenidoSuperior.style.width !== anchoTabla) {
+      contenidoSuperior.style.width = anchoTabla;
+    }
+  }
+
+  formatFechaDetalle(value: string): string {
+    const normalizedValue = String(value || '').trim();
+
+    if (!normalizedValue) {
+      return '-';
+    }
+
+    const date = new Date(normalizedValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return normalizedValue;
+    }
+
+    return new Intl.DateTimeFormat('es-PE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).format(date);
+  }
+
   resolveTipoLabel(value: string): string {
     return this.formatFecha(value);
   }
@@ -151,7 +192,13 @@ export class KardexGeneralReportePageComponent implements OnInit {
   }
 
   trackByRow(_: number, row: KardexGeneralRow): string {
-    return `${row.itemId}-${row.movimientoId}-${row.usuarioCodigo}-${row.centroCosto}-${row.tipoIngreso}`;
+    return `${row.itemId}-${row.movimientoId}-${row.usuarioNombre}-${row.centroCosto}-${row.tipoIngreso}`;
+  }
+
+  sincronizarScrollHorizontal(origen: HTMLElement, destino: HTMLElement): void {
+    if (destino.scrollLeft !== origen.scrollLeft) {
+      destino.scrollLeft = origen.scrollLeft;
+    }
   }
 
   private buildFileName(): string {
@@ -177,7 +224,12 @@ export class KardexGeneralReportePageComponent implements OnInit {
 
     const rowCells = rows
       .map((row, index) => {
-        const styleId = this.kardexRows[index]?.isTotal ? 'Total' : 'Default';
+        const currentRow = this.kardexRows[index];
+        const styleId = currentRow?.isTotal
+          ? 'Total'
+          : currentRow?.isSubtitle
+            ? 'Subtitle'
+            : 'Default';
 
         return `<Row>${row
           .map((value) => this.buildExcelCell(value, styleId))
@@ -203,6 +255,11 @@ export class KardexGeneralReportePageComponent implements OnInit {
     <Style ss:ID="Total">
       <Font ss:Bold="1" ss:Color="#D97800"/>
       <Interior ss:Color="#FFF0E0" ss:Pattern="Solid"/>
+      <Alignment ss:Vertical="Center" ss:WrapText="1"/>
+    </Style>
+    <Style ss:ID="Subtitle">
+      <Font ss:Bold="1" ss:Color="#4F4B47"/>
+      <Interior ss:Color="#E5E5E5" ss:Pattern="Solid"/>
       <Alignment ss:Vertical="Center" ss:WrapText="1"/>
     </Style>
   </Styles>
@@ -298,6 +355,8 @@ export class KardexGeneralReportePageComponent implements OnInit {
     const itemDescription = this.getTextValue(item, ['Itm_Des', 'itm_Des', 'itmDes']);
     const usuarioNombre = this.getTextValue(item, ['Usr_Nom', 'usr_Nom', 'usrNom']);
     const cantidad = this.getNumberValue(item, ['Alm_Det_Can', 'alm_Det_Can', 'almDetCan']) ?? 0;
+    const movimientoId = this.getNumberValue(item, ['Alm_Mov_Id', 'alm_Mov_Id', 'almMovId']);
+    const isTotal = !movimientoId && usuarioNombre.toUpperCase().includes('TOTAL');
 
     if (!itemId && !itemCode && !itemDescription && !usuarioNombre) {
       return null;
@@ -305,17 +364,19 @@ export class KardexGeneralReportePageComponent implements OnInit {
 
     return {
       itemId,
-      movimientoId: this.getNumberValue(item, ['Alm_Mov_Id', 'alm_Mov_Id', 'almMovId']),
-      usuarioCodigo: this.getTextValue(item, ['Alm_Sol_Dni', 'alm_Sol_Dni', 'almSolDni']) || '-',
+      movimientoId,
+      fechaDetalle: this.getTextValue(item, ['Alm_Det_Fec', 'alm_Det_Fec', 'almDetFec']),
+      serie: this.getTextValue(item, ['Alm_Ser', 'alm_Ser', 'almSer']) || '-',
+      guiaRemitente: this.getTextValue(item, ['Alm_Gui_Rem', 'alm_Gui_Rem', 'almGuiRem']) || '-',
       usuarioNombre: usuarioNombre || '-',
-      itemCode: itemCode || String(itemId || '-'),
+      itemCode: itemCode || '',
       itemDescription: itemDescription || '-',
       centroCosto: this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']) || '-',
       tipoIngreso: this.getTextValue(item, ['Ing_Des', 'ing_Des', 'ingDes']) || '-',
       fechaAprobacion: this.getTextValue(item, ['Flg_Est_Apr', 'flg_Est_Apr', 'flgEstApr']) || '',
       cantidad,
-      isTotal: !this.getNumberValue(item, ['Alm_Mov_Id', 'alm_Mov_Id', 'almMovId'])
-        && usuarioNombre.toUpperCase().includes('TOTAL')
+      isTotal,
+      isSubtitle: !movimientoId && !isTotal && Boolean(itemCode || itemDescription)
     };
   }
 
@@ -406,7 +467,9 @@ interface KardexItemOption {
 interface KardexGeneralRow {
   itemId: number;
   movimientoId: number | null;
-  usuarioCodigo: string;
+  fechaDetalle: string;
+  serie: string;
+  guiaRemitente: string;
   usuarioNombre: string;
   itemCode: string;
   itemDescription: string;
@@ -415,4 +478,5 @@ interface KardexGeneralRow {
   fechaAprobacion: string;
   cantidad: number;
   isTotal: boolean;
+  isSubtitle: boolean;
 }

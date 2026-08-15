@@ -312,10 +312,6 @@ function paginateDetailRows(report: OrdenCompraReportePdfData): OrdenCompraRepor
     const tableTop = isFirstPage ? FIRST_PAGE_TABLE_TOP : CONTINUATION_PAGE_TABLE_TOP;
     const finalLimit = PAGE_HEIGHT - PAGE_BOTTOM_MARGIN - getFinalBlocksHeight(report);
     const normalLimit = PAGE_HEIGHT - PAGE_BOTTOM_MARGIN;
-    const remainingRows = rows.slice(rowIndex);
-    const remainingHeight = TABLE_HEADER_HEIGHT + remainingRows.reduce((total, row) => total + getDetailRowHeight(row), 0);
-    const canFinishHere = tableTop + remainingHeight <= finalLimit;
-    const tableLimit = canFinishHere ? finalLimit : normalLimit;
     const pageRows: OrdenCompraReporteDetallePdf[] = [];
     let y = tableTop + TABLE_HEADER_HEIGHT;
 
@@ -323,19 +319,31 @@ function paginateDetailRows(report: OrdenCompraReportePdfData): OrdenCompraRepor
       const row = rows[rowIndex];
       const rowHeight = getDetailRowHeight(row);
 
-      if (pageRows.length > 0 && y + rowHeight > tableLimit) {
+      if (pageRows.length > 0 && y + rowHeight > normalLimit) {
         break;
       }
 
-      if (pageRows.length === 0 && y + rowHeight > tableLimit) {
+      if (pageRows.length === 0 && y + rowHeight > normalLimit) {
         pageRows.push(row);
         rowIndex += 1;
+        y += rowHeight;
         break;
       }
 
       pageRows.push(row);
       rowIndex += 1;
       y += rowHeight;
+    }
+
+    // Si esta página absorbió el último ítem pero ya no queda espacio para
+    // observaciones, totales y firmas, mueve ese ítem a una página nueva.
+    // Así la página actual conserva su capacidad normal y la siguiente se
+    // convierte en la última página con espacio reservado para el cierre.
+    if (rowIndex === rows.length && y > finalLimit && pageRows.length > 1) {
+      const movedRow = pageRows.pop();
+      if (movedRow) {
+        rowIndex -= 1;
+      }
     }
 
     pages.push({ rows: pageRows, isFirstPage, isLastPage: false });
@@ -357,22 +365,26 @@ function drawTotals(
   top: number,
   report: OrdenCompraReportePdfData
 ): void {
-  const x = 315;
+  const x = 285;
   const width = PAGE_RIGHT - x;
   const rowHeight = 20;
-  const labelWidth = 145;
+  const labelWidth = 175;
   const labels = getTotalsRows(report);
 
   labels.forEach(([label, value], index) => {
     const y = top + index * rowHeight;
+    const labelText = String(label);
+    const labelFontSize = fitFontSizeToWidth(labelText, 7, 5, labelWidth - 12);
     addRect(x, y, width, rowHeight);
     addLine(x + labelWidth, y, x + labelWidth, y + rowHeight);
-    addText(x + 6, y + 13, String(label), String(label).startsWith('DETRACCION') ? 6 : 7, true, 'left', labelWidth - 12);
+    addText(x + 6, y + 13, labelText, labelFontSize, true, 'left', labelWidth - 12);
     const numericValue = Number(value);
     const currency = sanitizeValue(report.monedaAbreviacion || 'S/.');
-    const formattedValue = numericValue < 0
-      ? `- ${currency} ${formatAmount(Math.abs(numericValue), 2)}`
-      : `${currency} ${formatAmount(numericValue, 2)}`;
+    const formattedValue = isPercepcionLabel(labelText)
+      ? `+ ${currency} ${formatAmount(Math.abs(numericValue), 2)}`
+      : numericValue < 0
+        ? `- ${currency} ${formatAmount(Math.abs(numericValue), 2)}`
+        : `${currency} ${formatAmount(numericValue, 2)}`;
     addText((x + labelWidth + PAGE_RIGHT) / 2, y + 13, formattedValue, 7, true, 'center');
   });
 }
@@ -411,12 +423,32 @@ function getTotalsRows(report: OrdenCompraReportePdfData): Array<[string, number
   ];
 
   if (report.montoDetraccion > 0) {
-    rows.push([sanitizeValue(report.detraccionDescripcion) || 'DETRACCION', -report.montoDetraccion]);
+    const descripcion = sanitizeValue(report.detraccionDescripcion) || 'DETRACCION';
+    rows.push([descripcion, isPercepcionLabel(descripcion) ? report.montoDetraccion : -report.montoDetraccion]);
   }
 
   rows.push(['TOTAL A PAGAR', report.totalPagar]);
 
   return rows;
+}
+
+function isPercepcionLabel(value: string): boolean {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+    .includes('PERCEPCION');
+}
+
+function fitFontSizeToWidth(text: string, preferredSize: number, minimumSize: number, maxWidth: number): number {
+  let size = preferredSize;
+
+  while (size > minimumSize && approximateTextWidth(text, size) > maxWidth) {
+    size -= 0.25;
+  }
+
+  return Math.max(size, minimumSize);
 }
 
 function chunkRows(rows: OrdenCompraReporteDetallePdf[], firstPageRows: number, nextPageRows: number): OrdenCompraReporteDetallePdf[][] {

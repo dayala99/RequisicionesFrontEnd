@@ -263,6 +263,17 @@
           <span>Fecha</span>
           <strong>{{ ingresoOrdenSeleccionada.fecha }}</strong>
         </div>
+        <mat-form-field
+          *ngIf="mostrarGuiaRemitenteIngresoOrden"
+          appearance="outline"
+          class="field field--mat order-summary-select order-summary-guide">
+          <mat-label>Guia remitente</mat-label>
+          <input
+            matInput
+            type="text"
+            autocomplete="off"
+            [formControl]="ingresoOrdenGuiaRemitenteControl">
+        </mat-form-field>
         <div class="order-summary-field order-summary-field--wide">
           <span>Proveedor</span>
           <strong>{{ formatProveedorIngresoOrden(ingresoOrdenSeleccionada) }}</strong>
@@ -308,17 +319,19 @@
                 <th>Centro(s) de Costo</th>
                 <th>Compra</th>
                 <th>Ingresado</th>
+                <th>Serie</th>
+                <th>Costo unitario</th>
                 <th>Cantidad a Ingresar</th>
               </tr>
             </thead>
 
             <tbody>
               <tr *ngIf="isLoadingEditor">
-                <td colspan="9" class="empty-row">Cargando productos pendientes de ingreso...</td>
+                <td colspan="11" class="empty-row">Cargando productos pendientes de ingreso...</td>
               </tr>
 
               <tr *ngIf="!isLoadingEditor && !ingresoOrdenDetalles.length">
-                <td colspan="9" class="empty-row">No se encontraron productos pendientes de ingreso.</td>
+                <td colspan="11" class="empty-row">No se encontraron productos pendientes de ingreso.</td>
               </tr>
 
               <tr *ngFor="let item of ingresoOrdenDetalles; trackBy: trackByIngresoOrdenDetalle" class="almacen-table__row">
@@ -341,6 +354,25 @@
                 </td>
                 <td>
                   <span class="quantity-badge quantity-badge--entered">{{ item.ingresado | number:'1.2-2' }}</span>
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    class="table-input table-input--text"
+                    maxlength="100"
+                    placeholder="Serie"
+                    [value]="item.serie"
+                    (input)="setSerieIngresoDetalle(item, $any($event.target).value)">
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    class="table-input"
+                    min="0"
+                    step="0.0001"
+                    placeholder="0.00"
+                    [value]="item.costoUnitario ?? ''"
+                    (input)="setCostoUnitarioIngresoDetalle(item, $any($event.target).value)">
                 </td>
                 <td>
                   <input
@@ -513,6 +545,16 @@
               </mat-option>
             </mat-select>
           </mat-form-field>
+
+          <label class="field">
+            <span>Serie</span>
+            <input type="text" formControlName="serie" maxlength="100" placeholder="Ingresar serie">
+          </label>
+
+          <label class="field">
+            <span>Costo unitario</span>
+            <input type="number" formControlName="costoUnitario" min="0" step="0.0001" placeholder="0.0000">
+          </label>
 
           <label class="field">
             <span>Cantidad</span>
