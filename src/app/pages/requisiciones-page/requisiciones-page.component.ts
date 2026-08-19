@@ -2232,6 +2232,12 @@ export class RequisicionesPageComponent implements OnInit {
       filtros.Ped_Tip_Com = tipoBuscado;
     }
 
+    const palabrasClaveDetalle = String(this.filtersForm.controls['palabrasClaveDetalle']?.value || '').trim();
+
+    if (palabrasClaveDetalle) {
+      filtros.Itm_Des = palabrasClaveDetalle;
+    }
+
     return filtros;
   }
 

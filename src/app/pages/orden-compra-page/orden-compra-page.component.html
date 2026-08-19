@@ -45,6 +45,21 @@
             </select>
           </label>
 
+          <label class="field">
+            <span>Palabras clave en detalle</span>
+            <input type="text" formControlName="palabrasClaveDetalle" placeholder="Buscar en los ítems">
+          </label>
+
+          <label class="field">
+            <span>Usuario de registro</span>
+            <select formControlName="usuarioRegistro" (change)="onUsuarioRegistroFiltroChange()">
+              <option value="">Todos los usuarios</option>
+              <option *ngFor="let usuario of usuariosRegistroFiltro; trackBy: trackByUsuarioRegistro" [value]="usuario.codigo">
+                {{ usuario.nombre || usuario.codigo }}
+              </option>
+            </select>
+          </label>
+
           <div class="filters-panel__actions">
             <button type="submit" class="button button--primary" [disabled]="isLoadingOrdenesCompra">
               {{ isLoadingOrdenesCompra ? 'Buscando...' : 'Buscar' }}
@@ -81,7 +96,7 @@
               <td [attr.colspan]="isOrdenServicio ? 11 : 10" class="empty-row">Cargando ordenes de compra registradas...</td>
             </tr>
 
-            <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !ordenesCompra.length">
+            <tr *ngIf="!isLoadingOrdenesCompra && !errorMessage && !ordenesCompraFiltradasPorUsuario.length">
               <td [attr.colspan]="isOrdenServicio ? 11 : 10" class="empty-row">No se encontraron ordenes de compra.</td>
             </tr>
 
@@ -170,8 +185,8 @@
       </div>
 
       <app-grid-pagination
-        *ngIf="isListadoGenerados && ordenesCompra.length"
-        [totalItems]="ordenesCompra.length"
+        *ngIf="isListadoGenerados && ordenesCompraFiltradasPorUsuario.length"
+        [totalItems]="ordenesCompraFiltradasPorUsuario.length"
         [currentPage]="currentOrdenesCompraPage"
         [pageSize]="pageSize"
         (pageChange)="onOrdenesCompraPageChange($event)">

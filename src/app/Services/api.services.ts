@@ -620,6 +620,7 @@ export interface PedidosFiltro {
     Flg_Est?: string;
     Ped_Tip_Com?: number;
     Usr_Cod?: string;
+    Itm_Des?: string;
 }
 
 export interface OrdenCompraFiltro {
@@ -627,6 +628,7 @@ export interface OrdenCompraFiltro {
     Ord_Com_Prv?: string;
     Ord_Com_Tip?: number;
     Flg_Est?: string;
+    Itm_Des?: string;
 }
 
 export interface AlmacenFiltro {
@@ -2189,6 +2191,10 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
             params = params.append('Usr_Cod', filtros.Usr_Cod);
         }
 
+        if (filtros.Itm_Des) {
+            params = params.append('Itm_Des', filtros.Itm_Des);
+        }
+
         return this.http.get(this.baseUrl + 'Pedido/getListarPedido', { headers, params });
     }
 
@@ -2233,6 +2239,10 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
 
         if (filtros.Flg_Est) {
             params = params.append('Flg_Est', filtros.Flg_Est);
+        }
+
+        if (filtros.Itm_Des) {
+            params = params.append('Itm_Des', filtros.Itm_Des);
         }
 
         return this.http.get(this.baseUrl + 'OrdenCompra/getListarOrdenCompraActivo', { headers, params });

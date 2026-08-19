@@ -86,9 +86,20 @@
 
 .filters-panel__generated {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(16rem, 1.6fr) minmax(10rem, 0.7fr) auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: 1rem;
   align-items: end;
+}
+
+.filters-panel__generated .filters-panel__actions {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+@media (max-width: 1600px) {
+  .filters-panel__generated .filters-panel__actions {
+    grid-column: 1 / -1;
+  }
 }
 
 .editor-grid {
@@ -743,6 +754,11 @@
   .editor-attachments-layout,
   .pedido-centro-costo-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .filters-panel__generated .filters-panel__actions {
+    justify-self: stretch;
+    width: 100%;
   }
 
   .button,

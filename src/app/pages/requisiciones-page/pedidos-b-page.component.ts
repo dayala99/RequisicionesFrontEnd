@@ -46,6 +46,11 @@ interface PedidoBDetalleTemporal {
   markedForDelete?: boolean;
 }
 
+interface UsuarioRegistroFiltroOption {
+  codigo: string;
+  nombre: string;
+}
+
 type PedidoBListadoRow = {
   requisicion: number;
   usrAprobacion?: string | null;
@@ -59,6 +64,7 @@ type PedidoBListadoRow = {
 export class PedidosBPageComponent extends RequisicionesPageComponent {
   readonly approvalUserSearchControl = new FormControl('', { nonNullable: true });
   direccionesEntrega: DireccionEntregaOption[] = [];
+  usuariosRegistroCatalogo = new Map<string, string>();
   pedidoBDetalles: PedidoBDetalleTemporal[] = [];
   isLoadingDireccionesEntrega = false;
   isPreviewPedido = false;
@@ -77,6 +83,12 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     }
     if (!this.detalleForm.contains('aclaraciones')) {
       this.detalleForm.addControl('aclaraciones', new FormControl(''));
+    }
+    if (!this.filtersForm.contains('usuarioRegistro')) {
+      this.filtersForm.addControl('usuarioRegistro', new FormControl(''));
+    }
+    if (!this.filtersForm.contains('palabrasClaveDetalle')) {
+      this.filtersForm.addControl('palabrasClaveDetalle', new FormControl(''));
     }
   }
 
@@ -101,6 +113,7 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
       }
     });
     this.cargarDireccionesEntrega();
+    this.cargarUsuariosRegistroCatalogo();
     this.setPedidoBFechaEntregaLocalDate(this.detalleForm.controls['fechaEntrega'].value);
   }
 
@@ -118,6 +131,69 @@ export class PedidosBPageComponent extends RequisicionesPageComponent {
     return this.approvalUsers.filter((user) =>
       [user.code, user.name].some((value) => value.toLowerCase().includes(search))
     );
+  }
+
+  get usuariosRegistroFiltro(): UsuarioRegistroFiltroOption[] {
+    return Array.from(new Set(
+      this.requisiciones
+        .map((pedido) => String(pedido.codigoUsr || '').trim())
+        .filter((codigo) => Boolean(codigo) && codigo !== '-')
+    ))
+      .map((codigo) => ({
+        codigo,
+        nombre: this.usuariosRegistroCatalogo.get(codigo.toLowerCase()) || ''
+      }))
+      .sort((left, right) => {
+        const leftText = left.nombre || left.codigo;
+        const rightText = right.nombre || right.codigo;
+        return leftText.localeCompare(rightText, 'es', { sensitivity: 'base' });
+      });
+  }
+
+  override get requisicionesFiltradasPorOrden() {
+    const pedidos = super.requisicionesFiltradasPorOrden;
+    const usuarioRegistro = String(this.filtersForm.controls['usuarioRegistro']?.value || '').trim().toLowerCase();
+
+    if (!usuarioRegistro) {
+      return pedidos;
+    }
+
+    return pedidos.filter((pedido) => String(pedido.codigoUsr || '').trim().toLowerCase() === usuarioRegistro);
+  }
+
+  onUsuarioRegistroFiltroChange(): void {
+    this.currentPedidosPage = 1;
+  }
+
+  trackByUsuarioRegistro(_: number, usuario: UsuarioRegistroFiltroOption): string {
+    return usuario.codigo;
+  }
+
+  override limpiarFiltros(): void {
+    super.limpiarFiltros();
+    this.filtersForm.controls['usuarioRegistro']?.setValue('');
+    this.filtersForm.controls['palabrasClaveDetalle']?.setValue('');
+  }
+
+  private cargarUsuariosRegistroCatalogo(): void {
+    this.pedidosBApiService.getListarUsuarioActivo().subscribe({
+      next: (response: unknown) => {
+        const usuarios = this.extractPedidoBRecords(response, ['Usr_Cod', 'usr_Cod', 'usrCod']);
+        this.usuariosRegistroCatalogo = new Map(
+          usuarios
+            .map((usuario) => {
+              const codigo = this.getDireccionEntregaTextValue(usuario, ['Usr_Cod', 'usr_Cod', 'usrCod']);
+              const nombre = this.getDireccionEntregaTextValue(usuario, ['Usr_Nom', 'usr_Nom', 'usrNom']);
+              return [codigo.toLowerCase(), nombre] as const;
+            })
+            .filter(([codigo]) => Boolean(codigo))
+        );
+      },
+      error: (error: unknown) => {
+        console.error('No se pudo cargar el catálogo de usuarios para el filtro de Pedidos B:', error);
+        this.usuariosRegistroCatalogo.clear();
+      }
+    });
   }
 
   trackByDireccionEntrega(_: number, direccion: DireccionEntregaOption): number {

@@ -155,6 +155,11 @@ interface MonedaOption {
   abreviacion: string;
 }
 
+interface UsuarioRegistroFiltroOption {
+  codigo: string;
+  nombre: string;
+}
+
 @Component({
   selector: 'app-orden-compra-page',
   templateUrl: './orden-compra-page.component.html',
@@ -183,6 +188,7 @@ export class OrdenCompraPageComponent implements OnInit {
   centrosCosto: OrdenCompraCentroCostoRow[] = [];
   pedidoDetalles: OrdenCompraDetallePedidoRow[] = [];
   detracciones: DetraccionOption[] = [];
+  usuariosRegistroCatalogo = new Map<string, string>();
   formaPagoSearch = '';
   detraccionSearch = '';
   currentOrdenesCompraPage = 1;
@@ -232,7 +238,9 @@ export class OrdenCompraPageComponent implements OnInit {
       modoListado: ['pendientes'],
       ordenCompraId: [''],
       proveedor: [''],
-      estado: ['A']
+      estado: ['A'],
+      palabrasClaveDetalle: [''],
+      usuarioRegistro: ['']
     });
 
     this.form = this.formBuilder.group({
@@ -269,6 +277,7 @@ export class OrdenCompraPageComponent implements OnInit {
     this.cargarMonedas();
     this.cargarCentrosCosto();
     this.cargarDetracciones();
+    this.cargarUsuariosRegistroCatalogo();
     this.cargarPedidosPendientes();
     this.resetEditor();
   }
@@ -394,7 +403,34 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get paginatedOrdenesCompra(): OrdenCompraRow[] {
-    return paginateItems(this.ordenesCompra, this.currentOrdenesCompraPage, this.pageSize);
+    return paginateItems(this.ordenesCompraFiltradasPorUsuario, this.currentOrdenesCompraPage, this.pageSize);
+  }
+
+  get ordenesCompraFiltradasPorUsuario(): OrdenCompraRow[] {
+    const usuarioRegistro = String(this.filtersForm.controls['usuarioRegistro'].value || '').trim().toLowerCase();
+
+    if (!usuarioRegistro) {
+      return this.ordenesCompra;
+    }
+
+    return this.ordenesCompra.filter((orden) => orden.usuarioRegistro.trim().toLowerCase() === usuarioRegistro);
+  }
+
+  get usuariosRegistroFiltro(): UsuarioRegistroFiltroOption[] {
+    return Array.from(new Set(
+      this.ordenesCompra
+        .map((orden) => String(orden.usuarioRegistro || '').trim())
+        .filter((codigo) => Boolean(codigo) && codigo !== '-')
+    ))
+      .map((codigo) => ({
+        codigo,
+        nombre: this.usuariosRegistroCatalogo.get(codigo.toLowerCase()) || ''
+      }))
+      .sort((left, right) => {
+        const leftText = left.nombre || left.codigo;
+        const rightText = right.nombre || right.codigo;
+        return leftText.localeCompare(rightText, 'es', { sensitivity: 'base' });
+      });
   }
 
   get paginatedPedidosPendientes(): PedidoPendienteRow[] {
@@ -448,7 +484,9 @@ export class OrdenCompraPageComponent implements OnInit {
       modoListado: 'pendientes',
       ordenCompraId: '',
       proveedor: '',
-      estado: 'A'
+      estado: 'A',
+      palabrasClaveDetalle: '',
+      usuarioRegistro: ''
     });
     this.cargarPedidosPendientes();
   }
@@ -457,6 +495,14 @@ export class OrdenCompraPageComponent implements OnInit {
     this.errorMessage = '';
     this.selectedOrdenCompraId = null;
     this.cargarListadoSeleccionado();
+  }
+
+  onUsuarioRegistroFiltroChange(): void {
+    this.currentOrdenesCompraPage = 1;
+  }
+
+  trackByUsuarioRegistro(_: number, usuario: UsuarioRegistroFiltroOption): string {
+    return usuario.codigo;
   }
 
   generarOrdenCompraDesdePedido(item: PedidoPendienteRow): void {
@@ -1903,7 +1949,11 @@ export class OrdenCompraPageComponent implements OnInit {
         this.ordenesCompra = this.extractRecords(response)
           .map((item, index) => this.mapOrdenCompra(item, index))
           .filter((item): item is OrdenCompraRow => item !== null);
-        this.currentOrdenesCompraPage = normalizePaginationPage(this.currentOrdenesCompraPage, this.ordenesCompra.length, this.pageSize);
+        this.currentOrdenesCompraPage = normalizePaginationPage(
+          this.currentOrdenesCompraPage,
+          this.ordenesCompraFiltradasPorUsuario.length,
+          this.pageSize
+        );
         this.reconciliarEtiquetasCatalogo();
         this.isLoadingOrdenesCompra = false;
       },
@@ -1931,6 +1981,26 @@ export class OrdenCompraPageComponent implements OnInit {
       error: () => {
         this.proveedores = [];
         this.isLoadingProveedores = false;
+      }
+    });
+  }
+
+  private cargarUsuariosRegistroCatalogo(): void {
+    this.apiService.getListarUsuarioActivo().subscribe({
+      next: (response: unknown) => {
+        this.usuariosRegistroCatalogo = new Map(
+          this.extractRecords(response)
+            .map((usuario) => {
+              const codigo = this.getTextValue(usuario, ['Usr_Cod', 'usr_Cod', 'usrCod']);
+              const nombre = this.getTextValue(usuario, ['Usr_Nom', 'usr_Nom', 'usrNom']);
+              return [codigo.toLowerCase(), nombre] as const;
+            })
+            .filter(([codigo]) => Boolean(codigo))
+        );
+      },
+      error: (error: unknown) => {
+        console.error('No se pudo cargar el catálogo de usuarios para el filtro de órdenes generadas:', error);
+        this.usuariosRegistroCatalogo.clear();
       }
     });
   }
@@ -2326,6 +2396,7 @@ export class OrdenCompraPageComponent implements OnInit {
     const ordenCompraId = Number(this.filtersForm.controls['ordenCompraId'].value);
     const proveedor = String(this.filtersForm.controls['proveedor'].value || '').trim();
     const estado = String(this.filtersForm.controls['estado'].value || '').trim();
+    const palabrasClaveDetalle = String(this.filtersForm.controls['palabrasClaveDetalle'].value || '').trim();
     const filtros: OrdenCompraFiltro = {
       Ord_Com_Tip: this.ordenCompraTipoId
     };
@@ -2340,6 +2411,10 @@ export class OrdenCompraPageComponent implements OnInit {
 
     if (estado) {
       filtros.Flg_Est = estado;
+    }
+
+    if (palabrasClaveDetalle) {
+      filtros.Itm_Des = palabrasClaveDetalle;
     }
 
     return filtros;
