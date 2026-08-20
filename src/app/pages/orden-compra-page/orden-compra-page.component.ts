@@ -56,6 +56,10 @@ interface OrdenCompraRow {
   proveedorBancoDescripcion: string;
   proveedorCuenta: string;
   proveedorCci: string;
+  descripcionGeneral: string;
+  fechaAtencion: string;
+  direccionEnvio: string;
+  periodoGasto: number;
   proveedorContacto: string;
   proveedorEmail: string;
   proveedorDireccion: string;
@@ -74,6 +78,8 @@ interface OrdenCompraRow {
   detraccionId: number;
   detraccionDescripcion: string;
   montoDetraccion: number;
+  descuento: number;
+  descuentoPorcentaje: boolean;
   archivo: string;
   archivoRuta: string;
   fechaRegistro: string;
@@ -86,6 +92,7 @@ interface OrdenCompraProveedorBancoReporte {
   id: number;
   providerId: number;
   bankId: number;
+  bankName: string;
   accountNumber: string;
   cci: string;
   selected: boolean;
@@ -120,7 +127,10 @@ interface OrdenCompraDetallePedidoRow {
   centroCostoCodigo: number | null;
   centroCostoDescripcion: string;
   cantidad: number;
+  descuento: number;
+  descuentoPorcentaje: boolean;
   costoUnitario: number;
+  costoUnitarioConDescuento: number;
   subtotal: number;
   observacion: string;
   selected: boolean;
@@ -178,10 +188,25 @@ export class OrdenCompraPageComponent implements OnInit {
     { codigo: 'generados', descripcion: 'Generados' }
   ];
   readonly actionButtons = ['Nuevo', 'Cerrar'];
+  readonly periodoGastoOptions = [
+    { value: 1, label: 'Enero' },
+    { value: 2, label: 'Febrero' },
+    { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Abril' },
+    { value: 5, label: 'Mayo' },
+    { value: 6, label: 'Junio' },
+    { value: 7, label: 'Julio' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Septiembre' },
+    { value: 10, label: 'Octubre' },
+    { value: 11, label: 'Noviembre' },
+    { value: 12, label: 'Diciembre' }
+  ];
 
   ordenesCompra: OrdenCompraRow[] = [];
   pedidosPendientes: PedidoPendienteRow[] = [];
   proveedores: ProviderRecord[] = [];
+  proveedorBancos: OrdenCompraProveedorBancoReporte[] = [];
   formasPago: PaymentOption[] = [];
   monedas: MonedaOption[] = [];
   centrosCostoCatalogo: OrdenCompraCentroCostoRow[] = [];
@@ -200,6 +225,7 @@ export class OrdenCompraPageComponent implements OnInit {
   isEditingOrdenCompra = false;
   isLoadingOrdenesCompra = false;
   isLoadingProveedores = false;
+  isLoadingProveedorBancos = false;
   isLoadingFormasPago = false;
   isLoadingMonedas = false;
   isLoadingCentrosCosto = false;
@@ -247,6 +273,7 @@ export class OrdenCompraPageComponent implements OnInit {
       ordenCompraId: [null],
       pedidoIdAtencion: [null],
       proveedorId: [0],
+      proveedorBancoId: [0],
       proveedor: ['', [Validators.required, noWhitespaceValidator()]],
       telefono: [''],
       direccion: [''],
@@ -255,6 +282,10 @@ export class OrdenCompraPageComponent implements OnInit {
       formaPagoId: [0],
       formaPago: ['', [Validators.required, noWhitespaceValidator()]],
       monedaId: [0],
+      descripcionGeneral: [''],
+      fechaAtencion: [''],
+      direccionEnvio: [''],
+      periodoGasto: [0],
       referenciaObra: [''],
       referencia: [''],
       pedidoReferenciaGeneral: [''],
@@ -262,6 +293,8 @@ export class OrdenCompraPageComponent implements OnInit {
       archivo: ['Sin archivo adjunto'],
       detraccionId: [null],
       montoDetraccion: [0],
+      descuento: [0, Validators.min(0)],
+      descuentoPorcentaje: [false],
       subtotal: [0, Validators.min(0)],
       usarIgv18: [true],
       porcentajeIgv: [18, Validators.min(0)],
@@ -319,16 +352,30 @@ export class OrdenCompraPageComponent implements OnInit {
   }
 
   get subtotalCalculado(): number {
+    return this.normalizeDecimal(Math.max(0, this.subtotalSinDescuento - this.descuentoAplicado));
+  }
+
+  get subtotalSinDescuento(): number {
     return this.normalizeDecimal(
       this.detallesPedidoSeleccionados.reduce((total, item) => total + item.subtotal, 0)
     );
   }
 
+  get descuentoAplicado(): number {
+    const descuento = this.descuentoValorNormalizado;
+    return this.form.controls['descuentoPorcentaje'].value
+      ? this.normalizeDecimal(this.subtotalSinDescuento * descuento / 100)
+      : descuento;
+  }
+
+  get descuentoValorNormalizado(): number {
+    const descuento = Math.max(0, this.parseMontoControlValue(this.form.controls['descuento'].value));
+    const limite = this.form.controls['descuentoPorcentaje'].value ? 100 : this.subtotalSinDescuento;
+    return this.normalizeDecimal(Math.min(descuento, limite));
+  }
+
   get igvCalculado(): number {
-    const subtotalCuatroDecimales = this.normalizeDecimalPrecision(
-      this.detallesPedidoSeleccionados.reduce((total, item) => total + item.subtotal, 0),
-      4
-    );
+    const subtotalCuatroDecimales = this.normalizeDecimalPrecision(this.subtotalCalculado, 4);
     const igvCuatroDecimales = this.normalizeDecimalPrecision(
       subtotalCuatroDecimales * this.getPorcentajeIgv() / 100,
       4
@@ -453,8 +500,15 @@ export class OrdenCompraPageComponent implements OnInit {
     return this.normalizeDecimalPrecision(this.pedidoDetalles.reduce((total, item) => total + item.costoUnitario, 0), 4);
   }
 
+  get totalCostoUnitarioConDescuentoDetallePedido(): number {
+    return this.normalizeDecimalPrecision(
+      this.pedidoDetalles.reduce((total, item) => total + item.costoUnitarioConDescuento, 0),
+      4
+    );
+  }
+
   get totalSubtotalDetallePedido(): number {
-    return this.normalizeDecimalPrecision(this.pedidoDetalles.reduce((total, item) => total + item.subtotal, 0), 4);
+    return this.normalizeDecimalPrecision(this.subtotalCalculado, 4);
   }
 
   get estanTodosLosDetallesSeleccionados(): boolean {
@@ -885,6 +939,25 @@ export class OrdenCompraPageComponent implements OnInit {
     this.syncTotalesCalculados();
   }
 
+  onDescuentoInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = this.sanitizeDecimalInput(input.value.replace(/,/g, '.'), 2);
+    input.value = sanitizedValue;
+    this.form.controls['descuento'].setValue(sanitizedValue, { emitEvent: false });
+    this.syncTotalesCalculados();
+  }
+
+  onDescuentoTipoChange(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.form.controls['descuentoPorcentaje'].setValue(!!input?.checked, { emitEvent: false });
+    this.syncTotalesCalculados();
+  }
+
   private getDetraccionIdSeleccionada(): number {
     const value = this.form.controls['detraccionId'].value;
     const detraccionId = Number(value);
@@ -914,11 +987,17 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     const costoUnitario = this.parseMontoControlValue(sanitizedValue, 4);
-    const subtotal = this.normalizeDecimalPrecision(item.cantidad * costoUnitario, 4);
+    const descuento = this.normalizeDetalleDescuento(costoUnitario, item.descuento, item.descuentoPorcentaje);
+    const costoUnitarioConDescuento = this.calcularCostoUnitarioDetalle(
+      costoUnitario,
+      descuento,
+      item.descuentoPorcentaje
+    );
+    const subtotal = this.normalizeDecimalPrecision(item.cantidad * costoUnitarioConDescuento, 4);
 
     this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
       detalle.id === item.id
-        ? { ...detalle, costoUnitario, subtotal }
+        ? { ...detalle, costoUnitario, costoUnitarioConDescuento, descuento, subtotal }
         : detalle
     );
     this.syncTotalesCalculados();
@@ -938,11 +1017,60 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     const cantidad = this.parseMontoControlValue(sanitizedValue);
-    const subtotal = this.normalizeDecimalPrecision(cantidad * item.costoUnitario, 4);
+    const subtotal = this.normalizeDecimalPrecision(cantidad * item.costoUnitarioConDescuento, 4);
 
     this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
       detalle.id === item.id
         ? { ...detalle, cantidad, subtotal }
+        : detalle
+    );
+    this.syncTotalesCalculados();
+  }
+
+  actualizarTipoDescuentoDetallePedido(item: OrdenCompraDetallePedidoRow, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const descuentoPorcentaje = !!input?.checked;
+    const descuento = this.normalizeDetalleDescuento(item.costoUnitario, item.descuento, descuentoPorcentaje);
+    const costoUnitarioConDescuento = this.calcularCostoUnitarioDetalle(
+      item.costoUnitario,
+      descuento,
+      descuentoPorcentaje
+    );
+    const subtotal = this.normalizeDecimalPrecision(item.cantidad * costoUnitarioConDescuento, 4);
+
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, descuentoPorcentaje, descuento, costoUnitarioConDescuento, subtotal }
+        : detalle
+    );
+    this.syncTotalesCalculados();
+  }
+
+  actualizarDescuentoDetallePedido(item: OrdenCompraDetallePedidoRow, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+
+    if (!input) {
+      return;
+    }
+
+    const sanitizedValue = this.sanitizeDecimalInput(input.value.replace(/,/g, '.'), 4);
+    const descuentoIngresado = this.parseMontoControlValue(sanitizedValue, 4);
+    const descuento = this.normalizeDetalleDescuento(
+      item.costoUnitario,
+      descuentoIngresado,
+      item.descuentoPorcentaje
+    );
+    const costoUnitarioConDescuento = this.calcularCostoUnitarioDetalle(
+      item.costoUnitario,
+      descuento,
+      item.descuentoPorcentaje
+    );
+    const subtotal = this.normalizeDecimalPrecision(item.cantidad * costoUnitarioConDescuento, 4);
+    input.value = descuento === descuentoIngresado ? sanitizedValue : String(descuento);
+
+    this.pedidoDetalles = this.pedidoDetalles.map((detalle) =>
+      detalle.id === item.id
+        ? { ...detalle, descuento, costoUnitarioConDescuento, subtotal }
         : detalle
     );
     this.syncTotalesCalculados();
@@ -1006,6 +1134,11 @@ export class OrdenCompraPageComponent implements OnInit {
     this.cargarCentrosCostoDesdePedido();
   }
 
+  openFechaAtencionPicker(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+    input.showPicker?.();
+  }
+
   openProveedorDialog(): void {
     if (this.isLoadingProveedores) {
       return;
@@ -1031,12 +1164,43 @@ export class OrdenCompraPageComponent implements OnInit {
 
       this.form.patchValue({
         proveedorId: provider.code,
+        proveedorBancoId: 0,
         proveedor: provider.name,
         telefono: provider.phone,
         direccion: provider.address,
         contacto: provider.contact,
         ruc: provider.ruc
       });
+      this.cargarBancosProveedor(provider.code);
+    });
+  }
+
+  private cargarBancosProveedor(proveedorId: number, proveedorBancoId = 0): void {
+    this.proveedorBancos = [];
+    this.form.controls['proveedorBancoId'].setValue(0);
+
+    if (!proveedorId) {
+      return;
+    }
+
+    this.isLoadingProveedorBancos = true;
+    this.apiService.getListarProveedorBanco({ Prv_Id: proveedorId }).subscribe({
+      next: (response: unknown) => {
+        this.proveedorBancos = this.extractRecords(response)
+          .map((item) => this.mapProveedorBancoReporte(item))
+          .filter((item): item is OrdenCompraProveedorBancoReporte => item !== null);
+        const bancoSeleccionado = this.proveedorBancos.some((item) => item.id === proveedorBancoId)
+          ? proveedorBancoId
+          : 0;
+        this.form.controls['proveedorBancoId'].setValue(bancoSeleccionado);
+        this.isLoadingProveedorBancos = false;
+      },
+      error: (error: unknown) => {
+        console.error('Error cargando bancos del proveedor:', error);
+        this.proveedorBancos = [];
+        this.form.controls['proveedorBancoId'].setValue(0);
+        this.isLoadingProveedorBancos = false;
+      }
     });
   }
 
@@ -1660,6 +1824,7 @@ export class OrdenCompraPageComponent implements OnInit {
         ordenCompraId: null,
         pedidoIdAtencion: null,
         proveedorId: 0,
+        proveedorBancoId: 0,
         proveedor: '',
         telefono: '',
         direccion: '',
@@ -1672,9 +1837,15 @@ export class OrdenCompraPageComponent implements OnInit {
       pedidoReferenciaGeneral: '',
       observacion: '',
       archivo: 'Sin archivo adjunto',
-      monedaId: 0,
+        monedaId: 0,
+        descripcionGeneral: '',
+        fechaAtencion: this.getTodayDateInputValue(),
+        direccionEnvio: '',
+        periodoGasto: 0,
       detraccionId: null,
       montoDetraccion: 0,
+      descuento: 0,
+      descuentoPorcentaje: false,
       subtotal: 0,
       usarIgv18: true,
       porcentajeIgv: 18,
@@ -1684,6 +1855,8 @@ export class OrdenCompraPageComponent implements OnInit {
     });
     this.esParcial = false;
     this.detraccionSearch = '';
+    this.proveedorBancos = [];
+    this.isLoadingProveedorBancos = false;
     this.centrosCosto = [];
     this.pedidoDetalles = [];
     this.detallesPendientesDesasignacion = [];
@@ -1777,12 +1950,19 @@ export class OrdenCompraPageComponent implements OnInit {
 
   private buildOrdenCompraPayloadBase(): Omit<RegistrarOrdenCompraRequest, 'Usr_Reg'> | null {
     const proveedorId = Number(this.form.controls['proveedorId'].value);
+    const proveedorBancoId = Number(this.form.controls['proveedorBancoId'].value) || 0;
     const pedidoIdAtencion = Number(this.form.controls['pedidoIdAtencion'].value);
     const proveedor = String(this.form.controls['proveedor'].value || '').trim();
     const formaPagoId = Number(this.form.controls['formaPagoId'].value);
     const formaPago = String(this.form.controls['formaPago'].value || '').trim();
     const contacto = String(this.form.controls['contacto'].value || '').trim();
     const monedaId = Number(this.form.controls['monedaId'].value);
+    const descripcionGeneral = String(this.form.controls['descripcionGeneral'].value || '').trim();
+    const fechaAtencion = String(this.form.controls['fechaAtencion'].value || '').trim();
+    const direccionEnvio = String(this.form.controls['direccionEnvio'].value || '').trim();
+    const periodoGasto = Number(this.form.controls['periodoGasto'].value);
+    const descuento = this.descuentoValorNormalizado;
+    const descuentoPorcentaje = Boolean(this.form.controls['descuentoPorcentaje'].value);
     const referenciaObra = String(this.form.controls['referenciaObra'].value || '').trim();
     const referencia = String(this.form.controls['referencia'].value || '').trim();
     const observacion = String(this.form.controls['observacion'].value || '').trim();
@@ -1834,8 +2014,15 @@ export class OrdenCompraPageComponent implements OnInit {
     return {
       Ord_Com_Tip: this.ordenCompraTipoId,
       Ord_Com_Prv: proveedorId,
+      Prv_Ban_Id: proveedorBancoId,
       Ord_Com_For_Pag: formaPagoId,
       Con_Nom: contacto,
+      Ord_Com_Des_Gral: descripcionGeneral,
+      Ord_Com_Fec_Ate: fechaAtencion,
+      Ord_Com_Dir_Env: direccionEnvio,
+      Ord_Com_Per_Gas: Number.isInteger(periodoGasto) && periodoGasto >= 1 && periodoGasto <= 12 ? periodoGasto : 0,
+      Ord_Com_Des: descuento,
+      Flg_Des_Por: descuentoPorcentaje ? 1 : 0,
       Ord_Com_Ref_Obr: referenciaObra,
       Ord_Com_Obs: observacion,
       Ord_Com_Ref: referencia,
@@ -2155,6 +2342,7 @@ export class OrdenCompraPageComponent implements OnInit {
         ordenCompraId: item.ordenCompraId,
         pedidoIdAtencion: item.pedidoIdAtencion,
         proveedorId: item.proveedorId,
+        proveedorBancoId: item.proveedorBancoId,
         proveedor: item.proveedor,
         telefono: this.resolveProveedor(item.proveedorId)?.phone || '',
         direccion: this.resolveProveedor(item.proveedorId)?.address || '',
@@ -2163,6 +2351,12 @@ export class OrdenCompraPageComponent implements OnInit {
         formaPagoId: item.formaPagoId,
         formaPago: item.formaPago,
         monedaId: item.monedaId > 0 ? item.monedaId : 0,
+        descripcionGeneral: item.descripcionGeneral,
+        fechaAtencion: this.toDateInputValue(item.fechaAtencion) || this.getTodayDateInputValue(),
+        direccionEnvio: item.direccionEnvio,
+        periodoGasto: item.periodoGasto,
+        descuento: item.descuento,
+        descuentoPorcentaje: item.descuentoPorcentaje,
         referenciaObra: item.referenciaObra,
       referencia: item.referencia,
       observacion: item.observacion,
@@ -2176,6 +2370,7 @@ export class OrdenCompraPageComponent implements OnInit {
       total: item.total,
       estado: item.estadoCodigo
     });
+    this.cargarBancosProveedor(item.proveedorId, item.proveedorBancoId);
     this.ordenCompraArchivoAdjunto = item.archivo || 'Sin archivo adjunto';
     this.ordenCompraArchivoRuta = item.archivoRuta;
     this.ordenCompraArchivoFile = null;
@@ -2271,7 +2466,7 @@ export class OrdenCompraPageComponent implements OnInit {
         unidad: item.unidadDescripcion,
         especificacion: this.buildDetalleReporteEspecificacion(item),
         centroCosto: item.centroCostoDescripcion,
-        precioUnitario: item.costoUnitario,
+        precioUnitario: item.costoUnitarioConDescuento,
         importe: item.subtotal
       }));
     const fechaRegistro = ordenCompra.fechaRegistro
@@ -2439,6 +2634,26 @@ export class OrdenCompraPageComponent implements OnInit {
     return `${this.getCorrelativoPrefix(tipoId)}${String(ordenCompraId).padStart(5, '0')}`;
   }
 
+  private toDateInputValue(value: string): string {
+    const normalizedValue = String(value || '').trim();
+    const isoDate = normalizedValue.match(/^(\d{4}-\d{2}-\d{2})/);
+
+    if (isoDate) {
+      return isoDate[1];
+    }
+
+    const displayDate = normalizedValue.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+    return displayDate ? `${displayDate[3]}-${displayDate[2]}-${displayDate[1]}` : '';
+  }
+
+  private getTodayDateInputValue(): string {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   private mapOrdenCompra(item: DataRecord, index: number): OrdenCompraRow | null {
     const ordenCompraId = this.getNumberValue(item, ['Ord_Com_Id', 'ord_Com_Id', 'ordComId', 'id', 'Id']);
     const trackingId = ordenCompraId ?? -1 * (index + 1);
@@ -2473,6 +2688,12 @@ export class OrdenCompraPageComponent implements OnInit {
       proveedorBancoDescripcion: this.getTextValue(item, ['Ban_Des', 'ban_Des', 'banDes', 'Banco', 'banco']),
       proveedorCuenta: this.getTextValue(item, ['Prv_Nro_Cue_Ban', 'prv_Nro_Cue_Ban', 'prvNroCueBan']),
       proveedorCci: this.getTextValue(item, ['Prv_Nro_Cue_Ban_CCI', 'prv_Nro_Cue_Ban_CCI', 'prvNroCueBanCci']),
+      descripcionGeneral: this.getTextValue(item, ['Ord_Com_Des_Gral', 'ord_Com_Des_Gral', 'ordComDesGral']),
+      fechaAtencion: this.getTextValue(item, ['Ord_Com_Fec_Ate', 'ord_Com_Fec_Ate', 'ordComFecAte']),
+      direccionEnvio: this.getTextValue(item, ['Ord_Com_Dir_Env', 'ord_Com_Dir_Env', 'ordComDirEnv']),
+      periodoGasto: this.getNumberValue(item, ['Ord_Com_Per_Gas', 'ord_Com_Per_Gas', 'ordComPerGas']) ?? 0,
+      descuento: this.getDecimalValue(item, ['Ord_Com_Des', 'ord_Com_Des', 'ordComDes']),
+      descuentoPorcentaje: (this.getNumberValue(item, ['Flg_Des_Por', 'flg_Des_Por', 'flgDesPor']) ?? 0) === 1,
       proveedorContacto: this.getTextValue(item, ['Con_Nom', 'con_Nom', 'conNom', 'Prv_Nom_Con', 'prv_Nom_Con', 'prvNomCon']),
       proveedorEmail: this.getTextValue(item, ['Prv_Email', 'prv_Email', 'prvEmail']),
       proveedorDireccion: this.getTextValue(item, ['Prv_Dir', 'prv_Dir', 'prvDir']),
@@ -2612,6 +2833,23 @@ export class OrdenCompraPageComponent implements OnInit {
     const unidadDescripcion = this.getTextValue(item, ['Uni_Med_Des', 'uni_Med_Des', 'uniMedDes']) || unidadCodigo;
     const centroCostoCodigo = this.getNumberValue(item, ['Ped_Cen_Cos_Asg', 'ped_Cen_Cos_Asg', 'pedCenCosAsg']);
     const centroCostoDescripcion = this.getTextValue(item, ['Cen_Cos_Des', 'cen_Cos_Des', 'cenCosDes']) || '-';
+    const cantidad = this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']);
+    const costoUnitarioRegistrado = this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni'], 4);
+    const descuentoPorcentaje = (this.getNumberValue(item, ['Flg_Des_Por', 'flg_Des_Por', 'flgDesPor']) ?? 0) === 1;
+    const descuento = this.normalizeDecimalPrecision(
+      Math.max(0, this.getDecimalValue(item, ['Ped_Det_Des', 'ped_Det_Des', 'pedDetDes'], 4)),
+      4
+    );
+    const costoUnitarioConDescuentoRegistrado = this.getOptionalDecimalValue(
+      item,
+      ['Ped_Det_Cos_Uni_Des', 'ped_Det_Cos_Uni_Des', 'pedDetCosUniDes'],
+      4
+    );
+    const costoUnitario = costoUnitarioConDescuentoRegistrado === null
+      ? this.calcularCostoBaseDetalle(costoUnitarioRegistrado, descuento, descuentoPorcentaje)
+      : costoUnitarioRegistrado;
+    const costoUnitarioConDescuento = costoUnitarioConDescuentoRegistrado ?? costoUnitarioRegistrado;
+    const subtotalRegistrado = this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot'], 4);
 
     return {
       id,
@@ -2622,9 +2860,12 @@ export class OrdenCompraPageComponent implements OnInit {
       unidadDescripcion,
       centroCostoCodigo,
       centroCostoDescripcion,
-      cantidad: this.getDecimalValue(item, ['Ped_Can', 'ped_Can', 'pedCan']),
-      costoUnitario: this.getDecimalValue(item, ['Ped_Cos_Uni', 'ped_Cos_Uni', 'pedCosUni'], 4),
-      subtotal: this.getDecimalValue(item, ['Ped_Cos_Tot', 'ped_Cos_Tot', 'pedCosTot'], 4),
+      cantidad,
+      descuento,
+      descuentoPorcentaje,
+      costoUnitario,
+      costoUnitarioConDescuento,
+      subtotal: subtotalRegistrado,
       observacion: this.getTextValue(item, [
         'Ped_Obs_Ped',
         'ped_Obs_Ped',
@@ -2995,6 +3236,9 @@ export class OrdenCompraPageComponent implements OnInit {
       Ped_Can: this.normalizeDecimal(item.cantidad),
       Ped_Cos_Uni: this.normalizeDecimalPrecision(item.costoUnitario, 4),
       Ped_Cos_Tot: this.normalizeDecimalPrecision(item.subtotal, 4),
+      Ped_Det_Des: this.normalizeDecimalPrecision(item.descuento, 4),
+      Ped_Det_Cos_Uni_Des: this.normalizeDecimalPrecision(item.costoUnitarioConDescuento, 4),
+      Flg_Des_Por: item.descuentoPorcentaje ? 1 : 0,
       Usr_Mod: currentUser,
       Ped_Obs_Ped: String(item.observacion || '').trim() || undefined
     };
@@ -3162,6 +3406,7 @@ export class OrdenCompraPageComponent implements OnInit {
     );
 
     this.form.patchValue({
+      descuento: this.descuentoValorNormalizado,
       subtotal: this.subtotalCalculado,
       igv: this.igvCalculado,
       montoDetraccion,
@@ -3271,6 +3516,33 @@ export class OrdenCompraPageComponent implements OnInit {
     const parsed = Number(normalized);
 
     return this.normalizeDecimalPrecision(parsed, precision);
+  }
+
+  private normalizeDetalleDescuento(costoBase: number, descuento: number, esPorcentaje: boolean): number {
+    const limite = esPorcentaje ? 100 : Math.max(0, costoBase);
+    return this.normalizeDecimalPrecision(Math.min(Math.max(0, descuento), limite), 4);
+  }
+
+  private calcularCostoUnitarioDetalle(costoBase: number, descuento: number, esPorcentaje: boolean): number {
+    const descuentoAplicado = esPorcentaje
+      ? costoBase * descuento / 100
+      : descuento;
+    return this.normalizeDecimalPrecision(Math.max(0, costoBase - descuentoAplicado), 4);
+  }
+
+  private calcularCostoBaseDetalle(costoRegistrado: number, descuento: number, esPorcentaje: boolean): number {
+    if (descuento <= 0) {
+      return costoRegistrado;
+    }
+
+    if (!esPorcentaje) {
+      return this.normalizeDecimalPrecision(costoRegistrado + descuento, 4);
+    }
+
+    const factorRestante = 1 - descuento / 100;
+    return factorRestante > 0
+      ? this.normalizeDecimalPrecision(costoRegistrado / factorRestante, 4)
+      : costoRegistrado;
   }
 
   private sanitizeDecimalInput(value: string, maxDecimals: number = 2): string {
@@ -3398,6 +3670,7 @@ export class OrdenCompraPageComponent implements OnInit {
       id,
       providerId: this.getNumberValue(item, ['Prv_Id', 'prv_Id', 'prvId']) ?? 0,
       bankId,
+      bankName: this.getTextValue(item, ['Ban_Des', 'ban_Des', 'banDes', 'Ban_Abr', 'ban_Abr', 'banAbr']) || `Banco ${bankId}`,
       accountNumber: this.getTextValue(item, ['Prv_Ban_Nro_Cta', 'prv_Ban_Nro_Cta', 'prvBanNroCta']),
       cci: this.getTextValue(item, ['Prv_Ban_Nro_Cta_CCI', 'prv_Ban_Nro_Cta_CCI', 'prvBanNroCtaCci']),
       selected: this.getBooleanValue(item, [
@@ -3562,6 +3835,24 @@ export class OrdenCompraPageComponent implements OnInit {
     }
 
     return 0;
+  }
+
+  private getOptionalDecimalValue(item: DataRecord, keys: string[], precision: number = 2): number | null {
+    for (const key of keys) {
+      const rawValue = this.findDataValue(item, key);
+
+      if (rawValue === null || rawValue === undefined || String(rawValue).trim() === '') {
+        continue;
+      }
+
+      const value = Number(rawValue);
+
+      if (Number.isFinite(value)) {
+        return this.normalizeDecimalPrecision(value, precision);
+      }
+    }
+
+    return null;
   }
 
   private findDataValue(item: DataRecord, key: string): unknown {

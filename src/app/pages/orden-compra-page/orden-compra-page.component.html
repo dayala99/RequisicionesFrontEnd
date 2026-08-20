@@ -332,6 +332,47 @@
               </mat-option>
             </mat-select>
           </div>
+
+          <div class="field field--provider-selector">
+            <span>Banco</span>
+            <mat-select
+              class="moneda-select"
+              formControlName="proveedorBancoId"
+              placeholder="Seleccionar banco"
+              [disabled]="isLoadingProveedorBancos || !form.controls['proveedorId'].value">
+              <mat-option [value]="0">
+                {{ isLoadingProveedorBancos ? 'Cargando bancos...' : 'Seleccionar banco' }}
+              </mat-option>
+              <mat-option *ngFor="let banco of proveedorBancos" [value]="banco.id">
+                {{ banco.bankName }}{{ banco.accountNumber ? ' - ' + banco.accountNumber : '' }}
+              </mat-option>
+            </mat-select>
+          </div>
+
+          <label class="field field--full">
+            <span>Descripcion general</span>
+            <input type="text" formControlName="descripcionGeneral">
+          </label>
+
+          <label class="field">
+            <span>Fecha de atencion</span>
+            <input type="date" formControlName="fechaAtencion" (click)="openFechaAtencionPicker($event)">
+          </label>
+
+          <div class="field">
+            <span>Periodo de gasto</span>
+            <mat-select class="moneda-select" formControlName="periodoGasto" placeholder="Seleccionar periodo">
+              <mat-option [value]="0">Seleccionar periodo</mat-option>
+              <mat-option *ngFor="let periodo of periodoGastoOptions" [value]="periodo.value">
+                {{ periodo.label }}
+              </mat-option>
+            </mat-select>
+          </div>
+
+          <label class="field field--full">
+            <span>Direccion de envio</span>
+            <input type="text" formControlName="direccionEnvio">
+          </label>
         </form>
       </section>
 
@@ -342,34 +383,54 @@
         </div>
 
         <div class="pedido-centro-costo-toolbar" [formGroup]="form">
-          <label class="field">
-            <span>Nro. Pedido</span>
-            <input
-              type="number"
-              formControlName="pedidoIdAtencion"
-              min="1"
-              step="1"
-              (keydown.enter)="onPedidoIdEnter($event)">
-          </label>
+          <div class="pedido-campos-principales">
+            <div class="pedido-numero-row">
+              <label class="field">
+                <span>Nro. Pedido</span>
+                <input
+                  type="number"
+                  formControlName="pedidoIdAtencion"
+                  min="1"
+                  step="1"
+                  (keydown.enter)="onPedidoIdEnter($event)">
+              </label>
 
-          <div class="pedido-centro-costo-toolbar__actions">
-            <button
-              type="button"
-              class="button button--primary"
-              [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle"
-              (click)="cargarCentrosCostoDesdePedido()">
-              {{ isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle ? 'Cargando...' : 'Cargar' }}
-            </button>
-            <button
-              type="button"
-              class="icon-button pedido-archivos-button"
-              aria-label="Ver archivos adjuntos del pedido"
-              [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle || isLoadingPedidoArchivosAdjuntos"
-              (click)="abrirArchivosPedido()">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8l1.2 1.2h5.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-10Zm2.5-.7a.7.7 0 0 0-.7.7v10c0 .4.3.7.7.7h13c.4 0 .7-.3.7-.7v-8c0-.4-.3-.7-.7-.7h-6.6l-1.7-1.7a.8.8 0 0 0-.6-.3H5.5Z"/>
-              </svg>
-            </button>
+              <div class="pedido-centro-costo-toolbar__actions">
+                <button
+                  type="button"
+                  class="button button--primary"
+                  [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle"
+                  (click)="cargarCentrosCostoDesdePedido()">
+                  {{ isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle ? 'Cargando...' : 'Cargar' }}
+                </button>
+                <button
+                  type="button"
+                  class="icon-button pedido-archivos-button"
+                  aria-label="Ver archivos adjuntos del pedido"
+                  [disabled]="isLoadingPedidoCentrosCosto || isLoadingPedidoDetalle || isLoadingPedidoArchivosAdjuntos"
+                  (click)="abrirArchivosPedido()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8l1.2 1.2h5.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-10Zm2.5-.7a.7.7 0 0 0-.7.7v10c0 .4.3.7.7.7h13c.4 0 .7-.3.7-.7v-8c0-.4-.3-.7-.7-.7h-6.6l-1.7-1.7a.8.8 0 0 0-.6-.3H5.5Z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Descuento</span>
+              <input
+                type="text"
+                inputmode="decimal"
+                formControlName="descuento"
+                (input)="onDescuentoInput($event)">
+              <span class="checkbox-control pedido-descuento-checkbox">
+                <input
+                  type="checkbox"
+                  formControlName="descuentoPorcentaje"
+                  (change)="onDescuentoTipoChange($event)">
+                <span>Descuento en %</span>
+              </span>
+            </label>
           </div>
 
           <label class="field pedido-referencia-field">
@@ -402,6 +463,9 @@
                 <th>Centro de Costo</th>
                 <th>Cantidad</th>
                 <th>Costo Unit.</th>
+                <th>Desc. %</th>
+                <th>Descuento</th>
+                <th>Costo Unit. con Descuento</th>
                 <th>Subtotal</th>
                 <th>Observacion</th>
                 <th>Accion</th>
@@ -410,11 +474,11 @@
 
             <tbody>
               <tr *ngIf="isLoadingPedidoDetalle">
-                <td colspan="9" class="empty-row">Cargando detalle del pedido...</td>
+                <td colspan="12" class="empty-row">Cargando detalle del pedido...</td>
               </tr>
 
               <tr *ngIf="!isLoadingPedidoDetalle && !pedidoDetalles.length">
-                <td colspan="9" class="empty-row">Ingresa un numero de pedido para listar su detalle.</td>
+                <td colspan="12" class="empty-row">Ingresa un numero de pedido para listar su detalle.</td>
               </tr>
 
               <tr
@@ -448,6 +512,29 @@
                     step="0.0001"
                     [value]="item.costoUnitario"
                     (input)="actualizarCostoUnitarioDetallePedido(item, $event)">
+                </td>
+                <td class="detalle-pedido-table__discount-check">
+                  <input
+                    type="checkbox"
+                    [checked]="item.descuentoPorcentaje"
+                    aria-label="Aplicar descuento porcentual"
+                    (change)="actualizarTipoDescuentoDetallePedido(item, $event)">
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    class="detalle-pedido-table__input detalle-pedido-table__input--discount"
+                    [value]="item.descuento"
+                    (input)="actualizarDescuentoDetallePedido(item, $event)">
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    class="detalle-pedido-table__input detalle-pedido-table__input--amount"
+                    [value]="item.costoUnitarioConDescuento"
+                    aria-label="Costo unitario con descuento"
+                    readonly>
                 </td>
                 <td>
                   <input
@@ -486,6 +573,8 @@
                 <td colspan="4" class="detalle-pedido-table__footer-label">Totales</td>
                 <td class="detalle-pedido-table__footer-value">{{ formatCurrency(totalCantidadDetallePedido) }}</td>
                 <td class="detalle-pedido-table__footer-value">{{ formatCurrencyWithPrecision(totalCostoUnitarioDetallePedido, 4) }}</td>
+                <td colspan="2"></td>
+                <td class="detalle-pedido-table__footer-value">{{ formatCurrencyWithPrecision(totalCostoUnitarioConDescuentoDetallePedido, 4) }}</td>
                 <td class="detalle-pedido-table__footer-value">{{ formatCurrencyWithPrecision(totalSubtotalDetallePedido, 4) }}</td>
                 <td colspan="2"></td>
               </tr>

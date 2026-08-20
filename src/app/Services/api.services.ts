@@ -1021,9 +1021,16 @@ export interface ActualizarReferenciaGeneralRequest {
 export interface RegistrarOrdenCompraRequest {
     Ord_Com_Tip: number;
     Ord_Com_Prv: number;
+    Prv_Ban_Id: number;
     Ord_Com_For_Pag: number;
     Con_Nom?: string;
     Mon_Id?: number;
+    Ord_Com_Des_Gral?: string;
+    Ord_Com_Fec_Ate?: string;
+    Ord_Com_Dir_Env?: string;
+    Ord_Com_Per_Gas?: number;
+    Ord_Com_Des?: number;
+    Flg_Des_Por?: number;
     Ord_Com_Ref_Obr: string;
     Ord_Com_Obs: string;
     Ord_Com_Ref: string;
@@ -1044,9 +1051,16 @@ export interface ActualizarOrdenCompraRequest {
     Ord_Com_Id: number;
     Ord_Com_Tip: number;
     Ord_Com_Prv: number;
+    Prv_Ban_Id: number;
     Ord_Com_For_Pag: number;
     Con_Nom?: string;
     Mon_Id?: number;
+    Ord_Com_Des_Gral?: string;
+    Ord_Com_Fec_Ate?: string;
+    Ord_Com_Dir_Env?: string;
+    Ord_Com_Per_Gas?: number;
+    Ord_Com_Des?: number;
+    Flg_Des_Por?: number;
     Ord_Com_Ref_Obr: string;
     Ord_Com_Obs: string;
     Ord_Com_Ref: string;
@@ -1103,6 +1117,9 @@ export interface ActualizarDetallePedidoRequest {
     Ped_Can: number;
     Ped_Cos_Uni: number;
     Ped_Cos_Tot: number;
+    Ped_Det_Des?: number;
+    Ped_Det_Cos_Uni_Des?: number;
+    Flg_Des_Por?: number;
     Usr_Mod: string;
     Ped_Obs_Ped?: string;
     Ped_Com?: string;
@@ -2944,6 +2961,10 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
     }
 
     private formatPedidoDetalleFormValue(key: string, value: unknown): string {
+        if (key === 'Ped_Det_Des' || key === 'Ped_Det_Cos_Uni_Des') {
+            return this.formatDecimalWithoutLocale(value, 4);
+        }
+
         if (key === 'Ped_Cos_Uni' || key === 'Ped_Cos_Tot') {
             return this.formatDecimalForFormData(value, 4);
         }
@@ -2953,6 +2974,17 @@ eliminarSubContrata(id: number, usrMod: string): Observable<any> {
         }
 
         return String(value);
+    }
+
+    private formatDecimalWithoutLocale(value: unknown, precision: number): string {
+        const numericValue = Number(value);
+
+        if (!Number.isFinite(numericValue)) {
+            return '0';
+        }
+
+        const factor = 10 ** precision;
+        return `${Math.round(numericValue * factor)}e-${precision}`;
     }
 
     deleteEliminarDetallePedido(detalle: EliminarDetallePedidoRequest): Observable<any> {
