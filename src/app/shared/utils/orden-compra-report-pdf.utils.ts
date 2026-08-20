@@ -76,7 +76,15 @@ export function mapOrdenCompraReportDisplayDate(value: string): string {
 type OrdenCompraReportePdfPage = {
   rows: OrdenCompraReporteDetallePdf[];
   isFirstPage: boolean;
-  isLastPage: boolean;
+  showDetailTable: boolean;
+  finalBlocks: FinalBlockPlacement[];
+};
+
+type FinalBlockType = 'summary' | 'info' | 'signatures';
+
+type FinalBlockPlacement = {
+  type: FinalBlockType;
+  top: number;
 };
 
 type DetailRowLayout = {
@@ -123,11 +131,19 @@ function buildPageContent(
       )
     : CONTINUATION_PAGE_TABLE_TOP;
 
-  const tableBottom = drawDetailTable(commands, addText, addLine, addRect, tableTop, page.rows, pageNumber);
-
-  if (page.isLastPage) {
-    drawFinalBlocks(addText, addLabelValue, addLine, addRect, tableBottom + 8, report);
+  if (page.showDetailTable) {
+    drawDetailTable(commands, addText, addLine, addRect, tableTop, page.rows, pageNumber);
   }
+
+  page.finalBlocks.forEach((block) => {
+    if (block.type === 'summary') {
+      drawSummaryBlock(addText, addLine, addRect, block.top, report);
+    } else if (block.type === 'info') {
+      drawInfoBlock(addLabelValue, addRect, block.top, report);
+    } else {
+      drawSignaturesBlock(addText, addLine, block.top);
+    }
+  });
 
   if (totalPages > 1) {
     addText(PAGE_RIGHT, PAGE_HEIGHT - 14, `Pagina ${pageNumber} de ${totalPages}`, 7, false, 'right');
@@ -235,9 +251,8 @@ function drawDetailTable(
   return rowY;
 }
 
-function drawFinalBlocks(
+function drawSummaryBlock(
   addText: ReturnType<typeof createTextAdder>,
-  addLabelValue: ReturnType<typeof createLabelValueAdder>,
   addLine: ReturnType<typeof createLineAdder>,
   addRect: ReturnType<typeof createRectAdder>,
   top: number,
@@ -247,21 +262,32 @@ function drawFinalBlocks(
 
   drawObservaciones(addText, addRect, top, report.observaciones, totalsHeight);
   drawTotals(addText, addLine, addRect, top, report);
+}
 
-  const infoTop = top + totalsHeight + 14;
-  addRect(PAGE_LEFT, infoTop, PAGE_RIGHT - PAGE_LEFT, 86);
-  addLabelValue(PAGE_LEFT + 6, infoTop + 16, 'PEDIDO:', report.pedido, 8);
-  addLabelValue(PAGE_LEFT + 6, infoTop + 32, 'DIRECCION ENVIO:', report.direccionEnvio, 8, PAGE_RIGHT - PAGE_LEFT - 12);
-  addLabelValue(PAGE_LEFT + 6, infoTop + 48, 'SOLICITADO POR:', report.solicitadoPor, 8, PAGE_RIGHT - PAGE_LEFT - 12);
-  addLabelValue(PAGE_LEFT + 6, infoTop + 64, 'CONDICION PAGO:', report.condicionPago, 8);
+function drawInfoBlock(
+  addLabelValue: ReturnType<typeof createLabelValueAdder>,
+  addRect: ReturnType<typeof createRectAdder>,
+  top: number,
+  report: OrdenCompraReportePdfData
+): void {
+  addRect(PAGE_LEFT, top, PAGE_RIGHT - PAGE_LEFT, 86);
+  addLabelValue(PAGE_LEFT + 6, top + 16, 'PEDIDO:', report.pedido, 8);
+  addLabelValue(PAGE_LEFT + 6, top + 32, 'DIRECCION ENVIO:', report.direccionEnvio, 8, PAGE_RIGHT - PAGE_LEFT - 12);
+  addLabelValue(PAGE_LEFT + 6, top + 48, 'SOLICITADO POR:', report.solicitadoPor, 8, PAGE_RIGHT - PAGE_LEFT - 12);
+  addLabelValue(PAGE_LEFT + 6, top + 64, 'CONDICION PAGO:', report.condicionPago, 8);
+}
 
-  const footerSignatureY = infoTop + 104 + SIGNATURE_EXTRA_OFFSET;
-  addLine(PAGE_LEFT, footerSignatureY, PAGE_LEFT + 130, footerSignatureY);
-  addLine((PAGE_LEFT + PAGE_RIGHT) / 2 - 65, footerSignatureY, (PAGE_LEFT + PAGE_RIGHT) / 2 + 65, footerSignatureY);
-  addLine(PAGE_RIGHT - 130, footerSignatureY, PAGE_RIGHT, footerSignatureY);
-  addText(PAGE_LEFT + 65, footerSignatureY + 18, 'ENTREGADO POR', 8, true, 'center');
-  addText((PAGE_LEFT + PAGE_RIGHT) / 2, footerSignatureY + 18, 'RECIBIDO POR', 8, true, 'center');
-  addText(PAGE_RIGHT - 65, footerSignatureY + 18, 'V B SUPERVISION', 8, true, 'center');
+function drawSignaturesBlock(
+  addText: ReturnType<typeof createTextAdder>,
+  addLine: ReturnType<typeof createLineAdder>,
+  lineY: number
+): void {
+  addLine(PAGE_LEFT, lineY, PAGE_LEFT + 130, lineY);
+  addLine((PAGE_LEFT + PAGE_RIGHT) / 2 - 65, lineY, (PAGE_LEFT + PAGE_RIGHT) / 2 + 65, lineY);
+  addLine(PAGE_RIGHT - 130, lineY, PAGE_RIGHT, lineY);
+  addText(PAGE_LEFT + 65, lineY + 18, 'ENTREGADO POR', 8, true, 'center');
+  addText((PAGE_LEFT + PAGE_RIGHT) / 2, lineY + 18, 'RECIBIDO POR', 8, true, 'center');
+  addText(PAGE_RIGHT - 65, lineY + 18, 'V B SUPERVISION', 8, true, 'center');
 }
 
 function getDetailRowLayout(row: OrdenCompraReporteDetallePdf, columns: number[]): DetailRowLayout {
@@ -296,11 +322,6 @@ function getEmptyDetailRow(): OrdenCompraReporteDetallePdf {
   };
 }
 
-function getFinalBlocksHeight(report: OrdenCompraReportePdfData): number {
-  const totalsHeight = getTotalsRows(report).length * 20;
-  return 8 + totalsHeight + 14 + 86 + 44 + SIGNATURE_EXTRA_OFFSET;
-}
-
 function paginateDetailRows(report: OrdenCompraReportePdfData): OrdenCompraReportePdfPage[] {
   const rows = report.detalle.length ? report.detalle : [getEmptyDetailRow()];
   const pages: OrdenCompraReportePdfPage[] = [];
@@ -310,7 +331,6 @@ function paginateDetailRows(report: OrdenCompraReportePdfData): OrdenCompraRepor
   while (rowIndex < rows.length) {
     const isFirstPage = pageIndex === 0;
     const tableTop = isFirstPage ? FIRST_PAGE_TABLE_TOP : CONTINUATION_PAGE_TABLE_TOP;
-    const finalLimit = PAGE_HEIGHT - PAGE_BOTTOM_MARGIN - getFinalBlocksHeight(report);
     const normalLimit = PAGE_HEIGHT - PAGE_BOTTOM_MARGIN;
     const pageRows: OrdenCompraReporteDetallePdf[] = [];
     let y = tableTop + TABLE_HEADER_HEIGHT;
@@ -335,26 +355,42 @@ function paginateDetailRows(report: OrdenCompraReportePdfData): OrdenCompraRepor
       y += rowHeight;
     }
 
-    // Si esta página absorbió el último ítem pero ya no queda espacio para
-    // observaciones, totales y firmas, mueve ese ítem a una página nueva.
-    // Así la página actual conserva su capacidad normal y la siguiente se
-    // convierte en la última página con espacio reservado para el cierre.
-    if (rowIndex === rows.length && y > finalLimit && pageRows.length > 1) {
-      const movedRow = pageRows.pop();
-      if (movedRow) {
-        rowIndex -= 1;
-      }
-    }
-
-    pages.push({ rows: pageRows, isFirstPage, isLastPage: false });
+    pages.push({ rows: pageRows, isFirstPage, showDetailTable: true, finalBlocks: [] });
     pageIndex += 1;
   }
 
   if (!pages.length) {
-    pages.push({ rows: [getEmptyDetailRow()], isFirstPage: true, isLastPage: true });
+    pages.push({ rows: [getEmptyDetailRow()], isFirstPage: true, showDetailTable: true, finalBlocks: [] });
   }
 
-  pages[pages.length - 1].isLastPage = true;
+  let currentPage = pages[pages.length - 1];
+  const lastTableTop = currentPage.isFirstPage ? FIRST_PAGE_TABLE_TOP : CONTINUATION_PAGE_TABLE_TOP;
+  let cursor = lastTableTop
+    + TABLE_HEADER_HEIGHT
+    + currentPage.rows.reduce((total, row) => total + getDetailRowHeight(row), 0);
+  const pageLimit = PAGE_HEIGHT - PAGE_BOTTOM_MARGIN;
+  const blocks: Array<{ type: FinalBlockType; height: number; gap: number }> = [
+    { type: 'summary', height: getTotalsRows(report).length * 20, gap: 8 },
+    { type: 'info', height: 86, gap: 14 },
+    { type: 'signatures', height: 18, gap: 18 + SIGNATURE_EXTRA_OFFSET }
+  ];
+
+  blocks.forEach((block) => {
+    let gap = block.gap;
+    let blockTop = cursor + gap;
+
+    if (blockTop + block.height > pageLimit) {
+      currentPage = { rows: [], isFirstPage: false, showDetailTable: false, finalBlocks: [] };
+      pages.push(currentPage);
+      cursor = CONTINUATION_PAGE_TABLE_TOP;
+      gap = block.type === 'signatures' ? block.gap : 0;
+      blockTop = cursor + gap;
+    }
+
+    currentPage.finalBlocks.push({ type: block.type, top: blockTop });
+    cursor = blockTop + block.height;
+  });
+
   return pages;
 }
 
