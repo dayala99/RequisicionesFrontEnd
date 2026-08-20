@@ -4,6 +4,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MAT_DATE_FORMATS, MAT_DATE_LOCALE, MatNativeDateModule, MatOptionModule } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_SCROLL_STRATEGY, MatDialogModule } from '@angular/material/dialog';
@@ -61,10 +62,12 @@ import { ProviderBanksDialogComponent } from './pages/provider-page/provider-ban
 import { ProviderEditDialogComponent } from './pages/provider-page/provider-edit-dialog.component';
 import { ProviderRegisterDialogComponent } from './pages/provider-page/provider-register-dialog.component';
 import { StockPageComponent } from './pages/stock-page/stock-page.component';
-import { PedidoCancelDialogComponent } from './pages/requisiciones-page/pedido-cancel-dialog.component';
+import { CotizacionesCancelDialogComponent } from './pages/Cotizaciones-page/cotizaciones-cancel-dialog.component';
+import { CotizacionesArchivoDialogComponent } from './pages/Cotizaciones-page/cotizaciones-archivo-dialog.component';
 import { ApprovalUserSelectorDialogComponent } from './pages/requisiciones-page/approval-user-selector-dialog.component';
 import { CentroCostoSelectorDialogComponent } from './pages/requisiciones-page/centro-costo-selector-dialog.component';
 import { PedidosBPageComponent } from './pages/requisiciones-page/pedidos-b-page.component';
+import { CotizacionesTjh2bPageComponent } from './pages/Cotizaciones-page/cotizaciones-tjh2b-page.component';
 import { PedidoApprovalDialogComponent } from './pages/requisiciones-page/pedido-approval-dialog.component';
 import { PedidoDetalleDeleteDialogComponent } from './pages/requisiciones-page/pedido-detalle-delete-dialog.component';
 import { PedidoDetalleDialogComponent } from './pages/requisiciones-page/pedido-detalle-dialog.component';
@@ -85,6 +88,7 @@ import { UnidadMedidaPageComponent } from './pages/unidad-medida-page/unidad-med
 import { UnidadMedidaRegisterDialogComponent } from './pages/unidad-medida-page/unidad-medida-register-dialog.component';
 import { TipoReportePageComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-page.component';
 import { ClientePageComponent } from './pages/inspecciones/cliente/cliente-page.component';
+import { ClienteTjh2bPageComponent } from './pages/inspecciones/cliente-tjh2b/cliente-tjh2b-page.component';
 import { TipoInspeccionPageComponent } from './pages/inspecciones/tipo-inspeccion/tipo-inspeccion-page.component';
 import { PreguntasHsePageComponent } from './pages/inspecciones/preguntas-hse/preguntas-hse-page.component';
 import { TipoRiesgoPageComponent } from './pages/inspecciones/tipo-riesgo/tipo-riesgo-page.component';
@@ -94,6 +98,7 @@ import { MotivoPageComponent } from './pages/inspecciones/motivo/motivo-page.com
 import { SubestacionPageComponent } from './pages/inspecciones/subestacion/subestacion-page.component';
 import { TipoReporteRegisterDialogComponent } from './pages/inspecciones/tipo-reporte/tipo-reporte-register-dialog.component';
 import { ClienteRegisterDialogComponent } from './pages/inspecciones/cliente/cliente-register-dialog.component';
+import { ClienteTjh2bRegisterDialogComponent } from './pages/inspecciones/cliente-tjh2b/cliente-tjh2b-register-dialog.component';
 import { TipoReporteService } from './pages/inspecciones/tipo-reporte/tipo-reporte.service';
 import { UsuariosPageComponent } from './pages/usuarios-page/usuarios-page.component';
 import { UsuarioEditDialogComponent } from './pages/usuarios-page/usuario-edit-dialog.component';
@@ -191,7 +196,8 @@ const APP_DATE_FORMATS = {
     ProviderFormComponent,
     ProviderSelectorDialogComponent,
     PaymentSelectorDialogComponent,
-    PedidoCancelDialogComponent,
+    CotizacionesCancelDialogComponent,
+    CotizacionesArchivoDialogComponent,
     PedidoApprovalDialogComponent,
     ApprovalUserSelectorDialogComponent,
     CentroCostoSelectorDialogComponent,
@@ -204,6 +210,7 @@ const APP_DATE_FORMATS = {
     PedidoRechazoDialogComponent,
     RequisicionesPageComponent,
     PedidosBPageComponent,
+    CotizacionesTjh2bPageComponent,
     TipoServicioPageComponent,
     TipoServicioRegisterDialogComponent,
     TipoServicioEditDialogComponent,
@@ -212,6 +219,7 @@ const APP_DATE_FORMATS = {
     UnidadMedidaEditDialogComponent,
     TipoReportePageComponent,
     ClientePageComponent,
+    ClienteTjh2bPageComponent,
     TipoInspeccionPageComponent,
     PreguntasHsePageComponent,
     TipoRiesgoPageComponent,
@@ -221,6 +229,7 @@ const APP_DATE_FORMATS = {
     SubestacionPageComponent,
     TipoReporteRegisterDialogComponent,
     ClienteRegisterDialogComponent,
+    ClienteTjh2bRegisterDialogComponent,
     LoginPageComponent,
     UsuariosPageComponent,
     UsuarioEditDialogComponent,
@@ -259,6 +268,7 @@ const APP_DATE_FORMATS = {
     FormsModule,
     MatDialogModule,
     MatButtonModule,
+    MatAutocompleteModule,
     MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
